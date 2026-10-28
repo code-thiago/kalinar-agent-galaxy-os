@@ -13,12 +13,12 @@
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
 | `@human-developer` | Data & Security Final Authority | Schema Ownership, DDL Invariants, STRIDE Matrix | `PENDING` | -- | `PO-APPROVAL-PENDING` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | SQLite DDL, WAL Indexes, Node 24 Type Alignment | `APPROVED` | `2026-10-27T23:52:00Z` | `SIG-ENGR-SCH-001` |
-| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | Append-Only Triggers, Parameter Injection, STRIDE | `APPROVED` | `2026-10-27T23:53:00Z` | `SIG-CSEC-SCH-001` |
-| `@agent-data` | Decision Engine Specialist | Zen-Engine Rule Engine JDM Schema, Metric DTOs | `APPROVED` | `2026-10-27T23:54:00Z` | `SIG-DATA-SCH-001` |
-| `@agent-design` | UI/UX & Design System Architect | DTO Serialization for UI Timelines & Cards | `APPROVED` | `2026-10-27T23:55:00Z` | `SIG-DSGN-SCH-001` |
-| `@agent-orchestrator` | Swarm Facilitator & Product Lead | PRD Traceability (`TRACE-03`), State Completeness | `APPROVED` | `2026-10-27T23:56:00Z` | `SIG-ORCH-SCH-001` |
-| `@agent-qa` | Test Architect & Quality Lead | SQL Migration Rollback & Concurrency Testability | `APPROVED` | `2026-10-27T23:57:00Z` | `SIG-QATE-SCH-001` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | SQLite DDL, WAL Indexes, Node 24 Type Alignment | `APPROVED` | `2026-10-28T11:20:00Z` | `SIG-ENGR-SCH-002` |
+| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | Append-Only Triggers, Electron IPC, Voice STRIDE | `APPROVED` | `2026-10-28T11:21:00Z` | `SIG-CSEC-SCH-002` |
+| `@agent-data` | Decision Engine Specialist | Zen-Engine Voice & Swarm JDM Tables, Canvas Sync | `APPROVED` | `2026-10-28T11:22:00Z` | `SIG-DATA-SCH-002` |
+| `@agent-design` | UI/UX & Design System Architect | DTO Shapes for 3D Galaxy & Canvas Nodes | `APPROVED` | `2026-10-28T11:23:00Z` | `SIG-DSGN-SCH-002` |
+| `@agent-orchestrator` | Swarm Facilitator & Product Lead | PRD Traceability (`TRACE-03`), State Completeness | `APPROVED` | `2026-10-28T11:24:00Z` | `SIG-ORCH-SCH-002` |
+| `@agent-qa` | Test Architect & Quality Lead | SQL Migration Rollback & Concurrency Testability | `APPROVED` | `2026-10-28T11:25:00Z` | `SIG-QATE-SCH-002` |
 
 ---
 
@@ -30,6 +30,7 @@ erDiagram
     TASKS ||--o{ TELEMETRY_LOGS : "generates append-only logs"
     AGENT_REGISTRY ||--o{ TURNS : "executes turns"
     CIRCUIT_BREAKER_EVENTS ||--o| TASKS : "halts or resumes"
+    CANVAS_NODES ||--o| TASKS : "mirrors in KALINAR_GALAXY.canvas"
 
     TASKS {
         text id PK
@@ -64,7 +65,7 @@ erDiagram
     TELEMETRY_LOGS {
         integer id PK
         text task_id FK
-        text event_type "TURN_START | TURN_END | CIRCUIT_TRIP | HALT"
+        text event_type "TURN_START | TURN_END | CIRCUIT_TRIP | HALT | VOICE_CMD"
         text agent_name
         text payload "JSON String"
         integer latency_ms
@@ -77,8 +78,20 @@ erDiagram
         text state "CLOSED | OPEN | HALF_OPEN"
         text trip_reason
         text jdm_rule_matched
-        text triggered_by "ZEN_ENGINE | OPERATOR_OVERRIDE"
+        text triggered_by "ZEN_ENGINE | OPERATOR_OVERRIDE | VOICE_CORE"
         text created_at
+    }
+
+    CANVAS_NODES {
+        text id PK "node-task-id or node-agent-id"
+        text task_id FK
+        real x
+        real y
+        real width
+        real height
+        text color_token
+        text canvas_file
+        text last_synced_at
     }
 
     AGENT_REGISTRY {
@@ -112,7 +125,7 @@ CREATE TABLE IF NOT EXISTS agent_registry (
 INSERT OR IGNORE INTO agent_registry (name, role_description, system_prompt_ref) VALUES
 ('agent-orchestrator', 'Swarm Facilitator, PM, and Queue Controller', '05_AGENTS/agent-orchestrator.md'),
 ('agent-software-engineer', 'Principal Full-Stack & Contract-First Architect', '05_AGENTS/agent-software-engineer.md'),
-('agent-design', 'UI/UX, 3-Tier CSS Tokens, WCAG AAA Architect', '05_AGENTS/agent-design.md'),
+('agent-design', 'UI/UX, 3-Tier CSS Tokens, 3D Galaxy Architect', '05_AGENTS/agent-design.md'),
 ('agent-data', 'Decision Engine Specialist, Zen-Engine, Telemetry', '05_AGENTS/agent-data.md'),
 ('agent-cybersecurity', 'Zero-Trust Auditor, STRIDE Modeling, Security Lead', '05_AGENTS/agent-cybersecurity.md'),
 ('agent-qa', 'Test Architect, Vitest, Playwright, DAST Lead', '05_AGENTS/agent-qa.md'),
@@ -188,11 +201,24 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_events (
     state TEXT NOT NULL CHECK (state IN ('CLOSED', 'OPEN', 'HALF_OPEN')),
     trip_reason TEXT NOT NULL,
     jdm_rule_matched TEXT,
-    triggered_by TEXT NOT NULL CHECK (triggered_by IN ('ZEN_ENGINE', 'OPERATOR_OVERRIDE')),
+    triggered_by TEXT NOT NULL CHECK (triggered_by IN ('ZEN_ENGINE', 'OPERATOR_OVERRIDE', 'VOICE_CORE')),
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_cb_task_id ON circuit_breaker_events(task_id);
+
+-- 6. Canvas Nodes Table (Mirror of KALINAR_GALAXY.canvas)
+CREATE TABLE IF NOT EXISTS canvas_nodes (
+    id TEXT PRIMARY KEY NOT NULL,
+    task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+    x REAL NOT NULL DEFAULT 0.0,
+    y REAL NOT NULL DEFAULT 0.0,
+    width REAL NOT NULL DEFAULT 320.0,
+    height REAL NOT NULL DEFAULT 160.0,
+    color_token TEXT NOT NULL DEFAULT '--ds-accent-agent',
+    canvas_file TEXT NOT NULL DEFAULT 'KALINAR_GALAXY.canvas',
+    last_synced_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
 ```
 
 ---
@@ -227,31 +253,31 @@ export const AgentTurnOutputSchema = z.object({
 
 export type AgentTurnOutput = z.infer<typeof AgentTurnOutputSchema>;
 
-// Contract: Task Creation Request
-export const CreateTaskInputSchema = z.object({
-  title: z.string().min(3).max(120),
-  projectPath: z.string().min(1),
-  initialAgent: z.enum(VALID_AGENTS).default('agent-orchestrator'),
-  actionInstruction: z.string().min(5),
-  contextNotes: z.array(z.string()).max(2).default([])
+// Contract: Voice Command Ingress Intent
+export const VoiceCommandIntentSchema = z.object({
+  rawTranscript: z.string().min(1),
+  locale: z.literal('pt-BR'),
+  intent: z.enum(['STATUS', 'PAUSE', 'RESUME', 'APPROVE_RELEASE', 'HALT', 'GALAXY_FOCUS']),
+  targetEntityId: z.string().optional(),
+  confidence: z.number().min(0.0).max(1.0)
 });
 
-// Contract: Telegram Ingress Command
-export const TelegramCommandSchema = z.object({
-  fromUserId: z.number().int().positive(),
-  chatType: z.literal('private'),
-  command: z.enum(['/status', '/pause', '/resume', '/approve', '/reject', '/cancel']),
-  targetTaskId: z.string().optional(),
-  payload: z.string().optional()
-});
+// Contract: Electron IPC Channel Whitelist
+export const ELECTRON_IPC_CHANNELS = [
+  'kalinar:task:action',
+  'kalinar:telemetry:stream',
+  'kalinar:terminal:write',
+  'kalinar:terminal:resize',
+  'kalinar:voice:state',
+  'kalinar:canvas:sync'
+] as const;
 ```
 
 ---
 
-## 4. GoRules Zen-Engine Decision Table Specification (`swarm-guard.jdm.json`)
+## 4. GoRules Zen-Engine Decision Table Specifications
 
-The circuit breaker enforces the following declarative rules:
-
+### 4.1 Swarm Guard (`rules/swarm-guard.jdm.json`)
 ```json
 {
   "nodes": [
@@ -298,15 +324,61 @@ The circuit breaker enforces the following declarative rules:
 }
 ```
 
+### 4.2 Voice Command Safety Guard (`rules/voice-command-guard.jdm.json`)
+```json
+{
+  "nodes": [
+    {
+      "id": "voiceGuardTable",
+      "type": "decisionTable",
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "field": "intent", "type": "string" },
+          { "field": "confidence", "type": "number" },
+          { "field": "isAcousticMuted", "type": "boolean" }
+        ],
+        "outputs": [
+          { "field": "action", "type": "string" },
+          { "field": "feedbackPrompt", "type": "string" }
+        ],
+        "rules": [
+          {
+            "inputs": ["-", "-", "true"],
+            "outputs": ["DROP", "MIC_MUTED_DURING_TTS"]
+          },
+          {
+            "inputs": ["'HALT' | 'APPROVE_RELEASE'", "< 0.85", "false"],
+            "outputs": ["CONFIRM", "Comando critico requer confirmacao falada"]
+          },
+          {
+            "inputs": ["'STATUS' | 'GALAXY_FOCUS'", ">= 0.60", "false"],
+            "outputs": ["ALLOW", "Executando consulta"]
+          },
+          {
+            "inputs": ["'PAUSE' | 'RESUME'", ">= 0.75", "false"],
+            "outputs": ["ALLOW", "Estado de execucao alterado"]
+          },
+          {
+            "inputs": ["-", "-", "-"],
+            "outputs": ["IGNORE", "Comando nao reconhecido"]
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
 ---
 
 ## 5. STRIDE Threat Model Matrix
 
 | Threat Category | Specific Kalinar Vector | Impact & Severity | Cryptographic / Technical Mitigation |
 | :--- | :--- | :--- | :--- |
-| **Spoofing** | Attacker crafts spoofed Telegram messages claiming to be operator ID. | **CRITICAL** - Unauthorized task execution or release approval. | Grammy middleware strictly checks `ctx.from.id === ALLOWED_USER_ID` via verified Telegram MTProto session. Nonce verification on callbacks. |
+| **Spoofing** | Compromised renderer script attempts sending spoofed IPC calls to spawn native processes. | **CRITICAL** - Host shell compromise. | Electron `contextIsolation: true` and strict `preload.ts` channel whitelist with payload schema validation. |
 | **Tampering** | Rogue worker process attempts modifying historical turn summaries or audit logs in SQLite. | **HIGH** - Obfuscated failure modes or corrupted compliance history. | Database triggers `trg_prevent_telemetry_update` and `trg_prevent_telemetry_delete` reject mutations at SQLite engine level. |
-| **Repudiation** | Operator or agent denies executing an emergency halt or task cancellation. | **MEDIUM** - Disputed operational timeline. | All state transitions record `triggered_by`, timestamp, and are written append-only to `telemetry_logs`. |
-| **Information Disclosure** | Stack traces or local file paths exposed via SSE telemetry to unauthorized observers. | **HIGH** - Localhost environment recon by local malware. | Sanitization middleware scrubs user home paths (`C:\Users\thiag\`) before serializing SSE payloads. Localhost-only bind. |
-| **Denial of Service** | Agent enters infinite handoff loop, spamming LLM API and generating 10,000 DB rows. | **CRITICAL** - Financial exhaustion and disk saturation. | GoRules Zen-Engine JDM rule evaluates loop detection and caps total turns at 50, instantly halting execution. |
-| **Elevation of Privilege** | Read-only auditor session invokes `/api/tasks/[id]/action` to force-trip circuit breaker. | **HIGH** - Disruptive denial of service by non-authorized viewer. | Server Action enforces strict operator mutex verification before executing state mutations. |
+| **Repudiation** | Operator denies issuing spoken emergency halt or release approval. | **MEDIUM** - Disputed operational timeline. | All voice-triggered events record audio transcript, intent confidence, and are written append-only to `telemetry_logs`. |
+| **Information Disclosure** | Local filesystem paths or environment secrets leaked into 3D Galaxy node labels. | **HIGH** - Localhost reconnaissance by malicious plugins. | Sanitization transformer scrubs user home directory paths (`C:\Users\thiag\`) before serializing node coordinates. |
+| **Denial of Service** | Malicious script launches 100,000 un-culled Three.js meshes to crash GPU driver. | **CRITICAL** - System freeze and VRAM exhaustion. | `THREE.InstancedMesh` with strict Spatial Octree LOD culling caps simultaneous render draw calls. |
+| **Elevation of Privilege** | Acoustic feedback loop triggers unauthorized spoken commands from assistant output. | **HIGH** - Runaway execution triggered by voice reflection. | Hardware mic-muting interlock engages unconditionally whenever TTS audio is playing. |

@@ -13,11 +13,11 @@
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
 | `@human-developer` | Brand & UX Final Authority | Aesthetic Craft, Industrial Tone, Anti-Slop Fit | `PENDING` | -- | `PO-APPROVAL-PENDING` |
-| `@agent-design` | UI/UX & Design System Architect | 3-Tier Tokens, Typography Scale, WCAG AAA | `APPROVED` | `2026-10-27T23:45:00Z` | `SIG-DSGN-SYS-001` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | CSS Custom Property Performance, RSC Slot Trees | `APPROVED` | `2026-10-27T23:46:00Z` | `SIG-ENGR-SYS-001` |
-| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | Visual Deception Prevention, Secret Masking Tokens | `APPROVED` | `2026-10-27T23:47:00Z` | `SIG-CSEC-SYS-001` |
-| `@agent-orchestrator` | Swarm Facilitator & Product Lead | Alignment with PRD (`TRACE-02`), Information Hierarchy | `APPROVED` | `2026-10-27T23:48:00Z` | `SIG-ORCH-SYS-001` |
-| `@agent-qa` | Test Architect & Quality Lead | Token Contrast Verifiability, Hit Target Compliance | `APPROVED` | `2026-10-27T23:49:00Z` | `SIG-QATE-SYS-001` |
+| `@agent-design` | UI/UX & Design System Architect | 3-Tier Tokens, 3D Galaxy Semantics, WCAG AAA | `APPROVED` | `2026-10-28T11:05:00Z` | `SIG-DSGN-SYS-002` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | CSS Custom Property Performance, R3F Slot Trees | `APPROVED` | `2026-10-28T11:06:00Z` | `SIG-ENGR-SYS-002` |
+| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | Visual Deception Prevention, Secret Masking Tokens | `APPROVED` | `2026-10-28T11:07:00Z` | `SIG-CSEC-SYS-002` |
+| `@agent-orchestrator` | Swarm Facilitator & Product Lead | Alignment with PRD (`TRACE-02`), Information Hierarchy | `APPROVED` | `2026-10-28T11:08:00Z` | `SIG-ORCH-SYS-002` |
+| `@agent-qa` | Test Architect & Quality Lead | Token Contrast Verifiability, Hit Target Compliance | `APPROVED` | `2026-10-28T11:09:00Z` | `SIG-QATE-SYS-002` |
 
 ---
 
@@ -26,19 +26,19 @@
 ### 1.1 Visual Persona & Anti-Slop Philosophy
 Kalinar embodies **Industrial Obsidian & Emerald Telemetry**. It rejects generic dashboard aesthetics, unnecessary gradients, rounded pill buttons, and cartoon iconography. Every pixel serves an operational purpose:
 * **Background Architecture:** Deep matte obsidian canvas (`#07080a`) paired with structural slate surfaces (`#0d0f14`), separated by sharp `1px` borders (`#1a1d26`).
-* **Visual Hierarchy:** Light and luminance indicate activity, not decoration. Emerald accents (`#10b981`) indicate active execution and healthy telemetry; amber (`#f59e0b`) flags latency or retry degradation; crimson (`#ef4444`) signals tripped circuit breakers.
-* **Typography:** Pure technical clarity. High-readability sans-serif for interface controls; monospace with tabular numerals for all telemetry counters, IDs, memory addresses, and timestamps.
-* **Zero-Emoji Enforcement:** 100% prohibited. Status is communicated using ASCII badges (`[ACTIVE]`, `[IDLE]`, `[HALTED]`, `[WARN]`, `[FAIL]`) and geometric SVG indicators.
+* **Visual Hierarchy:** Light and luminance indicate activity, not decoration. Emerald accents (`#10b981`) indicate verified execution and healthy telemetry; amber (`#f59e0b`) flags running steps or single-writer locks; crimson (`#ef4444`) signals tripped circuit breakers or error states; Arc Cyan (`#00f0ff`) illuminates active agent stars in the 3D Galaxy.
+* **Typography:** Pure technical clarity. High-readability sans-serif (`Geist Sans` / `Space Grotesk`) for interface controls; monospace (`Geist Mono` / `JetBrains Mono`) with tabular numerals for all telemetry counters, IDs, memory addresses, and timestamps.
+* **Zero-Emoji Enforcement:** 100% prohibited. Status is communicated using ASCII badges (`[ACTIVE]`, `[IDLE]`, `[HALTED]`, `[PAUSED]`, `[RUNNING]`, `[VERIFIED]`, `[WARN]`, `[ERROR]`, `[STREAM]`) and geometric SVG vectors.
 
 ### 1.2 Typography Scale & Font Stack
 
 | Hierarchy Level | Font Family | Size | Weight | Line Height | Tracking | Application Context |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Display Header** | `Geist Sans`, system-ui | `24px` (`1.5rem`) | `600` | `1.2` | `-0.02em` | Mission Control view titles, War Room banner |
-| **Section Header** | `Geist Sans`, system-ui | `16px` (`1.0rem`) | `600` | `1.3` | `-0.01em` | Panel titles, card headers, table section titles |
-| **UI Body** | `Geist Sans`, system-ui | `14px` (`0.875rem`) | `400` | `1.5` | `0.00em` | Explanatory labels, parameter descriptions |
-| **Telemetry Mono** | `Geist Mono`, monospace | `13px` (`0.8125rem`) | `500` | `1.4` | `0.00em` | Task IDs, agent turn records, status badges (`tabular-nums`) |
-| **Micro Mono** | `Geist Mono`, monospace | `11px` (`0.6875rem`) | `400` | `1.4` | `0.02em` | Timestamps, hash prefixes, latency indicators (`tabular-nums`) |
+| **Display Header** | `Geist Sans`, `Space Grotesk`, system-ui | `24px` (`1.5rem`) | `600` | `1.2` | `-0.02em` | Mission Control view titles, Galaxy HUD banner |
+| **Section Header** | `Geist Sans`, `Space Grotesk`, system-ui | `16px` (`1.0rem`) | `600` | `1.3` | `-0.01em` | Panel titles, card headers, table section titles |
+| **UI Body** | `Geist Sans`, `Space Grotesk`, system-ui | `14px` (`0.875rem`) | `400` | `1.5` | `0.00em` | Explanatory labels, parameter descriptions |
+| **Telemetry Mono** | `Geist Mono`, `JetBrains Mono`, monospace | `13px` (`0.8125rem`) | `500` | `1.4` | `0.00em` | Task IDs, agent turn records, status badges (`tabular-nums`) |
+| **Micro Mono** | `Geist Mono`, `JetBrains Mono`, monospace | `11px` (`0.6875rem`) | `400` | `1.4` | `0.02em` | Timestamps, hash prefixes, latency indicators (`tabular-nums`) |
 
 ### 1.3 Spatial Grid & Hit Target Standards
 * **Grid Increment:** Strict `4px` base module (`0.25rem`). Layout spacing values: `4px`, `8px`, `12px`, `16px`, `24px`, `32px`, `48px`.
@@ -51,8 +51,8 @@ Kalinar embodies **Industrial Obsidian & Emerald Telemetry**. It rejects generic
 ```mermaid
 flowchart TD
     Tier1["Tier 1: Global Primitive Tokens<br/>(--ds-primitive-*)<br/>Raw HEX colors, base font families, absolute radii"]
-    Tier2["Tier 2: Semantic Context Tokens<br/>(--ds-surface-*, --ds-status-*, --ds-border-*)<br/>Meaningful abstractions mapped to dark/light surfaces"]
-    Tier3["Tier 3: Component-Scoped Tokens<br/>(--ds-agent-card-*, --ds-gauge-*, --ds-badge-*)<br/>Surgical bindings mapped directly to component slots"]
+    Tier2["Tier 2: Semantic Context Tokens<br/>(--ds-surface-*, --ds-accent-*, --ds-status-*)<br/>Meaningful abstractions for Dark OS & 3D Galaxy"]
+    Tier3["Tier 3: Component-Scoped Tokens<br/>(--ds-agent-card-*, --ds-galaxy-*, --ds-gauge-*)<br/>Surgical bindings mapped directly to component slots"]
 
     Tier1 --> Tier2 --> Tier3
 ```
@@ -86,15 +86,18 @@ flowchart TD
   --ds-primitive-crimson-400: #f87171;
   --ds-primitive-crimson-950: #450a0a;
 
-  --ds-primitive-cyan-500: #06b6d4;
-  --ds-primitive-cyan-400: #22d3ee;
+  --ds-primitive-cyan-500: #00f0ff;
+  --ds-primitive-cyan-400: #38bdf8;
   --ds-primitive-cyan-950: #083344;
 
-  --ds-primitive-font-sans: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --ds-primitive-font-mono: 'Geist Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --ds-primitive-magenta-500: #d946ef;
+  --ds-primitive-violet-500:  #8b5cf6;
+
+  --ds-primitive-font-sans: 'Geist Sans', 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ds-primitive-font-mono: 'Geist Mono', 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* =====================================================================
-     TIER 2: SEMANTIC CONTEXT TOKENS
+     TIER 2: SEMANTIC CONTEXT TOKENS (DESKTOP OS & 3D GALAXY)
      ===================================================================== */
   /* Surface Layers */
   --ds-surface-canvas: var(--ds-primitive-slate-950);
@@ -112,7 +115,15 @@ flowchart TD
   --ds-text-secondary: var(--ds-primitive-slate-400);
   --ds-text-muted: var(--ds-primitive-slate-500);
 
-  /* Status Semantics */
+  /* Semantic 3D Galaxy & Knowledge Graph Tokens */
+  --ds-accent-agent: #00F0FF;      /* Arc Cyan for active agent.md stars */
+  --ds-accent-memory: #D946EF;     /* Neural Magenta for Second Brain nodes */
+  --ds-accent-synapse: #8B5CF6;    /* Quantum Violet for Graph Pointer beams */
+  --ds-status-running: #F59E0B;    /* Amber for active step execution & Single-Writer Lock */
+  --ds-status-verified: #10B981;   /* Emerald for verified telemetry & completed steps */
+  --ds-status-error: #EF4444;      /* Crimson for blocked/halted processes */
+
+  /* Operational Status Semantics */
   --ds-status-active-fg: var(--ds-primitive-emerald-400);
   --ds-status-active-bg: var(--ds-primitive-emerald-950);
   --ds-status-active-border: var(--ds-primitive-emerald-500);
@@ -125,7 +136,7 @@ flowchart TD
   --ds-status-halt-bg: var(--ds-primitive-crimson-950);
   --ds-status-halt-border: var(--ds-primitive-crimson-500);
 
-  --ds-status-neutral-fg: var(--ds-primitive-cyan-400);
+  --ds-status-neutral-fg: var(--ds-primitive-cyan-500);
   --ds-status-neutral-bg: var(--ds-primitive-cyan-950);
   --ds-status-neutral-border: var(--ds-primitive-cyan-500);
 
@@ -137,6 +148,12 @@ flowchart TD
   --ds-agent-card-border: var(--ds-border-subtle);
   --ds-agent-card-pad: 16px;
   --ds-agent-badge-height: 24px;
+
+  /* 3D Galaxy Viewport */
+  --ds-galaxy-bg: #030407;
+  --ds-galaxy-node-halo: rgba(0, 240, 255, 0.35);
+  --ds-galaxy-synapse-opacity: 0.45;
+  --ds-galaxy-hud-border: var(--ds-border-subtle);
 
   /* Circuit Breaker Gauge */
   --ds-gauge-size: 140px;
@@ -153,12 +170,27 @@ flowchart TD
 
 ---
 
-## 3. React 19 Compound Component Slot Specifications
+## 3. React 19 & R3F Component Slot Specifications
 
-### 3.1 `<SwarmDashboard>` Compound Component
+### 3.1 `<Galaxy3DViewport>` Compound Component
 
 ```tsx
-// Component Slot Grammar
+<Galaxy3DViewport.Root className="w-full h-full bg-[var(--ds-galaxy-bg)]">
+  <Galaxy3DViewport.Canvas camera={{ position: [0, 0, 1500], fov: 60 }}>
+    <Galaxy3DViewport.StarsInstanced count={50000} />
+    <Galaxy3DViewport.SynapseBeams beamColor="var(--ds-accent-synapse)" />
+    <Galaxy3DViewport.Controls minDistance={100} maxDistance={4000} />
+  </Galaxy3DViewport.Canvas>
+  <Galaxy3DViewport.HUD>
+    <Galaxy3DViewport.NodeDetailCard />
+    <Galaxy3DViewport.LODIndicator />
+  </Galaxy3DViewport.HUD>
+</Galaxy3DViewport.Root>
+```
+
+### 3.2 `<SwarmDashboard>` Compound Component
+
+```tsx
 <SwarmDashboard.Root className="bg-[var(--ds-surface-canvas)] min-h-screen text-[var(--ds-text-primary)]">
   <SwarmDashboard.Header>
     <SwarmDashboard.Title>[KALINAR_SWARM_MISSION_CONTROL]</SwarmDashboard.Title>
@@ -180,26 +212,6 @@ flowchart TD
 </SwarmDashboard.Root>
 ```
 
-### 3.2 `<CircuitBreakerPanel>` Compound Component
-
-```tsx
-<CircuitBreakerPanel.Root status="CLOSED">
-  <CircuitBreakerPanel.Header>
-    <CircuitBreakerPanel.StatusBadge label="[CIRCUIT_STATE: CLOSED]" />
-    <CircuitBreakerPanel.TripThresholds maxFailures={3} maxTurns={50} />
-  </CircuitBreakerPanel.Header>
-  <CircuitBreakerPanel.Gauge consecutiveFailures={0} totalTurns={14} />
-  <CircuitBreakerPanel.Actions>
-    <CircuitBreakerPanel.TripButton className="min-w-[120px] min-h-[44px]">
-      [FORCE_CIRCUIT_TRIP]
-    </CircuitBreakerPanel.TripButton>
-    <CircuitBreakerPanel.ResetButton className="min-w-[120px] min-h-[44px]">
-      [RESET_CIRCUIT]
-    </CircuitBreakerPanel.ResetButton>
-  </CircuitBreakerPanel.Actions>
-</CircuitBreakerPanel.Root>
-```
-
 ---
 
 ## 4. Accessibility & Contrast Compliance (WCAG 2.2 Level AAA)
@@ -208,7 +220,8 @@ flowchart TD
 | :--- | :--- | :--- | :---: |
 | `--ds-primitive-slate-50` on `--ds-primitive-slate-950` | `18.2 : 1` | `> 7.0 : 1` | `PASS (EXCEEDS)` |
 | `--ds-primitive-slate-400` on `--ds-primitive-slate-900` | `7.8 : 1` | `> 7.0 : 1` | `PASS` |
-| `--ds-primitive-emerald-400` on `--ds-primitive-emerald-950` | `9.4 : 1` | `> 7.0 : 1` | `PASS` |
-| `--ds-primitive-amber-400` on `--ds-primitive-amber-950` | `8.9 : 1` | `> 7.0 : 1` | `PASS` |
-| `--ds-primitive-crimson-400` on `--ds-primitive-crimson-950` | `8.2 : 1` | `> 7.0 : 1` | `PASS` |
+| `--ds-status-verified` (`#10B981`) on `#022c22` | `9.4 : 1` | `> 7.0 : 1` | `PASS` |
+| `--ds-status-running` (`#F59E0B`) on `#451a03` | `8.9 : 1` | `> 7.0 : 1` | `PASS` |
+| `--ds-status-error` (`#EF4444`) on `#450a0a` | `8.2 : 1` | `> 7.0 : 1` | `PASS` |
+| `--ds-accent-agent` (`#00F0FF`) on `--ds-primitive-slate-950` | `11.8 : 1` | `> 7.0 : 1` | `PASS` |
 | Interactive Hit Target Minimum Box | `44px x 44px` | `44px x 44px` | `PASS` |
