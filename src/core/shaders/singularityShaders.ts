@@ -152,13 +152,13 @@ export const accretionDiskShader = {
       gl_PointSize = (baseSize / -mvPosition.z) * (1.0 + uVoicePulse * 0.25);
 
       // Color mapping: #DDDDDD starlight silver with #AA88FF lavender sparkles
-      float sparkle = pow(aRandom.z, 20.0);
+      float sparkle = pow(aRandom.z, 60.0);
       vec3 starlightSilver = vec3(0.867, 0.867, 0.867); // #DDDDDD
       vec3 singularityLavender = vec3(0.667, 0.533, 1.0); // #AA88FF
       
-      vColor = mix(starlightSilver, singularityLavender, sparkle + uVoicePulse * 0.2);
+      vColor = mix(starlightSilver, singularityLavender, sparkle + uVoicePulse * 0.25);
       vSparkle = sparkle;
-      vAlpha = smoothstep(60.0, 140.0, radius) * (0.45 + sparkle * 0.55);
+      vAlpha = smoothstep(54.0, 120.0, radius) * (0.55 + sparkle * 0.45);
     }
   `,
   fragmentShader: `
@@ -174,7 +174,10 @@ export const accretionDiskShader = {
       float core = smoothstep(0.5, 0.0, dist);
       float glow = pow(core, 2.0);
 
-      gl_FragColor = vec4(vColor, vAlpha * glow);
+      // Additive crisp Singularity Lavender spark on top of fine-grained silver-white accretion
+      vec3 finalColor = vColor + vec3(0.667, 0.533, 1.0) * (vSparkle * 0.35);
+
+      gl_FragColor = vec4(finalColor, vAlpha * glow);
     }
   `,
 };

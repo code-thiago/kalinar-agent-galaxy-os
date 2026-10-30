@@ -17,7 +17,7 @@ export function AgentLivePreviewCardRoot({
       data-slot="agent-live-preview-card"
       data-agent-id={agent.id}
       data-status={agent.status}
-      className={`h-[160px] w-full bg-[rgba(13,15,20,0.95)] border border-[var(--ds-border-subtle)] hover:border-[var(--ds-accent-singularity)] transition-all p-2.5 flex flex-col justify-between overflow-hidden select-none cursor-pointer ${className}`}
+      className={`w-full bg-[rgba(13,15,20,0.95)] border border-[var(--ds-border-subtle)] hover:border-[var(--ds-accent-singularity)] transition-all p-2.5 flex flex-col gap-2 overflow-hidden select-none cursor-pointer ${className}`}
       {...props}
     >
       {children}
@@ -38,11 +38,11 @@ export function AgentLivePreviewCardLiveViewport({
 }: AgentLivePreviewCardLiveViewportProps) {
   return (
     <div
-      data-slot="agent-live-viewport"
-      className={`relative h-[74px] w-full bg-[#0a0a0a] rounded-[2px] border border-[var(--ds-border-subtle)] p-2 font-mono text-[10.5px] leading-tight text-[var(--ds-text-primary)] overflow-hidden flex flex-col justify-between group ${className}`}
+      data-slot="agent-card-viewport"
+      className={`relative h-[var(--ds-agent-card-thumb-h,160px)] min-h-[160px] w-full bg-[#0a0a0a] rounded-[2px] border border-[var(--ds-border-subtle)] p-2.5 font-mono text-[10.5px] leading-tight text-[var(--ds-text-primary)] overflow-hidden flex flex-col justify-between group ${className}`}
       {...props}
     >
-      <div className="line-clamp-3 font-mono text-[10px] text-[var(--ds-primitive-white-500)] opacity-90 whitespace-pre-wrap">
+      <div className="line-clamp-6 font-mono text-[10px] text-[var(--ds-primitive-white-500)] opacity-90 whitespace-pre-wrap">
         {streamContent || '[STREAM_STANDBY: AGENT_ORBIT_READY]'}
       </div>
 

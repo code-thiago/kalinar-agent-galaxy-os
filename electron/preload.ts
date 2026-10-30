@@ -7,10 +7,20 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { AgentNode, AgentStatus, SingularityCoreState } from '../src/types/kalinar.js';
 
+export interface ShellResult {
+  allowed: boolean;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
 export interface KalinarApiBridge {
   getSingularityState: () => Promise<SingularityCoreState>;
   getActiveAgents: () => Promise<AgentNode[]>;
   invokeTaskAction: (taskId: string, action: string) => Promise<{ success: boolean; message: string }>;
+  getHistoricalTelemetry: (limit?: number) => Promise<any[]>;
+  getEvolutionSummary: () => Promise<any>;
+  executeShellCommand: (cmd: string, cwd?: string) => Promise<ShellResult>;
   onTelemetryStream: (callback: (data: any) => void) => () => void;
   onVoiceStateChange: (callback: (state: any) => void) => () => void;
   onAgentUpdate: (callback: (agent: AgentNode) => void) => () => void;
@@ -21,6 +31,12 @@ const api: KalinarApiBridge = {
   getActiveAgents: () => ipcRenderer.invoke('kalinar:get_active_agents'),
   invokeTaskAction: (taskId: string, action: string) =>
     ipcRenderer.invoke('kalinar:invoke_task_action', { taskId, action }),
+  getHistoricalTelemetry: (limit?: number) =>
+    ipcRenderer.invoke('kalinar:get_historical_telemetry', limit),
+  getEvolutionSummary: () =>
+    ipcRenderer.invoke('kalinar:get_evolution_summary'),
+  executeShellCommand: (cmd: string, cwd?: string) =>
+    ipcRenderer.invoke('kalinar:execute_shell_command', { cmd, cwd }),
   onTelemetryStream: (callback: (data: any) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on('telemetry:stream', handler);

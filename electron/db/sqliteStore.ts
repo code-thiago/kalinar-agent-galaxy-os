@@ -104,6 +104,14 @@ export class KalinarSqliteStore {
       );
     `);
 
+    // Seed System Tasks to satisfy Telemetry foreign keys
+    this.db.exec(`
+      INSERT OR IGNORE INTO tasks (id, project_path, title, status, current_agent) VALUES
+      ('SYSTEM', 'c:/Kalinar', 'System Daemon', 'COMPLETED', 'agent-orchestrator'),
+      ('CLI_GATE', 'c:/Kalinar', 'GoRules Zen Firewall Gate', 'COMPLETED', 'agent-cybersecurity'),
+      ('CLI_EXEC', 'c:/Kalinar', 'Native Shell Execution', 'COMPLETED', 'agent-software-engineer');
+    `);
+
     // 4. Turns Table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS turns (
@@ -219,6 +227,43 @@ export class KalinarSqliteStore {
       SELECT * FROM telemetry_logs WHERE task_id = ? ORDER BY id DESC LIMIT ?
     `);
     return stmt.all(taskId, limit) as unknown as TelemetryLogRecord[];
+  }
+
+  public getHistoricalTelemetry(limit = 100): Array<TelemetryLogRecord & { id: number; timestamp: string }> {
+    const stmt = this.db.prepare(`
+      SELECT id, task_id, event_type, agent_name, payload, latency_ms, created_at as timestamp
+      FROM telemetry_logs
+      ORDER BY id DESC
+      LIMIT ?
+    `);
+    return stmt.all(limit) as unknown as Array<TelemetryLogRecord & { id: number; timestamp: string }>;
+  }
+
+  public getEvolutionSummary(): {
+    totalEvents: number;
+    avgLatencyMs: number;
+    agentDistribution: Record<string, number>;
+  } {
+    const countStmt = this.db.prepare(`SELECT COUNT(*) as count, AVG(latency_ms) as avg_latency FROM telemetry_logs`);
+    const countRow = countStmt.get() as { count: number; avg_latency: number | null };
+
+    const agentStmt = this.db.prepare(`
+      SELECT agent_name, COUNT(*) as count
+      FROM telemetry_logs
+      GROUP BY agent_name
+    `);
+    const agentRows = agentStmt.all() as Array<{ agent_name: string; count: number }>;
+
+    const agentDistribution: Record<string, number> = {};
+    for (const row of agentRows) {
+      agentDistribution[row.agent_name] = row.count;
+    }
+
+    return {
+      totalEvents: countRow?.count || 0,
+      avgLatencyMs: Math.round(countRow?.avg_latency || 0),
+      agentDistribution,
+    };
   }
 
   /* =====================================================================

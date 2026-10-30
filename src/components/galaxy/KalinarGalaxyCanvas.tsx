@@ -57,10 +57,10 @@ export function KalinarGalaxyCanvas() {
       decayRate: 0.985,
     });
 
-    // 4. Central Black Hole Singularity Core
+    // 4. Central Black Hole Singularity Core (Full Canonical Density: 262,144 particles)
     const singularityCore = new KalinarSingularityCore({
       coreRadius: 54,
-      particleCount: 65536,
+      particleCount: 262144,
       innerDiskRadius: 72,
       outerDiskRadius: 360,
     });

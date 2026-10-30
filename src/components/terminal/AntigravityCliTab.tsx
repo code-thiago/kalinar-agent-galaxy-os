@@ -197,13 +197,46 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
       }
 
       default: {
-        setCliHistory((prev) => [
-          ...prev,
-          {
-            type: 'output',
-            text: `[EXEC] Comando "${cmd}" executado em sandbox isolada com codigo de retorno 0.`,
-          },
-        ]);
+        const kalinarApi = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
+        if (kalinarApi?.executeShellCommand) {
+          try {
+            const res = await kalinarApi.executeShellCommand(cmd);
+            if (!res.allowed) {
+              setCliHistory((prev) => [
+                ...prev,
+                { type: 'error', text: res.stderr || '[FIREWALL_BLOCKED] Comando barrado pelo GoRules ZEN Engine.' },
+              ]);
+            } else {
+              const outputs: Array<{ type: 'output' | 'error'; text: string }> = [];
+              if (res.stdout?.trim()) {
+                outputs.push({ type: 'output', text: res.stdout.trim() });
+              }
+              if (res.stderr?.trim()) {
+                outputs.push({ type: 'error', text: res.stderr.trim() });
+              }
+              if (outputs.length === 0) {
+                outputs.push({
+                  type: 'output',
+                  text: `[EXEC] Comando "${cmd}" executado com codigo de saida ${res.exitCode}.`,
+                });
+              }
+              setCliHistory((prev) => [...prev, ...outputs]);
+            }
+          } catch (err: any) {
+            setCliHistory((prev) => [
+              ...prev,
+              { type: 'error', text: `[SHELL_ERROR]: ${err?.message || 'Falha de comunicacao IPC'}` },
+            ]);
+          }
+        } else {
+          setCliHistory((prev) => [
+            ...prev,
+            {
+              type: 'output',
+              text: `[EXEC] Comando "${cmd}" executado em sandbox isolada com codigo de retorno 0.`,
+            },
+          ]);
+        }
         break;
       }
     }

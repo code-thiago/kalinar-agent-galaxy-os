@@ -27,7 +27,10 @@ export class KalinarSingularityCore {
   constructor(config?: SingularityCoreConfig) {
     this.group = new THREE.Group();
     const coreRadius = config?.coreRadius || 54;
-    const particleCount = config?.particleCount || 65536;
+    // Canonical desktop density: 262,144 particles (512x512 buffer), fallback to 65,536 on mobile/low-tier
+    const defaultCount =
+      typeof window !== 'undefined' && window.innerWidth < 768 ? 65536 : 262144;
+    const particleCount = config?.particleCount || defaultCount;
     const innerRadius = config?.innerDiskRadius || 72;
     const outerRadius = config?.outerDiskRadius || 360;
 

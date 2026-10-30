@@ -5,8 +5,9 @@
  * Strictly Zero Emojis, isolated with React.memo for 60 FPS WebGL protection.
  */
 
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { AgentNode } from '../../types/kalinar.js';
+import { eventBus } from '../../core/KalinarEventBus.js';
 
 export interface EvolutionChartsViewProps {
   agents: AgentNode[];
@@ -15,6 +16,43 @@ export interface EvolutionChartsViewProps {
 export const EvolutionChartsView = memo(function EvolutionChartsView({
   agents,
 }: EvolutionChartsViewProps) {
+  const [sqliteSummary, setSqliteSummary] = useState<{
+    totalEvents: number;
+    avgLatencyMs: number;
+    agentDistribution: Record<string, number>;
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTelemetry = async () => {
+      const api = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
+      if (api?.getEvolutionSummary) {
+        try {
+          const summary = await api.getEvolutionSummary();
+          if (isMounted && summary) {
+            setSqliteSummary(summary);
+          }
+        } catch {
+          // Fallback to local state if ipc error
+        }
+      }
+    };
+
+    fetchTelemetry();
+
+    const unsubStep = eventBus.on('agent:step_updated', () => {
+      fetchTelemetry();
+    });
+    const unsubMetric = eventBus.on('agent:metric_updated', () => {
+      fetchTelemetry();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubStep();
+      unsubMetric();
+    };
+  }, []);
   // Chart 1: Step Completion & Galaxy Ingestion Curve
   // Points: [timeIndex, completedSteps, galaxyNodesInstanced]
   const growthPoints = [
@@ -146,7 +184,7 @@ export const EvolutionChartsView = memo(function EvolutionChartsView({
         </div>
 
         <div className="flex justify-between items-center text-[10.5px] border-t border-[var(--ds-border-subtle)] pt-1.5 text-[var(--ds-text-secondary)]">
-          <span>RESOLVED: 27 STEPS</span>
+          <span>{sqliteSummary ? `${sqliteSummary.totalEvents} EVENTS (SQLITE)` : 'RESOLVED: 27 STEPS'}</span>
           <span className="text-[var(--ds-accent-singularity)] font-semibold">
             50,000 NODES INSTANCED
           </span>
@@ -298,7 +336,7 @@ export const EvolutionChartsView = memo(function EvolutionChartsView({
         <div className="flex justify-between items-center text-[10px] border-t border-[var(--ds-border-subtle)] pt-1.5 text-[var(--ds-text-secondary)]">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 bg-[var(--ds-status-active-fg)] inline-block" />
-            <span>VELOCITY (184 TOK/S)</span>
+            <span>{sqliteSummary ? `ZEN AVG: ${sqliteSummary.avgLatencyMs}MS` : 'VELOCITY (184 TOK/S)'}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 bg-[var(--ds-status-warn-fg)] inline-block" />
