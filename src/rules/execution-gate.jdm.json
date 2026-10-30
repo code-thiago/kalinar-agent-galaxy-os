@@ -1,0 +1,117 @@
+{
+  "contentType": "application/vnd.gorules.decision",
+  "nodes": [
+    {
+      "id": "input-gate",
+      "type": "inputNode",
+      "name": "GateRequest",
+      "position": { "x": 40, "y": 140 }
+    },
+    {
+      "id": "dt-gate",
+      "type": "decisionTableNode",
+      "name": "ExecutionGateTable",
+      "position": { "x": 260, "y": 140 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "in-mode", "field": "executionMode", "name": "Execution Mode" },
+          { "id": "in-destructive", "field": "isDestructiveAction", "name": "Is Destructive" },
+          { "id": "in-lock", "field": "hasSingleWriterLock", "name": "Has Writer Lock" }
+        ],
+        "outputs": [
+          { "id": "out-proceed", "field": "canProceed", "name": "Can Proceed" },
+          { "id": "out-approval", "field": "requiresHumanApproval", "name": "Requires Approval" },
+          { "id": "out-reason", "field": "gateReason", "name": "Gate Reason" },
+          { "id": "out-timeout", "field": "timeoutSeconds", "name": "Timeout (s)" }
+        ],
+        "rules": [
+          {
+            "_id": "g1",
+            "_description": "Sandbox dry run always isolates execution",
+            "in-mode": "'SANDBOX_DRY_RUN'",
+            "in-destructive": "",
+            "in-lock": "",
+            "out-proceed": "true",
+            "out-approval": "false",
+            "out-reason": "'SANDBOX_ISOLATED_DRY_RUN'",
+            "out-timeout": "30"
+          },
+          {
+            "_id": "g2",
+            "_description": "Destructive action in step-by-step gate requires human signoff",
+            "in-mode": "'STEP_BY_STEP_GATE'",
+            "in-destructive": "true",
+            "in-lock": "",
+            "out-proceed": "false",
+            "out-approval": "true",
+            "out-reason": "'DESTRUCTIVE_STEP_AWAITING_HUMAN_APPROVAL'",
+            "out-timeout": "600"
+          },
+          {
+            "_id": "g3",
+            "_description": "Step by step gate requires human checkpoint between turns",
+            "in-mode": "'STEP_BY_STEP_GATE'",
+            "in-destructive": "false",
+            "in-lock": "",
+            "out-proceed": "false",
+            "out-approval": "true",
+            "out-reason": "'STEP_BY_STEP_CHECKPOINT'",
+            "out-timeout": "300"
+          },
+          {
+            "_id": "g4",
+            "_description": "Auto pilot with active lock proceeds immediately",
+            "in-mode": "'AUTO_PILOT'",
+            "in-destructive": "false",
+            "in-lock": "true",
+            "out-proceed": "true",
+            "out-approval": "false",
+            "out-reason": "'AUTO_PILOT_LOCKED_EXECUTION'",
+            "out-timeout": "120"
+          },
+          {
+            "_id": "g5",
+            "_description": "Auto pilot default proceed",
+            "in-mode": "'AUTO_PILOT'",
+            "in-destructive": "",
+            "in-lock": "",
+            "out-proceed": "true",
+            "out-approval": "false",
+            "out-reason": "'AUTO_PILOT_NOMINAL'",
+            "out-timeout": "120"
+          },
+          {
+            "_id": "g6",
+            "_description": "Fallback gated protection",
+            "in-mode": "",
+            "in-destructive": "",
+            "in-lock": "",
+            "out-proceed": "false",
+            "out-approval": "true",
+            "out-reason": "'DEFAULT_SAFETY_GATE_TRIGGERED'",
+            "out-timeout": "60"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output-gate",
+      "type": "outputNode",
+      "name": "GateResponse",
+      "position": { "x": 540, "y": 140 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "input-gate",
+      "targetId": "dt-gate"
+    },
+    {
+      "id": "e2",
+      "sourceId": "dt-gate",
+      "targetId": "output-gate"
+    }
+  ]
+}

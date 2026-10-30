@@ -31,6 +31,19 @@ export interface OsFirewallOutput {
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
 
+export interface ExecutionGateInput {
+  executionMode: 'AUTO_PILOT' | 'STEP_BY_STEP_GATE' | 'SANDBOX_DRY_RUN';
+  isDestructiveAction: boolean;
+  hasSingleWriterLock: boolean;
+}
+
+export interface ExecutionGateOutput {
+  canProceed: boolean;
+  requiresHumanApproval: boolean;
+  gateReason: string;
+  timeoutSeconds: number;
+}
+
 export class ZenFirewall {
   private static instance: ZenFirewall;
   private zenEngineInstance: any = null;
@@ -63,6 +76,11 @@ export class ZenFirewall {
       await this.evaluateOsFirewall({
         command: 'echo warmup',
         isSandbox: true,
+      });
+      await this.evaluateExecutionGate({
+        executionMode: 'AUTO_PILOT',
+        isDestructiveAction: false,
+        hasSingleWriterLock: true,
       });
     } catch {
       // In-process fallback evaluator handles JDM deterministically
@@ -138,6 +156,85 @@ export class ZenFirewall {
     const result = this.fallbackEvaluateOsFirewall(input);
     const latencyMs = performance.now() - start;
     return { result, latencyMs };
+  }
+
+  /**
+   * Evaluates execution mode gate (AUTO_PILOT, STEP_BY_STEP_GATE, SANDBOX_DRY_RUN) in < 1ms
+   */
+  public async evaluateExecutionGate(input: ExecutionGateInput): Promise<{
+    result: ExecutionGateOutput;
+    latencyMs: number;
+  }> {
+    const start = performance.now();
+
+    if (this.zenEngineInstance) {
+      try {
+        const response = await this.zenEngineInstance.evaluate('execution-gate.jdm.json', input, { trace: true });
+        const latencyMs = performance.now() - start;
+        return {
+          result: response.result as ExecutionGateOutput,
+          latencyMs,
+        };
+      } catch {
+        // Fall back to deterministic evaluation below
+      }
+    }
+
+    const result = this.fallbackEvaluateExecutionGate(input);
+    const latencyMs = performance.now() - start;
+    return { result, latencyMs };
+  }
+
+  private fallbackEvaluateExecutionGate(input: ExecutionGateInput): ExecutionGateOutput {
+    if (input.executionMode === 'SANDBOX_DRY_RUN') {
+      return {
+        canProceed: true,
+        requiresHumanApproval: false,
+        gateReason: 'SANDBOX_ISOLATED_DRY_RUN',
+        timeoutSeconds: 30,
+      };
+    }
+
+    if (input.executionMode === 'STEP_BY_STEP_GATE') {
+      if (input.isDestructiveAction) {
+        return {
+          canProceed: false,
+          requiresHumanApproval: true,
+          gateReason: 'DESTRUCTIVE_STEP_AWAITING_HUMAN_APPROVAL',
+          timeoutSeconds: 600,
+        };
+      }
+      return {
+        canProceed: false,
+        requiresHumanApproval: true,
+        gateReason: 'STEP_BY_STEP_CHECKPOINT',
+        timeoutSeconds: 300,
+      };
+    }
+
+    if (input.executionMode === 'AUTO_PILOT') {
+      if (!input.isDestructiveAction && input.hasSingleWriterLock) {
+        return {
+          canProceed: true,
+          requiresHumanApproval: false,
+          gateReason: 'AUTO_PILOT_LOCKED_EXECUTION',
+          timeoutSeconds: 120,
+        };
+      }
+      return {
+        canProceed: true,
+        requiresHumanApproval: false,
+        gateReason: 'AUTO_PILOT_NOMINAL',
+        timeoutSeconds: 120,
+      };
+    }
+
+    return {
+      canProceed: false,
+      requiresHumanApproval: true,
+      gateReason: 'DEFAULT_SAFETY_GATE_TRIGGERED',
+      timeoutSeconds: 60,
+    };
   }
 
   private fallbackEvaluateEventRouter(input: EventRouterInput): EventRouterOutput {

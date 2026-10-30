@@ -57,7 +57,7 @@ export function LeftAgentCardsColumn() {
           <div className="font-sans font-bold text-[16px] tracking-wider text-[var(--ds-primitive-white-500)] flex items-center gap-1.5">
             KALINAR
             <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 bg-[var(--ds-primitive-slate-800)] text-[var(--ds-accent-singularity)] border border-[var(--ds-border-subtle)]">
-              v0.2.0-alpha
+              v0.3.0-alpha
             </span>
           </div>
           <div className="text-[10.5px] font-mono text-[var(--ds-text-secondary)] uppercase tracking-tight">
@@ -94,14 +94,21 @@ export function LeftAgentCardsColumn() {
             <div
               key={agent.id}
               onClick={() => selectAgent(agent.id)}
+              onMouseEnter={() => selectAgent(agent.id)}
               className={`cursor-pointer transition-transform ${
                 isSelected ? 'ring-1 ring-[var(--ds-accent-singularity)]' : ''
               }`}
             >
               <AgentLivePreviewCard.Root agent={agent}>
-                <AgentLivePreviewCard.Header agent={agent} />
-                <AgentLivePreviewCard.Stream streamContent={agent.livePreviewStream} />
-                <AgentLivePreviewCard.Telemetry agent={agent} />
+                <AgentLivePreviewCard.LiveViewport
+                  streamContent={agent.livePreviewStream}
+                  onInspectDiff={(e) => {
+                    e.stopPropagation();
+                    selectAgent(agent.id);
+                    useKalinarStore.getState().toggleInspectorDrawer();
+                  }}
+                />
+                <AgentLivePreviewCard.MetadataRow agent={agent} />
               </AgentLivePreviewCard.Root>
             </div>
           );
