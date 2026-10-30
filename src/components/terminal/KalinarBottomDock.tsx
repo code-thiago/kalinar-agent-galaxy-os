@@ -8,8 +8,8 @@ import { useState, memo } from 'react';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 import { TelemetryMatrixTable } from './TelemetryMatrixTable.js';
 import { EvolutionChartsView } from './EvolutionChartsView.js';
-import { CortexSecondBrainView } from './CortexSecondBrainView.js';
-import { WarRoomTerminalView } from './WarRoomTerminalView.js';
+import { SecondBrainCortexTab } from './SecondBrainCortexTab.js';
+import { AntigravityCliTab } from './AntigravityCliTab.js';
 import { eventBus } from '../../core/KalinarEventBus.js';
 
 export type DockTabId = 'telemetry' | 'charts' | 'cortex' | 'warroom';
@@ -215,9 +215,9 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
 
           {activeTab === 'charts' && <EvolutionChartsView agents={agents} />}
 
-          {activeTab === 'cortex' && <CortexSecondBrainView />}
+          {activeTab === 'cortex' && <SecondBrainCortexTab />}
 
-          {activeTab === 'warroom' && <WarRoomTerminalView />}
+          {activeTab === 'warroom' && <AntigravityCliTab />}
         </div>
       )}
     </div>

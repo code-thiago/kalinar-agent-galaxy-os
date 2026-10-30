@@ -1,0 +1,30 @@
+appId: com.galarphia.kalinar
+productName: Kalinar Agent Galaxy OS
+copyright: Copyright (c) 2026 Galarphia
+
+directories:
+  output: dist-desktop
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - src/rules/*.jdm.json
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Kalinar Galaxy OS

@@ -1,6 +1,6 @@
 {
   "name": "kalinar-agent-galaxy-os",
-  "version": "0.5.0-rc1",
+  "version": "1.0.0",
   "private": true,
   "main": "dist-electron/electron/main.js",
   "type": "module",
@@ -8,6 +8,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
+    "desktop:dev": "vite",
+    "desktop:build": "npm run build && npm run build:electron",
+    "desktop:dist": "npm run desktop:build && electron-builder --win",
     "test": "vitest run",
     "start": "electron dist-electron/electron/main.js"
   },
