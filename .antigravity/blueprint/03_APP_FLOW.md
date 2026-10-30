@@ -1,10 +1,10 @@
-# 03 - Application Flow, State Machines & Routing Architecture (`03_APP_FLOW.md`)
+# 03_APP_FLOW.md — KALINAR SINGULARITY APP FLOW & STATE MACHINES (v1.0.1 DESKTOP OS)
 
-> Document ID: `DOC-03-APP-FLOW-KALINAR-v1.0.1`  
-> Lead Agents: `@agent-design` + `@agent-orchestrator`  
-> Co-Authors: `@human-developer`, `@agent-software-engineer`, `@agent-data`, `@agent-cybersecurity`, `@agent-qa`  
-> Gate Status: `APPROVED_BY_SWARM_VERIFIED_V1_0_1`  
-> Visual Constraint: `STRICT ZERO-EMOJI ENFORCEMENT - TYPOGRAPHICAL & ASCII ONLY`
+> **System ID:** `KALINAR-FLOW-V1.0.1`  
+> **Lead Architect:** `@agent-orchestrator` & `@agent-design`  
+> **Co-Authors:** `@agent-software-engineer`, `@agent-data`, `@agent-cybersecurity`, `@agent-qa`  
+> **Gate Status:** `APPROVED_BY_SWARM_VERIFIED_V1_0_1`  
+> **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`  
 
 ---
 
@@ -12,34 +12,50 @@
 
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
-| `@human-developer` | Product & UX Final Authority | User Journeys, Edge-Case Recovery Paths | `PENDING` | -- | `PO-APPROVAL-PENDING` |
-| `@agent-design` | UI/UX & Design System Architect | 3D Galaxy Navigation, Voice State HUD, Screen Ergonomics | `APPROVED` | `2026-10-28T10:55:00Z` | `SIG-DSGN-FLO-002` |
-| `@agent-orchestrator` | Swarm Facilitator & Product Lead | PRD Flow Coverage (`TRACE-01`), State Integrity | `APPROVED` | `2026-10-28T10:56:00Z` | `SIG-ORCH-FLO-002` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron Navigation, IPC Channels, WebGL Pipeline | `APPROVED` | `2026-10-28T10:57:00Z` | `SIG-ENGR-FLO-002` |
-| `@agent-data` | Decision Engine Specialist | Zen-Engine Voice Guard, Canvas Coordinate Sync | `APPROVED` | `2026-10-28T10:58:00Z` | `SIG-DATA-FLO-002` |
-| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | IPC Whitelist Guard, Voice Execution Authorization | `APPROVED` | `2026-10-28T10:59:00Z` | `SIG-CSEC-FLO-002` |
-| `@agent-qa` | Test Architect & Quality Lead | Flow Testability, Race Condition & WebGL Discovery | `APPROVED` | `2026-10-28T11:00:00Z` | `SIG-QATE-FLO-002` |
+| `@human-developer` | Product & UX Final Authority | User Journeys, Edge-Case Recovery Paths | `APPROVED` | `2026-10-30T18:50:00Z` | `PO-APPROVAL-VERIFIED` |
+| `@agent-design` | UI/UX & Design System Architect | 3D Galaxy Navigation, Voice State HUD, Screen Ergonomics | `APPROVED` | `2026-10-30T18:51:00Z` | `SIG-DSGN-FLO-003` |
+| `@agent-orchestrator` | Swarm Facilitator & Product Lead | PRD Flow Coverage (`TRACE-01`), State Integrity | `APPROVED` | `2026-10-30T18:52:00Z` | `SIG-ORCH-FLO-003` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron Navigation, IPC Channels, WebGL Pipeline | `APPROVED` | `2026-10-30T18:53:00Z` | `SIG-ENGR-FLO-003` |
+| `@agent-data` | Decision Engine Specialist | Zen-Engine Voice Guard, Canvas Coordinate Sync | `APPROVED` | `2026-10-30T18:54:00Z` | `SIG-DATA-FLO-003` |
+| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | IPC Whitelist Guard, Voice Execution Authorization | `APPROVED` | `2026-10-30T18:55:00Z` | `SIG-CSEC-FLO-003` |
+| `@agent-qa` | Test Architect & Quality Lead | Flow Testability, Race Condition & WebGL Discovery | `APPROVED` | `2026-10-30T18:56:00Z` | `SIG-QATE-FLO-003` |
 
 ---
 
-## 1. Route Hierarchy & Desktop OS Navigation Matrix
+## 1. ARQUITETURA ESPACIAL DO VIEWPORT DESKTOP (`100vw x 100vh`)
 
-| Route Path | Rendering Mode | Required Role / Guard | Unauthorized Behavior | Mapped Features |
-| :--- | :--- | :--- | :--- | :--- |
-| `/` | Dynamic RSC + Desktop Shell | Operator Local Session | Standard desktop shell initialization | Dashboard & Telemetry |
-| `/galaxy` | Client R3F 3D Canvas + Octree LOD | Operator Local Session | WebGL fallback notification if hardware acceleration unavailable | 3D Galaxy Knowledge Graph |
-| `/tasks` | Server Component + Client Filter | Operator Local Session | Render masked read-only summary | Task Queue Management |
-| `/tasks/[id]` | Dynamic RSC + Streaming Timeline | Operator Local Session | 404 boundary if task does not exist | Live Task Execution Inspection |
-| `/terminal` | Client Canvas + `node-pty` IPC | Operator Local Session | Deny terminal access if IPC bridge unverified | Embedded Native Terminal |
-| `/circuit-breaker` | Dynamic RSC + Manual Trip Action | Operator Local Session | Read-only state display if unverified session | Swarm Safety Controls |
-| `/telemetry` | Dynamic RSC + Virtualized Table | Auditor / Operator Session | Restrict export buttons to authenticated operator | Append-Only Telemetry Ledger |
-| `/api/telemetry/sse` | Edge SSE Route Handler (`no-cache`) | Localhost IPC Bearer Guard | HTTP 401 Unauthorized (`Connection: close`) | Real-Time Telemetry Push |
+O KALINAR opera como uma aplicação desktop nativa Electron em janela única sem scroll de página (`overflow: hidden`, fundo `#000000`), organizada em 2 camadas sobrepostas:
+
+1. **Camada 0 — Singularity & Procedural Galaxy WebGL (`canvas#singularity-bg`, `z-index: 0`):**
+   - **Horizonte de Eventos (Raio `54u`) & Anel de Fótons:** Esfera negra central cujo anel Fresnel pulsa radialmente via uniform `uVoicePulse` em sincronia com a magnitude acústica (`AnalyserNode`) da voz do KALINAR.
+   - **Disco de Acreção GPGPU (`262.144` partículas desktop / `65.536` fallback):** Nuvem toroidal esculpida por SDF + Bridson Curl Noise mesclando prata estelar (`#DDDDDD`) e cintilações Lavanda (`#AA88FF`), reagindo ao solver de fluido Navier-Stokes 2D no cursor (`256x256` velocity / `512x512` density, decaimento `1.5s`).
+   - **Galáxia Infinita (`50.000` nós via `THREE.InstancedMesh`):** Constelações em espiral logarítmica (`01_PROJETOS` a `05_AGENTS`), enxames orbitais Ciano (`#00F0FF`) para cada `agent.md` ativo e satélites de artefatos Âmbar (`#FBBF24`).
+2. **Camada 1 — Asymmetric Monospace Telemetry HUD (`.kalinar-hud`, `z-index: 1`):**
+   - **Coluna Esquerda Dinâmica (`left: 24px`, `width: 320px`):** Marca vetorial `40x40px`, chips de filtro (`top: 120px`) e lista rolável (`top: 250px`) de `AgentLivePreviewCard` com viewport opaco de **`160px`** (`#0a0a0a`) exibindo diffs/streams ao vivo e 2 linhas de metadados `tabular-nums`.
+   - **Contador/Gatilho Superior Direito (`top: 24px`, `right: 24px`):** Círculo `44x44px` de agentes ativos + botão `[ ACIONAR SECOND BRAIN ]`.
+   - **Coluna Direita Etérea (`right: 48px`, `top: 50%`, `translateY(-50%)`, `width: 360px`):** Quatro blocos com `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). A transcrição da voz do KALINAR é renderizada caractere a caractere (`18ms`) dentro de `[singularity_core]` em `#AA88FF`. Recolhe suavemente (`opacity: 0`) quando o `NodeInspectorDrawer` (`480px`) é aberto.
+   - **Dock IDE Retrátil Inferior (`bottom: 0`):** Colapsado por padrão em `36px`; expande para `350px` ou `75vh` revelando as 4 abas (Matriz de Etapas/PID, Gráficos Históricos SQLite, Córtex Second Brain/JDM e Terminal `node-pty`/IPC).
 
 ---
 
-## 2. Primary State Machines
+## 2. MÁQUINAS DE ESTADO CANÔNICAS
 
-### 2.1 Task Lifecycle & Autonomous Swarm Handoff (`STATE-TASK-01`)
+### 2.1 `FLOW-GALAXY-LOD-01`: Navegação Espacial, Ingestão Gravitacional e Inspeção de Diff
+
+```mermaid
+stateDiagram-v2
+    [*] --> SingularityOverview
+    SingularityOverview --> GravitationalRAGPull: Click [ACIONAR SECOND BRAIN] / Voice / Tab 3 Pull
+    GravitationalRAGPull --> RelativisticAgentPulse: #E879F9 Particle Stream Absorbed by Black Hole
+    RelativisticAgentPulse --> SingularityOverview: #AA88FF Beam Fired to Target Agent Swarm
+    SingularityOverview --> AgentSwarmFocus: Click Left AgentLivePreviewCard (160px) / Lerp 0.05
+    AgentSwarmFocus --> NodeInspectorOpen: Click [INSPECT DIFF] / Right HUD Retracts
+    NodeInspectorOpen --> ExecutionGateDecision: Inspect Live Diff & PID (>100 Verified)
+    ExecutionGateDecision --> AgentSwarmFocus: [APPROVE DIFF] / [REVERT FILE] / [KILL PID]
+    AgentSwarmFocus --> SingularityOverview: Zoom Out / Reset Camera
+```
+
+### 2.2 `STATE-TASK-01`: Ciclo de Vida da Tarefa e Handoff do Enxame Autônomo
 
 ```mermaid
 stateDiagram-v2
@@ -68,40 +84,9 @@ stateDiagram-v2
     BLOCKED --> [*]
 ```
 
-### 2.2 3D Galaxy Engine Octree LOD & Zoom State Machine (`FLOW-GALAXY-LOD-01`)
+### 2.3 `FLOW-VOICE-KALINAR-01`: Singularity Voice Core, Persona e Interlock Acústico
 
-```mermaid
-stateDiagram-v2
-    [*] --> GalaxyOverview: Initial Load (Camera Distance > 2000u)
-    
-    state GalaxyOverview {
-        [*] --> GPGPUAccretionDisk: 262,144 Accretion Particles (512x512 Float RGBA Texture)
-        GPGPUAccretionDisk --> InstancedConstellations: 50,000+ Instanced Star Nodes (THREE.InstancedMesh)
-        InstancedConstellations --> ConstellationClusters: Highlight Agent & Memory Core with Lavender Sparkles
-    }
-
-    GalaxyOverview --> SectorZoom: Camera Zooms In (Distance 500u - 2000u)
-    
-    state SectorZoom {
-        [*] --> SubtreeOctreeQuery: Query Visible Bounding Spheres (< 4ms)
-        SubtreeOctreeQuery --> RenderSynapseBeams: Draw Quantum Violet Beams (--ds-accent-synapse)
-    }
-
-    SectorZoom --> FocusNode: Camera Focuses on Node (Distance < 500u)
-    
-    state FocusNode {
-        [*] --> HydrateNodeDetails: Display Title, Agent Badge, File Metadata
-        HydrateNodeDetails --> RenderContextOrbit: Show Connected Wikilinks & Tasks
-    }
-
-    FocusNode --> InspectSourceCode: Click Node Action
-    InspectSourceCode --> FocusNode: Escape or Orbit Change
-    FocusNode --> GalaxyOverview: Zoom Out Beyond 2000u
-```
-
-### 2.3 Singularity Voice Core, Persona & Acoustic Interlock (`FLOW-VOICE-KALINAR-01`)
-
-> Voice Persona Contract: KALINAR is the Black Hole Singularity itself, speaking in `pt-BR` with a deep, sovereign, commanding tactical persona (Tauz-inspired gravity and authority). All legacy references to separate external assistants or top-right voice orbs are eliminated. Spoken transcription renders directly within `[singularity_core]` in `#AA88FF`, and output audio waveform directly drives the GPGPU particle accretion disk.
+> **Voice Persona Contract:** O KALINAR é a própria Singularidade (Buraco Negro), expressando-se em `pt-BR` com persona soberana, tática e imponente (tom autoritário estilo Tauz), dirigindo-se ao operador como "Thiago". A transcrição é transmitida caractere a caractere diretamente em `[singularity_core]` em `#AA88FF`, modulando a amplitude do disco de acreção GPGPU.
 
 ```mermaid
 stateDiagram-v2
@@ -112,7 +97,7 @@ stateDiagram-v2
     AudioCapture --> IntentExtraction: Parse Candidate Voice Directive
     
     state IntentExtraction {
-        [*] --> EvaluateZenVoiceGuard: Query voice-command-guard.jdm.json
+        [*] --> EvaluateZenVoiceGuard: Query voice-command-guard.jdm.json (< 1ms)
         EvaluateZenVoiceGuard --> SafeIntentAllowed: Action == 'ALLOW'
         EvaluateZenVoiceGuard --> DangerousIntentGated: Action == 'CONFIRM'
         EvaluateZenVoiceGuard --> UnknownIntentIgnored: Action == 'IGNORE'
@@ -135,7 +120,7 @@ stateDiagram-v2
     AcousticMicMuteReleased --> MicIdle: Restore Audio Input Stream
 ```
 
-### 2.4 Multi-Workspace File Watcher Loop Prevention (`FLOW-WATCHER-01`)
+### 2.4 `FLOW-WATCHER-01`: Multi-Workspace Chokidar Daemon & Trava de PID
 
 ```mermaid
 stateDiagram-v2
@@ -153,7 +138,7 @@ stateDiagram-v2
     state FilterIgnoredPaths {
         [*] --> CheckExclusions: Match against .git, node_modules, *.db-wal
         CheckExclusions --> CheckAgentToken: Inspect .kalinar-lock Single-Writer Token
-        CheckAgentToken --> ValidatePidSafety: Enforce PID > 100 Zero-Trust Operating System Gate
+        CheckAgentToken --> ValidatePidSafety: Enforce PID > 100 Zero-Trust OS Gate
     }
 
     CheckAgentToken --> DropInternalAgentWrite: Event Generated by Kalinar Agent
@@ -166,33 +151,29 @@ stateDiagram-v2
 
 ---
 
-## 3. Exhaustive UI State & Error Recovery Matrix
+## 3. MATRIZ EXAUSTIVA DE ESTADOS DE UI E RECUPERAÇÃO DE FALHAS
 
-| Viewport / Component | Loading State (`STATE-LOADING`) | Empty State (`STATE-EMPTY`) | Error State (`STATE-ERROR`) | Recovery Action |
+| Viewport / Componente | Estado de Carga (`STATE-LOADING`) | Estado Vazio (`STATE-EMPTY`) | Estado de Erro (`STATE-ERROR`) | Ação de Recuperação |
 | :--- | :--- | :--- | :--- | :--- |
-| **Layer 0 Singularity & Galaxy (`canvas#singularity-bg`)** | Event Horizon dark core with swirling `#AA88FF` / `#DDDDDD` particle accretion disk. | `[SINGULARITY_STANDBY] Black Hole Event Horizon stable. Awaiting workspace scan.` | `[WEBGL_CONTEXT_LOST] GPU driver reset or GPGPU compute failure.` | Automatically recreate canvas context and re-upload instanced buffer without re-querying SQLite. |
-| **Layer 1 Singularity Core (`[singularity_core]`)** | Radial pulse ring in Event Horizon Lavender (`--ds-accent-singularity: #AA88FF`). | `[VOICE_IDLE] Listening for operator tactical directive (pt-BR)...` | `[MIC_STREAM_BLOCKED] Audio permission denied or input device unavailable.` | Render visual mic prompt with device selector dropdown in ethereal HUD column. |
-| **Task Dashboard (`/tasks`)** | Shimmer skeleton cards matching exact task card geometry (`44px` header, `20px` badge). | Centered industrial container: `[NO_ACTIVE_TASKS] All queues cleared. Swarm in standby.` | Crimson border banner: `[DB_READ_ERROR] SQLite journal locked or unreachable.` | Automatic retry with exponential backoff (`1s`, `2s`, `5s`). |
-| **Live Timeline (`/tasks/[id]`)** | Vertical pulse timeline skeleton with 3 structural agent step nodes. | `[ZERO_TURNS_RECORDED] Task initialized. Awaiting initial turn dispatch.` | `[TIMELINE_STREAM_DISCONNECTED] SSE socket terminated.` | SSE client re-establishes socket with `Last-Event-ID` header. |
-| **Circuit Breaker (`/circuit-breaker`)** | Dual radial gauge skeletons with pulse animation. | `[RULES_CLEAN] Zero active trips. All guardrails nominal.` | `[JDM_EVALUATION_FAILED] JSON Decision Model syntax or file missing.` | Fallback to hardcoded safe guardrails (`maxTurns: 50, maxFailures: 3`). |
-| **Embedded Terminal (`/terminal`)** | Monospace terminal skeleton with blinking cursor block. | Terminal prompt ready: `kalinar-os:~$` | `[PTY_SPAWN_FAILED] Native shell binary failed to launch.` | Fallback to standard system PowerShell/Bash process. |
-| **Telemetry Ledger (`/telemetry`)** | Virtualized row skeletons with monospace numeric cells. | `[LEDGER_EMPTY] No telemetry recorded for selected filter.` | `[AUDIT_QUERY_TIMEOUT] Query exceeded 500ms threshold.` | Enforce indexed query constraint and paginate. |
-
-### 3.1 Layer 1 HUD Ergonomics & Interaction States
-* **Left Dynamic Column (`left: 24px, width: 320px`):** Brand mark (`40x40` SVG), filter chips (`top: 120px`), scrollable list (`top: 250px`) of opaque `160px` `AgentLivePreviewCard` components showing live visual previews of active agent's work + 2-line `tabular-nums` metadata (`STEP X/Y`, tokens, ETA).
-* **Right Ethereal Column (`right: 48px, top: 50%, translateY(-50%), width: 360px`):** Renders text blocks in `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). Live voice transcription renders directly inside `[singularity_core]` in `#AA88FF`. When the `NodeInspectorDrawer` (`480px`) opens, the right column smoothly retracts to prevent visual collision.
-* **Retractable Bottom IDE Dock (`bottom: 0`):** Collapsed by default to a `36px` tactical bar to keep the Black Hole unobstructed; smoothly expands to `350px` (or up to `75vh`) upon click or spoken voice directive.
+| **Camada 0: Singularidade & Galáxia (`canvas#singularity-bg`)** | Núcleo escuro com anel Fresnel e nuvem toroidal GPGPU girando a `262.144` partículas. | `[SINGULARITY_STANDBY] Horizonte de eventos estável. Aguardando varredura.` | `[WEBGL_CONTEXT_LOST] Falha ou reset do driver de GPU.` | Recriar contexto WebGL automaticamente e recarregar buffers instanciados sem reconsultar SQLite. |
+| **Camada 1: Núcleo da Singularidade (`[singularity_core]`)** | Pulso radial em Lavanda (`--ds-accent-singularity: #AA88FF`). | `[VOICE_IDLE] Aguardando diretriz tática do operador (pt-BR)...` | `[MIC_STREAM_BLOCKED] Permissão de áudio negada ou microfone indisponível.` | Exibir seletor e indicador visual no HUD direito. |
+| **Cards de Agente Esquerda (`AgentLivePreviewCard`)** | Skeleton opaco de `160px` com gradiente suave. | `[NO_ACTIVE_AGENTS] Enxame em repouso orbital.` | `[STREAM_OFFLINE] Falha no pipe IPC de telemetria.` | Reconexão de canal IPC com polling de fallback de 5s. |
+| **Drawer de Inspeção (`NodeInspectorDrawer`)** | Painel lateral `480px` com shimmer em linhas de código. | `[NO_DIFF_DETECTED] Workspace em sincronia perfeita.` | `[PROCESS_NOT_FOUND] PID encerrado ou inacessível.` | Atualizar tabela de PIDs do sistema operacional. |
+| **Aba 1: Matriz de Etapas (`TelemetryMatrixTable`)** | Linhas tabulares `tabular-nums` com indicador de carregamento. | `[EMPTY_STEP_LEDGER] Nenhuma etapa em execução.` | `[DATA_DESYNC] Dessincronia de eventos do daemon.` | Reconsultar estado ativo do SQLite via `getActiveTasks()`. |
+| **Aba 2: Gráficos de Evolução (`EvolutionChartsView`)** | 3 colunas de gráficos vetoriais com linhas de grade. | `[AWAITING_TELEMETRY] Sem amostras históricas suficientes.` | `[SQLITE_LOCKED] Base de dados WAL ocupada.` | Retry com `busy_timeout = 5000` e normalização assíncrona. |
+| **Aba 3: Córtex Second Brain (`CortexSecondBrainView`)** | Árvore de nós Obsidian com feixes quânticos. | `[COFRES_SINCRONIZADOS] Todas as notas em ordem.` | `[SYNC_CONFLICT] Colisão de escrita em notas markdown.` | Aplicar regra de trava Single-Writer (`.kalinar-lock`). |
+| **Aba 4: Terminal Nativo (`AntigravityCliTab`)** | Prompt monospace `kalinar@singularity:~$` piscando. | `[BUFFER_CLEAR] Terminal pronto para ordens táticas.` | `[FIREWALL_BLOCKED] Comando rejeitado pelo GoRules ZEN Engine.` | Exibir motivo do veredito e nível de risco no console. |
 
 ---
 
-## 4. Edge-Case Recovery Protocols
+## 4. PROTOCOLOS DE RECUPERAÇÃO DE CASOS EXTREMOS
 
-### 4.1 Voice Acoustic Loop Interruption
-* **Condition:** Operator ambient environment creates accidental audio reflections causing false command loops.
-* **Invariant:** Acoustic interlock enforces zero microphone audio capture whenever TTS audio is rendering.
-* **Recovery:** If self-reinforcing audio is detected, Voice Core triggers a `500ms` acoustic deadband and drops input gain by `-12dB`.
+### 4.1 Interrupção de Loop Acústico na Voz
+* **Condição:** Alto-falantes reproduzem áudio que é recapturado pelo microfone, criando loop de auto-reforço.
+* **Invariante:** Interlock acústico desabilita captura do microfone sempre que a fala do KALINAR estiver em reprodução (`audioElement.paused === false`).
+* **Recuperação:** Deadband acústico de `500ms` após o término do áudio e corte de ganho em `-12dB` se ressonância residual for detectada.
 
-### 4.2 WebGL Context Restoration in 3D Galaxy
-* **Condition:** OS graphics driver restarts or power saving suspends GPU context.
-* **Invariant:** All 50,000+ procedural node positions are preserved in CPU memory typed arrays (`Float32Array`).
-* **Recovery:** Catch `webglcontextlost`, call `event.preventDefault()`, and listen for `webglcontextrestored` to reload shaders and rebind instanced buffers without re-querying SQLite.
+### 4.2 Restauração de Contexto WebGL na Galáxia 3D
+* **Condição:** Suspensão de energia ou crash transiente de driver de GPU reinicia o contexto WebGL.
+* **Invariante:** As posições das `50.000` estrelas e das `262.144` partículas GPGPU são preservadas em memória RAM do processo via arrays tipados (`Float32Array`).
+* **Recuperação:** Captura de `webglcontextlost`, chamada de `event.preventDefault()` e escuta do evento `webglcontextrestored` para reinicializar shaders sem recarregar o banco de dados.
