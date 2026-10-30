@@ -1,0 +1,117 @@
+{
+  "contentType": "application/vnd.gorules.decision",
+  "nodes": [
+    {
+      "id": "input-event",
+      "type": "inputNode",
+      "name": "EventRequest",
+      "position": { "x": 40, "y": 140 }
+    },
+    {
+      "id": "dt-route",
+      "type": "decisionTableNode",
+      "name": "EventRoutingTable",
+      "position": { "x": 260, "y": 140 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "in-type", "field": "eventType", "name": "Event Type" },
+          { "id": "in-path", "field": "filePath", "name": "File Path" },
+          { "id": "in-cycle", "field": "auditCycle", "name": "Audit Cycle" }
+        ],
+        "outputs": [
+          { "id": "out-action", "field": "action", "name": "Routing Action" },
+          { "id": "out-tag", "field": "secondBrainTag", "name": "Second Brain Tag" },
+          { "id": "out-audit-allowed", "field": "auditAllowed", "name": "Audit Allowed" },
+          { "id": "out-eta-base", "field": "baseEtaSeconds", "name": "Base ETA (s)" }
+        ],
+        "rules": [
+          {
+            "_id": "r1",
+            "_description": "Suppress loop on .kalinar-lock",
+            "in-type": "",
+            "in-path": "contains($, '.kalinar-lock')",
+            "in-cycle": "",
+            "out-action": "'DROP_LOOP_SUPPRESSED'",
+            "out-tag": "'#lock'",
+            "out-audit-allowed": "false",
+            "out-eta-base": "0"
+          },
+          {
+            "_id": "r2",
+            "_description": "Ignore node_modules and git",
+            "in-type": "",
+            "in-path": "contains($, 'node_modules') or contains($, '.git')",
+            "in-cycle": "",
+            "out-action": "'IGNORE_HARD'",
+            "out-tag": "'#ignored'",
+            "out-audit-allowed": "false",
+            "out-eta-base": "0"
+          },
+          {
+            "_id": "r3",
+            "_description": "Visual only watch for canvas and executions",
+            "in-type": "",
+            "in-path": "contains($, 'KALINAR_GALAXY.canvas') or contains($, '05_EXECUCOES') or contains($, 'WAR_ROOM.md')",
+            "in-cycle": "",
+            "out-action": "'WATCH_VISUAL_ONLY'",
+            "out-tag": "'#visual_sync'",
+            "out-audit-allowed": "true",
+            "out-eta-base": "2"
+          },
+          {
+            "_id": "r4",
+            "_description": "Cap self audit at cycle 2",
+            "in-type": "",
+            "in-path": "",
+            "in-cycle": "> 2",
+            "out-action": "'HALT_AUDIT_CYCLE_CAP'",
+            "out-tag": "'#circuit_trip'",
+            "out-audit-allowed": "false",
+            "out-eta-base": "0"
+          },
+          {
+            "_id": "r5",
+            "_description": "Standard agent dispatch",
+            "in-type": "'AGENT_TURN'",
+            "in-path": "",
+            "in-cycle": "<= 2",
+            "out-action": "'DISPATCH_AGENT'",
+            "out-tag": "'#agent_turn'",
+            "out-audit-allowed": "true",
+            "out-eta-base": "12"
+          },
+          {
+            "_id": "r6",
+            "_description": "Default file change router",
+            "in-type": "",
+            "in-path": "",
+            "in-cycle": "<= 2",
+            "out-action": "'RECONCILE_WORKSPACE'",
+            "out-tag": "'#workspace_sync'",
+            "out-audit-allowed": "true",
+            "out-eta-base": "5"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output-event",
+      "type": "outputNode",
+      "name": "EventResponse",
+      "position": { "x": 540, "y": 140 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "input-event",
+      "targetId": "dt-route"
+    },
+    {
+      "id": "e2",
+      "sourceId": "dt-route",
+      "targetId": "output-event"
+    }
+  ]
+}

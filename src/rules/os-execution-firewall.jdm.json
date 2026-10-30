@@ -1,0 +1,94 @@
+{
+  "contentType": "application/vnd.gorules.decision",
+  "nodes": [
+    {
+      "id": "input-cmd",
+      "type": "inputNode",
+      "name": "CommandRequest",
+      "position": { "x": 40, "y": 140 }
+    },
+    {
+      "id": "dt-firewall",
+      "type": "decisionTableNode",
+      "name": "OsExecutionFirewallTable",
+      "position": { "x": 260, "y": 140 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "in-cmd", "field": "command", "name": "Raw Command" },
+          { "id": "in-sandbox", "field": "isSandbox", "name": "Sandbox Flag" }
+        ],
+        "outputs": [
+          { "id": "out-allowed", "field": "allowed", "name": "Is Allowed" },
+          { "id": "out-reason", "field": "verdictReason", "name": "Verdict Reason" },
+          { "id": "out-risk", "field": "riskLevel", "name": "Risk Level" }
+        ],
+        "rules": [
+          {
+            "_id": "f1",
+            "_description": "Block destructive Unix root wipe",
+            "in-cmd": "contains($, 'rm -rf /') or contains($, 'rm -rf *')",
+            "in-sandbox": "",
+            "out-allowed": "false",
+            "out-reason": "'DESTRUCTIVE_ROOT_WIPE_PROHIBITED'",
+            "out-risk": "'CRITICAL'"
+          },
+          {
+            "_id": "f2",
+            "_description": "Block destructive Windows disk wipe",
+            "in-cmd": "contains(lower($), 'del /f /s /q') or contains(lower($), 'format c:')",
+            "in-sandbox": "",
+            "out-allowed": "false",
+            "out-reason": "'DESTRUCTIVE_DISK_FORMAT_PROHIBITED'",
+            "out-risk": "'CRITICAL'"
+          },
+          {
+            "_id": "f3",
+            "_description": "Block destructive database drop",
+            "in-cmd": "contains(lower($), 'drop database') or contains(lower($), 'drop table telemetry_logs')",
+            "in-sandbox": "",
+            "out-allowed": "false",
+            "out-reason": "'DATABASE_DESTRUCTION_PROHIBITED'",
+            "out-risk": "'CRITICAL'"
+          },
+          {
+            "_id": "f4",
+            "_description": "Block PID 1 / init kill",
+            "in-cmd": "contains($, 'kill -9 1') or contains(lower($), 'taskkill /f /pid 4')",
+            "in-sandbox": "",
+            "out-allowed": "false",
+            "out-reason": "'SYSTEM_INIT_KILL_PROHIBITED'",
+            "out-risk": "'HIGH'"
+          },
+          {
+            "_id": "f5",
+            "_description": "Allow vetted development and build commands",
+            "in-cmd": "",
+            "in-sandbox": "",
+            "out-allowed": "true",
+            "out-reason": "'COMMAND_VETTED_BY_FIREWALL'",
+            "out-risk": "'LOW'"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output-cmd",
+      "type": "outputNode",
+      "name": "CommandResponse",
+      "position": { "x": 540, "y": 140 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceId": "input-cmd",
+      "targetId": "dt-firewall"
+    },
+    {
+      "id": "e2",
+      "sourceId": "dt-firewall",
+      "targetId": "output-cmd"
+    }
+  ]
+}
