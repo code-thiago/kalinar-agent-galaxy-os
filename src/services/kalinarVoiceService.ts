@@ -300,6 +300,7 @@ export class KalinarVoiceService {
         }
 
         case 'getSwarmDevelopmentStatus': {
+          store.setBottomDockExpanded(true);
           const briefing = brain.generateTacticalBriefing({
             userName: 'Thiago',
             agents: store.agents,

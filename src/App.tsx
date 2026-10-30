@@ -4,14 +4,11 @@ import { LeftAgentCardsColumn } from './components/hud/LeftAgentCardsColumn.js';
 import { RightSingularityColumn } from './components/hud/RightSingularityColumn.js';
 import { TopRightTrigger } from './components/hud/TopRightTrigger.js';
 import { NodeInspectorDrawer } from './components/hud/NodeInspectorDrawer.js';
-import { RetractableIdeDock } from './components/ui/RetractableIdeDock.js';
+import { KalinarBottomDock } from './components/terminal/KalinarBottomDock.js';
 import { useKalinarStore } from './store/useKalinarStore.js';
 
 export function App() {
   const {
-    isBottomDockExpanded,
-    toggleBottomDock,
-    agents,
     updateSingularityTranscript,
   } = useKalinarStore();
 
@@ -50,17 +47,7 @@ export function App() {
         <NodeInspectorDrawer />
 
         {/* Retractable Bottom IDE Dock */}
-        <RetractableIdeDock.Root
-          isExpanded={isBottomDockExpanded}
-          onToggleExpand={toggleBottomDock}
-        >
-          <RetractableIdeDock.TacticalBar
-            isExpanded={isBottomDockExpanded}
-            activeAgentsCount={agents.length}
-            circuitState="CLOSED"
-          />
-          <RetractableIdeDock.Workspace isExpanded={isBottomDockExpanded} />
-        </RetractableIdeDock.Root>
+        <KalinarBottomDock />
       </div>
     </main>
   );
