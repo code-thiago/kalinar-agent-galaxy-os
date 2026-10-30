@@ -44,6 +44,20 @@ export interface ExecutionGateOutput {
   timeoutSeconds: number;
 }
 
+export interface VoiceCommandInput {
+  intent: 'ACTIVATE_SECOND_BRAIN' | 'GET_SWARM_STATUS' | 'CONTROL_AGENT' | 'DISPATCH_ANTIGRAVITY' | 'UNKNOWN' | string;
+  action?: string;
+  isDestructive?: boolean;
+}
+
+export interface VoiceCommandOutput {
+  allowed: boolean;
+  targetHandler: 'activateSecondBrain' | 'getSwarmDevelopmentStatus' | 'controlAgentExecution' | 'dispatchAntigravityCommand' | 'rejectVoiceCommand' | string;
+  feedbackPhrase: string;
+  auditRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+
 export class ZenFirewall {
   private static instance: ZenFirewall;
   private zenEngineInstance: any = null;
@@ -81,6 +95,11 @@ export class ZenFirewall {
         executionMode: 'AUTO_PILOT',
         isDestructiveAction: false,
         hasSingleWriterLock: true,
+      });
+      await this.evaluateVoiceCommand({
+        intent: 'GET_SWARM_STATUS',
+        action: 'GET_STATUS',
+        isDestructive: false,
       });
     } catch {
       // In-process fallback evaluator handles JDM deterministically
@@ -184,6 +203,95 @@ export class ZenFirewall {
     const latencyMs = performance.now() - start;
     return { result, latencyMs };
   }
+
+  /**
+   * Evaluates voice command execution against sovereign guardrails in < 1ms
+   */
+  public async evaluateVoiceCommand(input: VoiceCommandInput): Promise<{
+    result: VoiceCommandOutput;
+    latencyMs: number;
+  }> {
+    const start = performance.now();
+
+    if (this.zenEngineInstance) {
+      try {
+        const response = await this.zenEngineInstance.evaluate('voice-command-guard.jdm.json', input, { trace: true });
+        const latencyMs = performance.now() - start;
+        return {
+          result: response.result as VoiceCommandOutput,
+          latencyMs,
+        };
+      } catch {
+        // Fall back to deterministic evaluation below
+      }
+    }
+
+    const result = this.fallbackEvaluateVoiceCommand(input);
+    const latencyMs = performance.now() - start;
+    return { result, latencyMs };
+  }
+
+  private fallbackEvaluateVoiceCommand(input: VoiceCommandInput): VoiceCommandOutput {
+    if (input.intent === 'ACTIVATE_SECOND_BRAIN') {
+      return {
+        allowed: true,
+        targetHandler: 'activateSecondBrain',
+        feedbackPhrase: 'Gravidade do nucleo expandida. Absorvendo base de conhecimento do Second Brain.',
+        auditRisk: 'LOW',
+      };
+    }
+
+    if (input.intent === 'GET_SWARM_STATUS') {
+      return {
+        allowed: true,
+        targetHandler: 'getSwarmDevelopmentStatus',
+        feedbackPhrase: 'Calculando telemetria do enxame. Transmitindo relatorio tatico agora.',
+        auditRisk: 'LOW',
+      };
+    }
+
+    if (input.intent === 'CONTROL_AGENT') {
+      if (input.action === 'KILL') {
+        return {
+          allowed: true,
+          targetHandler: 'controlAgentExecution',
+          feedbackPhrase: 'Interrompendo processo do agente imediatamente sob protocolo de seguranca.',
+          auditRisk: 'HIGH',
+        };
+      }
+      if (input.action === 'APPROVE_DIFF') {
+        return {
+          allowed: true,
+          targetHandler: 'controlAgentExecution',
+          feedbackPhrase: 'Diff aprovado. Gravando mutacao no disco com trava de gravacao.',
+          auditRisk: 'MEDIUM',
+        };
+      }
+      return {
+        allowed: true,
+        targetHandler: 'controlAgentExecution',
+        feedbackPhrase: 'Diretriz de controle de agente acionada.',
+        auditRisk: 'LOW',
+      };
+    }
+
+    if (input.intent === 'DISPATCH_ANTIGRAVITY') {
+      return {
+        allowed: true,
+        targetHandler: 'dispatchAntigravityCommand',
+        feedbackPhrase: 'Feixe relativistico disparado. Instrucao propagada ao agente no Antigravity.',
+        auditRisk: 'MEDIUM',
+      };
+    }
+
+    return {
+      allowed: false,
+      targetHandler: 'rejectVoiceCommand',
+      feedbackPhrase: 'Comando nao reconhecido pelo nucleo. Repita a diretriz com clareza.',
+      auditRisk: 'LOW',
+    };
+  }
+
 
   private fallbackEvaluateExecutionGate(input: ExecutionGateInput): ExecutionGateOutput {
     if (input.executionMode === 'SANDBOX_DRY_RUN') {

@@ -55,31 +55,65 @@ export interface SingularityCoreBlockProps extends React.HTMLAttributes<HTMLDivE
   voiceState: string;
   transcript: string;
   zenLatencyMs?: number;
+  onMicToggle?: () => void;
+  onBriefingRequest?: () => void;
+  isMicActive?: boolean;
 }
 
 export function SingularityCoreBlock({
   voiceState,
   transcript,
   zenLatencyMs = 0.42,
+  onMicToggle,
+  onBriefingRequest,
+  isMicActive = false,
   className = '',
   ...props
 }: SingularityCoreBlockProps) {
+  // Format tactical status badge
+  let statusBadge = '[SINGULARITY: STANDBY]';
+  if (voiceState === '[LISTENING]') statusBadge = '[LISTENING PT-BR]';
+  if (voiceState === '[GRAVITY_PULL]') statusBadge = '[GRAVITY_INGESTION]';
+  if (voiceState === '[SPEAKING]') statusBadge = '[KALINAR_SPEAKING]';
+
   return (
     <div
       data-slot="singularity-core-block"
-      className={`p-3 bg-[rgba(10,8,16,0.6)] border-l-2 border-[var(--ds-accent-singularity)] flex flex-col gap-2 ${className}`}
+      className={`p-3 bg-[rgba(10,8,16,0.7)] border-l-2 border-[var(--ds-accent-singularity)] flex flex-col gap-2.5 ${className}`}
       {...props}
     >
       <div className="flex items-center justify-between text-[11px] font-mono uppercase">
         <span className="text-[var(--ds-accent-singularity)] font-semibold">[SINGULARITY_CORE]</span>
-        <span className="text-[var(--ds-primitive-lavender-400)] tabular-nums">{voiceState}</span>
+        <span className="text-[var(--ds-primitive-lavender-400)] font-medium tabular-nums">{statusBadge}</span>
       </div>
-      <div className="font-mono text-[13px] text-[var(--ds-accent-singularity)] leading-snug min-h-[38px] italic">
+      <div className="font-mono text-[13px] text-[var(--ds-accent-singularity)] leading-snug min-h-[44px] italic">
         {transcript || '"Aguardando diretriz tática. O núcleo gravitacional permanece ativo."'}
       </div>
-      <div className="flex justify-between items-center text-[10px] text-[var(--ds-text-secondary)] font-mono tabular-nums pt-1 border-t border-[rgba(170,136,255,0.2)]">
-        <span>SOVEREIGN PT-BR</span>
-        <span>LATENCY: {zenLatencyMs.toFixed(2)}MS</span>
+      <div className="flex justify-between items-center text-[10px] text-[var(--ds-text-secondary)] font-mono tabular-nums pt-1.5 border-t border-[rgba(170,136,255,0.25)]">
+        <div className="flex items-center gap-2">
+          <span>SOVEREIGN PT-BR</span>
+          {onMicToggle && (
+            <button
+              onClick={onMicToggle}
+              className={`px-1.5 py-0.5 border text-[9.5px] transition-colors ${
+                isMicActive
+                  ? 'border-[var(--ds-accent-singularity)] text-[var(--ds-accent-singularity)] bg-[rgba(170,136,255,0.15)]'
+                  : 'border-[var(--ds-border-subtle)] text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]'
+              }`}
+            >
+              {isMicActive ? '[MIC ACTIVE]' : '[ENABLE MIC]'}
+            </button>
+          )}
+          {onBriefingRequest && (
+            <button
+              onClick={onBriefingRequest}
+              className="px-1.5 py-0.5 border border-[var(--ds-border-subtle)] text-[9.5px] text-[var(--ds-text-secondary)] hover:text-[var(--ds-accent-singularity)] hover:border-[var(--ds-accent-singularity)] transition-colors"
+            >
+              [TACTICAL BRIEFING]
+            </button>
+          )}
+        </div>
+        <span>ZEN: {zenLatencyMs.toFixed(2)}MS</span>
       </div>
     </div>
   );

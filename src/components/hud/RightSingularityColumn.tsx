@@ -1,8 +1,32 @@
+import { useState } from 'react';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 import { SingularityHudColumn } from '../ui/SingularityHudColumn.js';
+import { kalinarVoiceService } from '../../services/kalinarVoiceService.js';
+import { kalinarSingularityBrain } from '../../services/kalinarSingularityBrain.js';
 
 export function RightSingularityColumn() {
-  const { singularity, isInspectorDrawerOpen } = useKalinarStore();
+  const { singularity, agents, isInspectorDrawerOpen } = useKalinarStore();
+  const [isMicActive, setIsMicActive] = useState(false);
+
+  const handleMicToggle = async () => {
+    if (!isMicActive) {
+      const enabled = await kalinarVoiceService.enableMicrophone();
+      setIsMicActive(enabled);
+    } else {
+      kalinarVoiceService.dispose();
+      setIsMicActive(false);
+    }
+  };
+
+  const handleBriefingRequest = async () => {
+    const briefing = kalinarSingularityBrain.generateTacticalBriefing({
+      userName: 'Thiago',
+      agents,
+      secondBrainDirectivesCount: 4,
+      activeDirective: singularity.activeDirective,
+    });
+    await kalinarVoiceService.speakDirective(briefing);
+  };
 
   return (
     <aside
@@ -15,7 +39,11 @@ export function RightSingularityColumn() {
           voiceState={singularity.voiceState}
           transcript={singularity.liveTranscript}
           zenLatencyMs={singularity.zenLatencyMs}
+          onMicToggle={handleMicToggle}
+          onBriefingRequest={handleBriefingRequest}
+          isMicActive={isMicActive}
         />
+
 
         {/* 2. Active Directive */}
         <SingularityHudColumn.Block tag="ACTIVE_DIRECTIVE">

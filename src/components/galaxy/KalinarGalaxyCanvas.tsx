@@ -10,6 +10,8 @@ import { KalinarSingularityCore } from './KalinarSingularityCore.js';
 import { FluidSimulation } from '../../core/physics/FluidSimulation.js';
 import { GravitationalBeamsLayer } from './GravitationalBeamsLayer.js';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
+import { kalinarVoiceService } from '../../services/kalinarVoiceService.js';
+
 
 export function KalinarGalaxyCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -231,11 +233,14 @@ export function KalinarGalaxyCanvas() {
       // Fluid Simulation Step
       fluid.step(dt);
 
-      // Voice waveform pulse simulation
+      // Acoustic coupling: Read real-time frequency magnitude from Web Audio AnalyserNode
+      const audioMagnitude = kalinarVoiceService.getAudioFrequencyMagnitude();
       const voicePulse =
         singularity.voiceState === '[SPEAKING]'
-          ? 1.0 + Math.sin(elapsedTime * 12.0) * 0.25
-          : 0.1;
+          ? 1.0 + audioMagnitude * 0.85
+          : singularity.voiceState === '[LISTENING]'
+          ? 0.35 + audioMagnitude * 0.35
+          : 0.08 + Math.sin(elapsedTime * 2.0) * 0.02;
 
       // Update Black Hole Singularity Core
       singularityCore.update(

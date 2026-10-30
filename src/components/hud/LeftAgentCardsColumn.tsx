@@ -57,7 +57,7 @@ export function LeftAgentCardsColumn() {
           <div className="font-sans font-bold text-[16px] tracking-wider text-[var(--ds-primitive-white-500)] flex items-center gap-1.5">
             KALINAR
             <span className="text-[10px] font-mono font-medium px-1.5 py-0.2 bg-[var(--ds-primitive-slate-800)] text-[var(--ds-accent-singularity)] border border-[var(--ds-border-subtle)]">
-              v0.3.0-alpha
+              v0.4.0-beta
             </span>
           </div>
           <div className="text-[10.5px] font-mono text-[var(--ds-text-secondary)] uppercase tracking-tight">

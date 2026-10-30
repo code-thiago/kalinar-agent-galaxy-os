@@ -1,0 +1,128 @@
+{
+  "contentType": "application/vnd.gorules.decision",
+  "nodes": [
+    {
+      "id": "input-voice",
+      "type": "inputNode",
+      "name": "VoiceCommandRequest",
+      "position": { "x": 40, "y": 140 }
+    },
+    {
+      "id": "dt-voice-guard",
+      "type": "decisionTableNode",
+      "name": "VoiceCommandGuardTable",
+      "position": { "x": 260, "y": 140 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "in-intent", "field": "intent", "name": "Intent" },
+          { "id": "in-action", "field": "action", "name": "Action" },
+          { "id": "in-destructive", "field": "isDestructive", "name": "Is Destructive" }
+        ],
+        "outputs": [
+          { "id": "out-allowed", "field": "allowed", "name": "Allowed" },
+          { "id": "out-handler", "field": "targetHandler", "name": "Target Handler" },
+          { "id": "out-feedback", "field": "feedbackPhrase", "name": "Feedback Phrase" },
+          { "id": "out-risk", "field": "auditRisk", "name": "Audit Risk" }
+        ],
+        "rules": [
+          {
+            "_id": "vg1",
+            "_description": "Second Brain Gravitational Absorption",
+            "in-intent": "'ACTIVATE_SECOND_BRAIN'",
+            "in-action": "",
+            "in-destructive": "",
+            "out-allowed": "true",
+            "out-handler": "'activateSecondBrain'",
+            "out-feedback": "'Gravidade do nucleo expandida. Absorvendo base de conhecimento do Second Brain.'",
+            "out-risk": "'LOW'"
+          },
+          {
+            "_id": "vg2",
+            "_description": "Telemetry Swarm Status Briefing",
+            "in-intent": "'GET_SWARM_STATUS'",
+            "in-action": "",
+            "in-destructive": "",
+            "out-allowed": "true",
+            "out-handler": "'getSwarmDevelopmentStatus'",
+            "out-feedback": "'Calculando telemetria do enxame. Transmitindo relatorio tatico agora.'",
+            "out-risk": "'LOW'"
+          },
+          {
+            "_id": "vg3",
+            "_description": "High-risk Process Termination",
+            "in-intent": "'CONTROL_AGENT'",
+            "in-action": "'KILL'",
+            "in-destructive": "true",
+            "out-allowed": "true",
+            "out-handler": "'controlAgentExecution'",
+            "out-feedback": "'Interrompendo processo do agente imediatamente sob protocolo de seguranca.'",
+            "out-risk": "'HIGH'"
+          },
+          {
+            "_id": "vg4",
+            "_description": "Diff Mutation Approval",
+            "in-intent": "'CONTROL_AGENT'",
+            "in-action": "'APPROVE_DIFF'",
+            "in-destructive": "",
+            "out-allowed": "true",
+            "out-handler": "'controlAgentExecution'",
+            "out-feedback": "'Diff aprovado. Gravando mutacao no disco com trava de gravacao.'",
+            "out-risk": "'MEDIUM'"
+          },
+          {
+            "_id": "vg5",
+            "_description": "Nominal Agent State Control",
+            "in-intent": "'CONTROL_AGENT'",
+            "in-action": "",
+            "in-destructive": "",
+            "out-allowed": "true",
+            "out-handler": "'controlAgentExecution'",
+            "out-feedback": "'Diretriz de controle de agente acionada.'",
+            "out-risk": "'LOW'"
+          },
+          {
+            "_id": "vg6",
+            "_description": "Relativistic Antigravity Command Dispatch",
+            "in-intent": "'DISPATCH_ANTIGRAVITY'",
+            "in-action": "",
+            "in-destructive": "",
+            "out-allowed": "true",
+            "out-handler": "'dispatchAntigravityCommand'",
+            "out-feedback": "'Feixe relativistico disparado. Instrucao propagada ao agente no Antigravity.'",
+            "out-risk": "'MEDIUM'"
+          },
+          {
+            "_id": "vg7",
+            "_description": "Fallback rejected voice command",
+            "in-intent": "",
+            "in-action": "",
+            "in-destructive": "",
+            "out-allowed": "false",
+            "out-handler": "'rejectVoiceCommand'",
+            "out-feedback": "'Comando nao reconhecido pelo nucleo. Repita a diretriz com clareza.'",
+            "out-risk": "'LOW'"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output-voice",
+      "type": "outputNode",
+      "name": "VoiceCommandResponse",
+      "position": { "x": 480, "y": 140 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-v1",
+      "sourceId": "input-voice",
+      "targetId": "dt-voice-guard"
+    },
+    {
+      "id": "edge-v2",
+      "sourceId": "dt-voice-guard",
+      "targetId": "output-voice"
+    }
+  ]
+}
