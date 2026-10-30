@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { SingularityCanvas } from './components/singularity/SingularityCanvas.js';
+import { KalinarGalaxyCanvas } from './components/galaxy/KalinarGalaxyCanvas.js';
 import { LeftAgentCardsColumn } from './components/hud/LeftAgentCardsColumn.js';
 import { RightSingularityColumn } from './components/hud/RightSingularityColumn.js';
 import { TopRightTrigger } from './components/hud/TopRightTrigger.js';
@@ -32,8 +32,8 @@ export function App() {
 
   return (
     <main className="relative w-screen h-screen bg-black overflow-hidden font-mono uppercase-telemetry">
-      {/* LAYER 0: CENTRAL KALINAR BLACK HOLE SINGULARITY BACKGROUND */}
-      <SingularityCanvas />
+      {/* LAYER 0: CENTRAL KALINAR BLACK HOLE SINGULARITY BACKGROUND (GPGPU ACCRETION DISK + 50K INSTANCED GALAXY) */}
+      <KalinarGalaxyCanvas />
 
       {/* LAYER 1: ASYMMETRIC SINGULARITY HUD */}
       <div className="kalinar-hud relative inset-0 w-full h-full pointer-events-none z-10">
