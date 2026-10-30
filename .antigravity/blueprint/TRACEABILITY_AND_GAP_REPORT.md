@@ -11,7 +11,7 @@
 
 ## 1. Executive Audit Summary
 
-The Six-Pillar Blueprint for Kalinar Desktop OS & 3D Agent Galaxy has been audited against the Iron Law of Pre-Code Co-Creation (`INV-01 / PRE_CODE_BLUEPRINT_LOCK`). All 6 documents have been reconciled with the Desktop OS architecture, Three.js 3D Galaxy engine (`THREE.InstancedMesh`), Voice Core state machine (`FLOW-VOICE-JARVIS-01`), and GoRules Zen-Engine dual guardrails (`swarm-guard.jdm.json` and `voice-command-guard.jdm.json`).
+The Six-Pillar Blueprint for Kalinar Desktop OS & 3D Agent Galaxy has been audited against the Iron Law of Pre-Code Co-Creation (`INV-01 / PRE_CODE_BLUEPRINT_LOCK`). All 6 documents have been reconciled with the Desktop OS architecture, Three.js 3D Singularity & Galaxy engine (`THREE.InstancedMesh`), Voice Core state machine (`FLOW-VOICE-KALINAR-01`), and GoRules Zen-Engine dual guardrails (`swarm-guard.jdm.json` and `voice-command-guard.jdm.json`).
 
 | Audit Parameter | Target Constraint | Measured Result | Audit Verdict |
 | :--- | :---: | :---: | :---: |
@@ -30,7 +30,7 @@ The Six-Pillar Blueprint for Kalinar Desktop OS & 3D Agent Galaxy has been audit
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
 | `US-001` | Atomic SQLite Turn | Node 24 `DatabaseSync` WAL | `STATE-TASK-01` | `<SwarmDashboard.LiveIndicator>` | `tasks`, `turns`, `BEGIN IMMEDIATE` | `TASK-TDD-01`, `TASK-TDD-02` | `PASS` |
 | `US-002` | Zen-Engine Circuit Breaker | JDM Rule Engine, `p95 < 1ms` | `STATE-CB-01` | `<CircuitBreakerPanel.Gauge>` | `circuit_breaker_events`, JDM rule | `TASK-TDD-03` | `PASS` |
-| `US-003` | Voice Core & Mic Mute | Web Speech API + Gemini Live WS | `FLOW-VOICE-JARVIS-01` | Voice Pulse HUD, Mic Mute Interlock | `VoiceCommandIntentSchema`, Voice JDM | `TASK-TDD-07` | `PASS` |
+| `US-003` | Voice Core & Mic Mute | Web Speech API + Gemini Live WS | `FLOW-VOICE-KALINAR-01` | Voice Pulse HUD, Mic Mute Interlock | `VoiceCommandIntentSchema`, Voice JDM | `TASK-TDD-07` | `PASS` |
 | `US-004` | Multi-Workspace Watcher | Chokidar `300ms` Debounce | `FLOW-WATCHER-01` | Single-Writer Token Badge | `tasks`, `KALINAR_GALAXY.canvas` | `TASK-TDD-05` | `PASS` |
 | `US-005` | Electron OS & Terminal | `contextIsolation: true`, `node-pty` | `/terminal` Embedded Viewport | Monospace Terminal Viewport | `ELECTRON_IPC_CHANNELS` | `TASK-TDD-04` | `PASS` |
 | `US-006` | 3D Galaxy 50k Nodes 60 FPS | `THREE.InstancedMesh` + Octree | `FLOW-GALAXY-LOD-01` | `<Galaxy3DViewport.Canvas>`, `--ds-accent-*` | `canvas_nodes`, InstancedBuffer | `TASK-TDD-06` | `PASS` |

@@ -28,7 +28,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `US-001` (Atomic SQLite Turn) | Node 24 `DatabaseSync`, WAL Mode | `STATE-TASK-01` (`ExecutingAgentTurn`) | `<SwarmDashboard.LiveIndicator>` | `tasks`, `turns`, `BEGIN IMMEDIATE` | `TASK-TDD-01`, `TASK-TDD-02` |
 | `US-002` (Zen-Engine Circuit Breaker) | JDM Rule Engine, `p95 < 1ms` | `STATE-CB-01` (`CLOSED` -> `OPEN`) | `<CircuitBreakerPanel.Gauge>` | `circuit_breaker_events`, JDM rule | `TASK-TDD-03` |
-| `US-003` (Voice Core & Mic Mute) | Web Speech API + Gemini Live WS | `FLOW-VOICE-JARVIS-01` (`TriggerTTSResponse`) | Voice Pulse HUD, Mic Mute Interlock | `VoiceCommandIntentSchema`, Voice JDM | `TASK-TDD-07` |
+| `US-003` (Voice Core & Mic Mute) | Web Speech API + Gemini Live WS | `FLOW-VOICE-KALINAR-01` (`TriggerTTSResponse`) | Voice Pulse HUD, Mic Mute Interlock | `VoiceCommandIntentSchema`, Voice JDM | `TASK-TDD-07` |
 | `US-004` (Multi-Workspace Watcher) | Chokidar `300ms` Debounce + Loop Guard | `FLOW-WATCHER-01` (`FilterIgnoredPaths`) | Single-Writer Token Badge | `tasks`, `KALINAR_GALAXY.canvas` | `TASK-TDD-05` |
 | `US-005` (Electron Desktop OS & Terminal) | `contextIsolation: true`, `node-pty` | `/terminal` Embedded Viewport | Monospace Terminal Viewport | `ELECTRON_IPC_CHANNELS` | `TASK-TDD-04` |
 | `US-006` (3D Galaxy 50k Nodes 60 FPS) | `THREE.InstancedMesh` + Spatial Octree | `FLOW-GALAXY-LOD-01` (`SectorZoom`) | `<Galaxy3DViewport.Canvas>`, `--ds-accent-*` | `canvas_nodes`, InstancedBuffer | `TASK-TDD-06` |

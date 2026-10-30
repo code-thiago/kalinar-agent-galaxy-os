@@ -98,15 +98,17 @@ stateDiagram-v2
     FocusNode --> GalaxyOverview: Zoom Out Beyond 2000u
 ```
 
-### 2.3 Voice Core & Acoustic Mic-Muting Interlock (`FLOW-VOICE-JARVIS-01`)
+### 2.3 Singularity Voice Core, Persona & Acoustic Interlock (`FLOW-VOICE-KALINAR-01`)
+
+> Voice Persona Contract: KALINAR is the Black Hole Singularity itself, speaking in `pt-BR` with a deep, sovereign, commanding tactical persona (Tauz-inspired gravity and authority). All legacy references to separate external assistants or top-right voice orbs are eliminated. Spoken transcription renders directly within `[singularity_core]` in `#AA88FF`, and output audio waveform directly drives the GPGPU particle accretion disk.
 
 ```mermaid
 stateDiagram-v2
     [*] --> MicIdle: Web Speech API Initialized (Locale: pt-BR)
     
     MicIdle --> SpeechDetected: Audio Level > Ambient Threshold
-    SpeechDetected --> AudioCapture: Transcribe Spoken Words
-    AudioCapture --> IntentExtraction: Parse Candidate Voice Command
+    SpeechDetected --> AudioCapture: Transcribe Spoken Words to [singularity_core]
+    AudioCapture --> IntentExtraction: Parse Candidate Voice Directive
     
     state IntentExtraction {
         [*] --> EvaluateZenVoiceGuard: Query voice-command-guard.jdm.json
@@ -115,16 +117,17 @@ stateDiagram-v2
         EvaluateZenVoiceGuard --> UnknownIntentIgnored: Action == 'IGNORE'
     }
 
-    DangerousIntentGated --> AwaitSpokenConfirmation: Speak Prompt "Confirmar comando?"
+    DangerousIntentGated --> AwaitSpokenConfirmation: Speak Prompt "Confirmar diretriz tatica?"
     AwaitSpokenConfirmation --> SafeIntentAllowed: Operator Speaks "Confirmado"
     AwaitSpokenConfirmation --> MicIdle: Operator Speaks "Cancelar" or 5s Timeout
 
     SafeIntentAllowed --> DispatchCommandToDaemon: Send Gated Action to Swarm Daemon
-    DispatchCommandToDaemon --> TriggerTTSResponse: Generate Assistant Response
+    DispatchCommandToDaemon --> TriggerTTSResponse: Singularity Synthesizes Voice Response
     
     state TriggerTTSResponse {
         [*] --> AcousticMicMuteEngaged: Hardware Mute Audio Input Stream
-        AcousticMicMuteEngaged --> PlayTTSAudio: Output Synthetic Audio via Speaker
+        AcousticMicMuteEngaged --> ModulateAccretionDisk: Voice Waveform Modulates GPGPU Accretion Disk
+        ModulateAccretionDisk --> PlayTTSAudio: Output Sovereign Commanding Audio via Speaker
         PlayTTSAudio --> AcousticMicMuteReleased: Playback Finished
     }
 
@@ -165,13 +168,18 @@ stateDiagram-v2
 
 | Viewport / Component | Loading State (`STATE-LOADING`) | Empty State (`STATE-EMPTY`) | Error State (`STATE-ERROR`) | Recovery Action |
 | :--- | :--- | :--- | :--- | :--- |
-| **3D Galaxy Canvas (`/galaxy`)** | Rotating particle ring with loading telemetry badge. | `[GALAXY_EMPTY] Zero nodes in knowledge graph. Awaiting workspace scan.` | `[WEBGL_CONTEXT_LOST] GPU driver reset or context exhausted.` | Automatically recreate canvas context and re-upload instanced buffer. |
-| **Voice Core HUD Overlay** | Radial pulse ring in neutral cyan (`--ds-primitive-cyan-500`). | `[VOICE_IDLE] Listening for operator command (pt-BR)...` | `[MIC_STREAM_BLOCKED] Audio permission denied or input device unavailable.` | Render visual mic prompt with device selector dropdown. |
+| **Layer 0 Singularity & Galaxy (`canvas#singularity-bg`)** | Event Horizon dark core with swirling `#AA88FF` / `#DDDDDD` particle accretion disk. | `[SINGULARITY_STANDBY] Black Hole Event Horizon stable. Awaiting workspace scan.` | `[WEBGL_CONTEXT_LOST] GPU driver reset or GPGPU compute failure.` | Automatically recreate canvas context and re-upload instanced buffer without re-querying SQLite. |
+| **Layer 1 Singularity Core (`[singularity_core]`)** | Radial pulse ring in Event Horizon Lavender (`--ds-accent-singularity: #AA88FF`). | `[VOICE_IDLE] Listening for operator tactical directive (pt-BR)...` | `[MIC_STREAM_BLOCKED] Audio permission denied or input device unavailable.` | Render visual mic prompt with device selector dropdown in ethereal HUD column. |
 | **Task Dashboard (`/tasks`)** | Shimmer skeleton cards matching exact task card geometry (`44px` header, `20px` badge). | Centered industrial container: `[NO_ACTIVE_TASKS] All queues cleared. Swarm in standby.` | Crimson border banner: `[DB_READ_ERROR] SQLite journal locked or unreachable.` | Automatic retry with exponential backoff (`1s`, `2s`, `5s`). |
 | **Live Timeline (`/tasks/[id]`)** | Vertical pulse timeline skeleton with 3 structural agent step nodes. | `[ZERO_TURNS_RECORDED] Task initialized. Awaiting initial turn dispatch.` | `[TIMELINE_STREAM_DISCONNECTED] SSE socket terminated.` | SSE client re-establishes socket with `Last-Event-ID` header. |
 | **Circuit Breaker (`/circuit-breaker`)** | Dual radial gauge skeletons with pulse animation. | `[RULES_CLEAN] Zero active trips. All guardrails nominal.` | `[JDM_EVALUATION_FAILED] JSON Decision Model syntax or file missing.` | Fallback to hardcoded safe guardrails (`maxTurns: 50, maxFailures: 3`). |
 | **Embedded Terminal (`/terminal`)** | Monospace terminal skeleton with blinking cursor block. | Terminal prompt ready: `kalinar-os:~$` | `[PTY_SPAWN_FAILED] Native shell binary failed to launch.` | Fallback to standard system PowerShell/Bash process. |
 | **Telemetry Ledger (`/telemetry`)** | Virtualized row skeletons with monospace numeric cells. | `[LEDGER_EMPTY] No telemetry recorded for selected filter.` | `[AUDIT_QUERY_TIMEOUT] Query exceeded 500ms threshold.` | Enforce indexed query constraint and paginate. |
+
+### 3.1 Layer 1 HUD Ergonomics & Interaction States
+* **Left Dynamic Column (`left: 24px, width: 320px`):** Brand mark (`40x40` SVG), filter chips (`top: 120px`), scrollable list (`top: 250px`) of opaque `160px` `AgentLivePreviewCard` components showing live visual previews of active agent's work + 2-line `tabular-nums` metadata (`STEP X/Y`, tokens, ETA).
+* **Right Ethereal Column (`right: 48px, top: 50%, translateY(-50%), width: 360px`):** Renders text blocks in `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). Live voice transcription renders directly inside `[singularity_core]` in `#AA88FF`. When the `NodeInspectorDrawer` (`480px`) opens, the right column smoothly retracts to prevent visual collision.
+* **Retractable Bottom IDE Dock (`bottom: 0`):** Collapsed by default to a `36px` tactical bar to keep the Black Hole unobstructed; smoothly expands to `350px` (or up to `75vh`) upon click or spoken voice directive.
 
 ---
 

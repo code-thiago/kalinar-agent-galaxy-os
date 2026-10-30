@@ -29,14 +29,14 @@
 | **Desktop Runtime & OS** | Electron + Node.js 24 | `Electron ^33.x` / `Node.js 24 LTS` | Secure desktop container (`main.ts` + `preload.ts`), `contextIsolation: true`, `nodeIntegration: false`. |
 | **Terminal & Native Shell** | `node-pty` | `node-pty ^1.1.0` | High-fidelity pseudo-terminal emulation for interactive shell execution inside the Desktop OS. |
 | **Workspace File Watcher** | `chokidar` | `chokidar ^4.0.3` | Multi-workspace change detection with `300ms` debounce and bidirectional state reconciliation. |
-| **3D Galaxy Visualization** | Three.js + R3F + Drei | `three ^0.170.0`, `@react-three/fiber ^8.17.0`, `@react-three/drei ^9.120.0` | `THREE.InstancedMesh` rendering 50,000+ procedural star nodes at 60 FPS with Spatial Octree LOD. |
-| **Voice Core & Live AI** | Web Speech API + Gemini Live WebSocket | `Web Speech API (pt-BR)` + `wss://generativelanguage.googleapis.com` | Real-time bi-directional voice streaming with acoustic mic-muting during TTS playback. |
+| **3D Singularity & Galaxy Engine** | Three.js + R3F + Drei + GPGPU | `three ^0.170.0`, `@react-three/fiber ^8.17.0`, `@react-three/drei ^9.120.0` | Central KALINAR Black Hole Singularity (Event Horizon dark core + GPGPU accretion disk) + `THREE.InstancedMesh` rendering 50,000+ star nodes at 60 FPS. |
+| **Voice Core & Live AI** | Web Speech API + Gemini Live WebSocket | `Web Speech API (pt-BR)` + `wss://generativelanguage.googleapis.com` | Sovereign commanding tactical persona (pt-BR); real-time voice streaming with acoustic mic-muting during TTS playback. |
 | **Decision Rule Engine** | GoRules Zen-Engine | `@gorules/zen-engine ^2.1.9` | Declarative JDM tables (`swarm-guard.jdm.json` & `voice-command-guard.jdm.json`). |
 | **State Storage & Persistence** | SQLite via `node:sqlite` | Native Node 24 `DatabaseSync` (`WAL mode`) | Zero external database dependencies; append-only triggers on `telemetry_logs`; atomic state journals. |
 | **Canvas State Sync** | JSON Canvas Protocol | `KALINAR_GALAXY.canvas` | Bidirectional synchronization between SQLite task/agent nodes and Obsidian visual graph canvas. |
 | **Validation & Schema Contracts** | Zod | `zod ^4.6.7` | Type-safe runtime parsing of turn outputs, voice command intents, and Electron IPC payloads. |
 | **Frontend Framework** | Next.js (App Router) / React 19 | `Next.js 15.x` + `React 19.x` | React Server Components (RSC), Client Islands for 3D Galaxy viewport, zero client bundle bloat. |
-| **Styling & Token System** | Tailwind CSS v4 | `v4.x` + 3-tier CSS Custom Properties | Semantic tokens (`--ds-*`), matte obsidian base, 3D Galaxy accent tokens, zero-runtime CSS. |
+| **Styling & Token System** | Tailwind CSS v4 | `v4.x` + 3-tier CSS Custom Properties | Semantic tokens (`--ds-*`), Pure Void base (`#000000`), Event Horizon Lavender (`#AA88FF`), Arc Cyan (`#00F0FF`), zero-runtime CSS. |
 | **Testing & Verification** | Vitest + Playwright | `Vitest ^5.0.5` + `Playwright ^1.49.0` | Unit, integration, JDM rule validation, and headless E2E verification of UI and 3D scenes. |
 
 ---
@@ -100,13 +100,15 @@ flowchart TB
 * **Strict Whitelist Bridge:** The `preload.ts` script exposes only typed, sanitized IPC invoke handlers (`kalinarApi.invokeTaskAction`, `kalinarApi.onTelemetryStream`, `kalinarApi.onVoiceStateChange`). Raw `ipcRenderer.send` or `ipcRenderer.on` are forbidden.
 * **Navigation Locking:** Navigation to external web URLs is blocked via `webContents.on('will-navigate', (event) => event.preventDefault())`. External links are dispatched exclusively through `shell.openExternal`.
 
-### 3.2 3D Galaxy Engine Performance Contract (`FLOW-GALAXY-LOD-01`)
-* **Mesh Instancing:** All star nodes (agents, memory files, execution steps) are rendered via a single `THREE.InstancedMesh` per archetype to achieve 60 FPS with 50,000+ procedural entities.
+### 3.2 3D Singularity & Galaxy Engine Performance Contract (`FLOW-GALAXY-LOD-01`)
+* **Layer 0 Central Singularity:** Central KALINAR Black Hole Singularity featuring an Event Horizon dark core with `#AA88FF` / `#DDDDDD` GPGPU particle accretion disk stirred by cursor Navier-Stokes fluid simulation and modulated in real time by Kalinar's voice waveform.
+* **Mesh Instancing:** All orbital star nodes (agents, memory files, execution steps) are rendered via a single `THREE.InstancedMesh` per archetype to achieve 60 FPS with 50,000+ procedural entities orbiting the central Black Hole.
 * **Spatial Octree LOD:** Camera frustum and spatial octree partition the galaxy. Nodes beyond distance $D_{\text{LOD}}$ collapse to point impostors; nodes within focal distance hydrate full metadata badges and graph pointer beams.
 * **GPU Memory Ceiling:** VRAM consumption capped at $\le 250\text{MB}$ for the entire 3D canvas context.
 
-### 3.3 Voice Core & Acoustic Mic-Muting Interlock (`FLOW-VOICE-JARVIS-01`)
-* **Acoustic Interlock:** During any TTS audio playback, the Web Speech microphone stream is hardware-muted at the audio graph level to prevent acoustic feedback loops where the assistant transcribes its own output.
+### 3.3 Voice Core, Singularity Voice Persona & Acoustic Interlock (`FLOW-VOICE-KALINAR-01`)
+* **Sovereign Singularity Persona:** KALINAR is the Black Hole Singularity itself, speaking in `pt-BR` with a deep, sovereign, commanding tactical persona (Tauz-inspired gravity and authority). All legacy references to separate external assistants or top-right voice orbs are completely eliminated. Live voice transcription renders directly inside the right column `[singularity_core]` block in `#AA88FF`, while the voice waveform directly modulates the Layer 0 particle accretion disk.
+* **Acoustic Interlock:** During any TTS audio playback, the Web Speech microphone stream is hardware-muted at the audio graph level to prevent acoustic feedback loops where the singularity transcribes its own output.
 * **Zen-Engine Voice Guard:** Destructive voice commands (`/pause`, `/halt`, `/trip`, `/rotate`, `/release`) pass through `voice-command-guard.jdm.json`. Unrecognized or ambiguous intents require explicit spoken confirmation (`[CONFIRM_ACTION]`).
 * **Gemini Live WebSocket:** Streaming audio packets are transmitted via secure TLS WebSocket (`wss://`) with payload chunking $\le 40\text{ms}$.
 
