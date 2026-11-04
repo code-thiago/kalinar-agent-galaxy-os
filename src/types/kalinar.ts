@@ -1,23 +1,101 @@
 /**
- * KALINAR SHARED TYPESCRIPT CONTRACTS (v0.1.0-alpha)
+ * KALINAR SHARED TYPESCRIPT CONTRACTS (v1.1.0)
  * Strict schemaVersion: 1
  * Strictly Zero Emojis
  */
 
+import { z } from 'zod';
+
 export const SCHEMA_VERSION = 1 as const;
 
-export type VoiceState = '[STANDBY]' | '[LISTENING]' | '[SPEAKING]' | '[GRAVITY_PULL]';
+export type LlmModelId = 'argon' | 'claude-sonnet' | 'gemini-pro' | 'gemini-flash';
 
-export type AgentStatus = 
-  | '[ACTIVE]' 
-  | '[IDLE]' 
-  | '[HALTED]' 
-  | '[PAUSED]' 
-  | '[RUNNING]' 
-  | '[VERIFIED]' 
-  | '[WARN]' 
-  | '[ERROR]' 
-  | '[STREAM]';
+export const LlmModelIdSchema = z.enum(['argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash']);
+
+export type VoiceState =
+  | '[STANDBY]'
+  | '[LISTENING]'
+  | '[SPEAKING]'
+  | '[GRAVITY_PULL]'
+  | '[SINGULARITY: STANDBY]'
+  | '[LISTENING PT-BR]'
+  | '[GRAVITY_INGESTION]'
+  | '[KALINAR_SPEAKING]'
+  | '[VOICE_HIBERNATE]';
+
+export type AgentStatus =
+  | '[ACTIVE]'
+  | '[IDLE]'
+  | '[HALTED]'
+  | '[PAUSED]'
+  | '[RUNNING]'
+  | '[VERIFIED]'
+  | '[WARN]'
+  | '[ERROR]'
+  | '[STREAM]'
+  | '[ACK_DISPATCHED]'
+  | '[ACK_VERIFIED]'
+  | '[FIFO_QUEUED]'
+  | '[MODEL_HOTSWAP]';
+
+export type AsciiStatusBadge =
+  | VoiceState
+  | AgentStatus
+  | '[VOICE_HIBERNATE]'
+  | '[ACK_DISPATCHED]'
+  | '[ACK_VERIFIED]'
+  | '[FIFO_QUEUED]'
+  | '[MODEL_HOTSWAP]';
+
+export const StreamDigestSchema = z.object({
+  taskId: z.string().min(1),
+  agentId: z.string().min(1),
+  exitCode: z.number().int(),
+  filePath: z.string().optional(),
+  line: z.number().int().nonnegative().optional(),
+  col: z.number().int().nonnegative().optional(),
+  errorSignature: z.string().optional(),
+  summaryText: z.string().min(1),
+  tokenCount: z.number().int().min(1).max(150),
+});
+
+export type StreamDigest = z.infer<typeof StreamDigestSchema>;
+
+export const TwoPhaseVoiceAckSchema = z.object({
+  phase: z.enum(['STATUS_DISPATCHED', 'STATUS_VERIFIED']),
+  taskId: z.string().min(1),
+  targetAgentId: z.string().min(1),
+  pid: z.number().int().optional(),
+  exitCode: z.number().int().optional(),
+  spokenMessage: z.string().min(1),
+  emergencyPreempt: z.boolean(),
+});
+
+export type TwoPhaseVoiceAck = z.infer<typeof TwoPhaseVoiceAckSchema>;
+
+export const FifoQueueItemSchema = z.object({
+  id: z.string().min(1),
+  targetAgentId: z.string().min(1),
+  instruction: z.string().min(1),
+  modelId: LlmModelIdSchema,
+  status: z.enum(['FIFO_QUEUED', 'DISPATCHED', 'COMPLETED', 'CANCELLED']),
+  createdAt: z.number().int().nonnegative(),
+});
+
+export type FifoQueueItem = z.infer<typeof FifoQueueItemSchema>;
+
+export const LlmModelCheckpointSchema = z.object({
+  id: z.string().min(1),
+  agentId: z.string().min(1),
+  taskId: z.string().min(1),
+  gitCommitOrStashHash: z.string().min(1),
+  activeModelId: LlmModelIdSchema,
+  fallbackModelId: LlmModelIdSchema,
+  retryCount: z.number().int().min(0),
+  status: z.enum(['CHECKPOINTED', 'ROLLED_BACK', 'HOT_SWAPPED', 'COMMITTED']),
+});
+
+export type LlmModelCheckpoint = z.infer<typeof LlmModelCheckpointSchema>;
 
 export type ExecutionMode = 'AUTO_PILOT' | 'STEP_BY_STEP_GATE' | 'SANDBOX_DRY_RUN';
 
@@ -40,6 +118,9 @@ export interface SingularityCoreState {
   activeDirective: string;
   zenLatencyMs: number;
   activeAgentCount: number;
+  activeModelId?: LlmModelId;
+  lastAckBadge?: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]';
+  pendingVoiceQueueCount?: number;
 }
 
 export interface AgentNode {
@@ -58,6 +139,9 @@ export interface AgentNode {
   etaSeconds: number;
   position3D: [number, number, number];
   livePreviewStream: string;
+  activeModelId?: LlmModelId;
+  fifoQueueCount?: number;
+  lastAckBadge?: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]';
 }
 
 export interface ArtifactSatelliteNode {
@@ -105,10 +189,13 @@ export interface IKalinarAgentConnector {
 export type KalinarEventMap = {
   'singularity:state_changed': SingularityCoreState;
   'singularity:voice_transcript': { text: string; isFinal: boolean; source: 'OPERATOR' | 'KALINAR' };
+  'voice:two_phase_ack': TwoPhaseVoiceAck;
   'agent:registered': AgentNode;
   'agent:step_updated': { agentId: string; step: number; description: string; preview: string };
   'agent:status_changed': { agentId: string; previous: AgentStatus; current: AgentStatus };
   'agent:metric_updated': { agentId: string; tokensPrompt: number; tokensCompletion: number; eta: number };
+  'agent:fifo_queued': FifoQueueItem;
+  'agent:model_hotswap': LlmModelCheckpoint;
   'watcher:file_event': { path: string; event: 'add' | 'change' | 'unlink'; category: 'WATCH_VISUAL_ONLY' | 'STANDARD_WATCH' };
   'zen:rule_evaluated': { ruleKey: string; latencyMs: number; allowed: boolean; details: Record<string, unknown> };
   'circuit_breaker:state_changed': { state: 'CLOSED' | 'OPEN' | 'HALF_OPEN'; reason: string };

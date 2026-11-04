@@ -7,6 +7,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
+import { FifoQueueItem, LlmModelCheckpoint, LlmModelId } from '../../src/types/kalinar.js';
 
 export interface TaskRecord {
   id: string;
@@ -108,6 +109,7 @@ export class KalinarSqliteStore {
     this.db.exec(`
       INSERT OR IGNORE INTO tasks (id, project_path, title, status, current_agent) VALUES
       ('SYSTEM', 'c:/Kalinar', 'System Daemon', 'COMPLETED', 'agent-orchestrator'),
+      ('WORKSPACE_DAEMON', 'c:/Kalinar', 'Workspace Chokidar Daemon', 'COMPLETED', 'agent-orchestrator'),
       ('CLI_GATE', 'c:/Kalinar', 'GoRules Zen Firewall Gate', 'COMPLETED', 'agent-cybersecurity'),
       ('CLI_EXEC', 'c:/Kalinar', 'Native Shell Execution', 'COMPLETED', 'agent-software-engineer');
     `);
@@ -179,6 +181,33 @@ export class KalinarSqliteStore {
         color_token TEXT NOT NULL DEFAULT '#00F0FF',
         canvas_file TEXT NOT NULL,
         last_synced_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+    `);
+
+    // 8. Busy Agent FIFO Queue Table (FLOW-AGENT-FIFO-01)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS agent_task_fifo_queue (
+        id TEXT PRIMARY KEY,
+        target_agent_id TEXT NOT NULL,
+        instruction TEXT NOT NULL,
+        model_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+    `);
+
+    // 9. Multi-Model LLM Atomic Git Checkpoints Table (FLOW-LLM-FAILOVER-01)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS llm_model_checkpoints (
+        id TEXT PRIMARY KEY,
+        agent_id TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        git_commit_or_stash_hash TEXT NOT NULL,
+        active_model_id TEXT NOT NULL,
+        fallback_model_id TEXT NOT NULL,
+        retry_count INTEGER DEFAULT 0,
+        status TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
       );
     `);
   }
@@ -263,6 +292,193 @@ export class KalinarSqliteStore {
       totalEvents: countRow?.count || 0,
       avgLatencyMs: Math.round(countRow?.avg_latency || 0),
       agentDistribution,
+    };
+  }
+
+  /* =====================================================================
+     FIFO QUEUE & MULTI-MODEL CHECKPOINT REPOSITORY METHODS
+     ===================================================================== */
+
+  public enqueueAgentTaskFifo(item: {
+    id?: string;
+    targetAgentId: string;
+    instruction: string;
+    modelId: LlmModelId;
+    status?: FifoQueueItem['status'];
+    createdAt?: number;
+  }): FifoQueueItem {
+    const record: FifoQueueItem = {
+      id: item.id || `fifo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      targetAgentId: item.targetAgentId,
+      instruction: item.instruction,
+      modelId: item.modelId,
+      status: item.status || 'FIFO_QUEUED',
+      createdAt: item.createdAt ?? Date.now(),
+    };
+
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO agent_task_fifo_queue (
+        id, target_agent_id, instruction, model_id, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      record.id,
+      record.targetAgentId,
+      record.instruction,
+      record.modelId,
+      record.status,
+      record.createdAt
+    );
+
+    return record;
+  }
+
+  public dequeueNextAgentTaskFifo(targetAgentId: string): FifoQueueItem | null {
+    const selectStmt = this.db.prepare(`
+      SELECT id, target_agent_id, instruction, model_id, status, created_at
+      FROM agent_task_fifo_queue
+      WHERE target_agent_id = ? AND status = 'FIFO_QUEUED'
+      ORDER BY created_at ASC, rowid ASC
+      LIMIT 1
+    `);
+
+    const row = selectStmt.get(targetAgentId) as
+      | {
+          id: string;
+          target_agent_id: string;
+          instruction: string;
+          model_id: LlmModelId;
+          status: FifoQueueItem['status'];
+          created_at: number;
+        }
+      | undefined;
+
+    if (!row) {
+      return null;
+    }
+
+    const updateStmt = this.db.prepare(`
+      UPDATE agent_task_fifo_queue
+      SET status = 'DISPATCHED'
+      WHERE id = ?
+    `);
+    updateStmt.run(row.id);
+
+    return {
+      id: row.id,
+      targetAgentId: row.target_agent_id,
+      instruction: row.instruction,
+      modelId: row.model_id,
+      status: 'DISPATCHED',
+      createdAt: row.created_at,
+    };
+  }
+
+  public getAgentFifoQueue(targetAgentId?: string): FifoQueueItem[] {
+    const rows = (
+      targetAgentId
+        ? this.db
+            .prepare(`
+              SELECT id, target_agent_id, instruction, model_id, status, created_at
+              FROM agent_task_fifo_queue
+              WHERE target_agent_id = ?
+              ORDER BY created_at ASC, rowid ASC
+            `)
+            .all(targetAgentId)
+        : this.db
+            .prepare(`
+              SELECT id, target_agent_id, instruction, model_id, status, created_at
+              FROM agent_task_fifo_queue
+              ORDER BY created_at ASC, rowid ASC
+            `)
+            .all()
+    ) as Array<{
+      id: string;
+      target_agent_id: string;
+      instruction: string;
+      model_id: LlmModelId;
+      status: FifoQueueItem['status'];
+      created_at: number;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      targetAgentId: row.target_agent_id,
+      instruction: row.instruction,
+      modelId: row.model_id,
+      status: row.status,
+      createdAt: row.created_at,
+    }));
+  }
+
+  public recordModelCheckpoint(checkpoint: LlmModelCheckpoint): LlmModelCheckpoint {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO llm_model_checkpoints (
+        id, agent_id, task_id, git_commit_or_stash_hash,
+        active_model_id, fallback_model_id, retry_count, status, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      checkpoint.id,
+      checkpoint.agentId,
+      checkpoint.taskId,
+      checkpoint.gitCommitOrStashHash,
+      checkpoint.activeModelId,
+      checkpoint.fallbackModelId,
+      checkpoint.retryCount,
+      checkpoint.status,
+      Date.now()
+    );
+    return checkpoint;
+  }
+
+  public updateModelCheckpointStatus(
+    id: string,
+    status: LlmModelCheckpoint['status'],
+    retryCount: number,
+    activeModelId: LlmModelId
+  ): LlmModelCheckpoint | null {
+    const updateStmt = this.db.prepare(`
+      UPDATE llm_model_checkpoints
+      SET status = ?, retry_count = ?, active_model_id = ?, updated_at = ?
+      WHERE id = ?
+    `);
+    updateStmt.run(status, retryCount, activeModelId, Date.now(), id);
+
+    return this.getModelCheckpoint(id);
+  }
+
+  public getModelCheckpoint(id: string): LlmModelCheckpoint | null {
+    const stmt = this.db.prepare(`
+      SELECT id, agent_id, task_id, git_commit_or_stash_hash,
+             active_model_id, fallback_model_id, retry_count, status
+      FROM llm_model_checkpoints
+      WHERE id = ?
+    `);
+    const row = stmt.get(id) as
+      | {
+          id: string;
+          agent_id: string;
+          task_id: string;
+          git_commit_or_stash_hash: string;
+          active_model_id: LlmModelId;
+          fallback_model_id: LlmModelId;
+          retry_count: number;
+          status: LlmModelCheckpoint['status'];
+        }
+      | undefined;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      agentId: row.agent_id,
+      taskId: row.task_id,
+      gitCommitOrStashHash: row.git_commit_or_stash_hash,
+      activeModelId: row.active_model_id,
+      fallbackModelId: row.fallback_model_id,
+      retryCount: row.retry_count,
+      status: row.status,
     };
   }
 

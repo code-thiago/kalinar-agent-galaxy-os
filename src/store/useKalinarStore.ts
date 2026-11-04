@@ -1,10 +1,16 @@
 /**
- * KALINAR ZUSTAND REACTIVE STORE (v0.1.0-alpha)
+ * KALINAR ZUSTAND REACTIVE STORE (v1.1.0)
  * Strict Zero Emojis
  */
 
 import { create } from 'zustand';
-import { AgentNode, SingularityCoreState, SCHEMA_VERSION } from '../types/kalinar.js';
+import {
+  AgentNode,
+  LlmModelId,
+  SingularityCoreState,
+  VoiceState,
+  SCHEMA_VERSION,
+} from '../types/kalinar.js';
 
 interface KalinarStoreState {
   singularity: SingularityCoreState;
@@ -20,6 +26,18 @@ interface KalinarStoreState {
   toggleInspectorDrawer: () => void;
   selectAgent: (id: string | null) => void;
   updateSingularityTranscript: (transcript: string) => void;
+  setVoiceState: (voiceState: VoiceState) => void;
+  setSingularityAckBadge: (
+    badge: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]'
+  ) => void;
+  setActiveModelId: (modelId: LlmModelId) => void;
+  setPendingVoiceQueueCount: (count: number) => void;
+  setAgentModel: (
+    agentId: string,
+    modelId: LlmModelId,
+    badge?: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]'
+  ) => void;
+  setAgentFifoCount: (agentId: string, count: number) => void;
   updateAgentStep: (agentId: string, step: number, preview: string) => void;
   addAgent: (agent: AgentNode) => void;
 }
@@ -33,6 +51,9 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
     activeDirective: 'MANTER_ORBITA_E_MONITORAR_WORKSPACE',
     zenLatencyMs: 0.38,
     activeAgentCount: 2,
+    activeModelId: 'argon',
+    lastAckBadge: '[ACK_VERIFIED]',
+    pendingVoiceQueueCount: 0,
   },
   agents: [
     {
@@ -50,7 +71,11 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       tokenVelocity: 82,
       etaSeconds: 14,
       position3D: [0, 120, 0],
-      livePreviewStream: '[TASK_EXECUTION: @agent-orchestrator]\n- Verificando regras no cofre Obsidian\n- Sincronizando TASK_LOCK.json\n- Status: Operacao nominal',
+      livePreviewStream:
+        '[TASK_EXECUTION: @agent-orchestrator]\n- Verificando regras no cofre Obsidian\n- Sincronizando TASK_LOCK.json\n- Status: Operacao nominal',
+      activeModelId: 'argon',
+      fifoQueueCount: 0,
+      lastAckBadge: '[ACK_DISPATCHED]',
     },
     {
       id: 'agent-software-engineer-01',
@@ -67,7 +92,11 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       tokenVelocity: 94,
       etaSeconds: 22,
       position3D: [120, 80, 0],
-      livePreviewStream: '[BUILD_OUTPUT: @agent-software-engineer]\n> tsc --noEmit: zero erros\n> WAL pragma: ativo\n> Watcher: 300ms debounce',
+      livePreviewStream:
+        '[BUILD_OUTPUT: @agent-software-engineer]\n> tsc --noEmit: zero erros\n> WAL pragma: ativo\n> Watcher: 300ms debounce',
+      activeModelId: 'claude-sonnet',
+      fifoQueueCount: 0,
+      lastAckBadge: '[ACK_VERIFIED]',
     },
   ],
   activeFilter: 'ALL',
@@ -78,10 +107,33 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
   setFilter: (activeFilter) => set({ activeFilter }),
   toggleBottomDock: () => set((state) => ({ isBottomDockExpanded: !state.isBottomDockExpanded })),
   setBottomDockExpanded: (isBottomDockExpanded) => set({ isBottomDockExpanded }),
-  toggleInspectorDrawer: () => set((state) => ({ isInspectorDrawerOpen: !state.isInspectorDrawerOpen })),
+  toggleInspectorDrawer: () =>
+    set((state) => ({ isInspectorDrawerOpen: !state.isInspectorDrawerOpen })),
   selectAgent: (selectedAgentId) => set({ selectedAgentId }),
   updateSingularityTranscript: (liveTranscript) =>
     set((state) => ({ singularity: { ...state.singularity, liveTranscript } })),
+  setVoiceState: (voiceState) =>
+    set((state) => ({ singularity: { ...state.singularity, voiceState } })),
+  setSingularityAckBadge: (lastAckBadge) =>
+    set((state) => ({ singularity: { ...state.singularity, lastAckBadge } })),
+  setActiveModelId: (activeModelId) =>
+    set((state) => ({ singularity: { ...state.singularity, activeModelId } })),
+  setPendingVoiceQueueCount: (pendingVoiceQueueCount) =>
+    set((state) => ({ singularity: { ...state.singularity, pendingVoiceQueueCount } })),
+  setAgentModel: (agentId, activeModelId, lastAckBadge) =>
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        a.id === agentId || a.filename === agentId
+          ? { ...a, activeModelId, lastAckBadge: lastAckBadge || a.lastAckBadge }
+          : a
+      ),
+    })),
+  setAgentFifoCount: (agentId, fifoQueueCount) =>
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        a.id === agentId || a.filename === agentId ? { ...a, fifoQueueCount } : a
+      ),
+    })),
   updateAgentStep: (agentId, step, preview) =>
     set((state) => ({
       agents: state.agents.map((a) =>

@@ -17,25 +17,83 @@
         "inputs": [
           { "id": "in-intent", "field": "intent", "name": "Intent" },
           { "id": "in-action", "field": "action", "name": "Action" },
-          { "id": "in-destructive", "field": "isDestructive", "name": "Is Destructive" }
+          { "id": "in-destructive", "field": "isDestructive", "name": "Is Destructive" },
+          { "id": "in-voice-state", "field": "currentVoiceState", "name": "Current Voice State" },
+          { "id": "in-emergency", "field": "isEmergency", "name": "Is Emergency" },
+          { "id": "in-agent-status", "field": "agentStatus", "name": "Agent Status" },
+          { "id": "in-fw-verdict", "field": "firewallVerdict", "name": "Firewall Verdict" }
         ],
         "outputs": [
           { "id": "out-allowed", "field": "allowed", "name": "Allowed" },
           { "id": "out-handler", "field": "targetHandler", "name": "Target Handler" },
           { "id": "out-feedback", "field": "feedbackPhrase", "name": "Feedback Phrase" },
-          { "id": "out-risk", "field": "auditRisk", "name": "Audit Risk" }
+          { "id": "out-risk", "field": "auditRisk", "name": "Audit Risk" },
+          { "id": "out-arbitration", "field": "arbitrationVerdict", "name": "Arbitration Verdict" }
         ],
         "rules": [
+          {
+            "_id": "vg-rule-b-preempt-halted",
+            "_description": "Law 5 Rule B: Emergency preemption when agent is [HALTED]",
+            "in-intent": "'PHASE2_NOTIFICATION'",
+            "in-action": "",
+            "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "'[HALTED]'",
+            "in-fw-verdict": "",
+            "out-allowed": "true",
+            "out-handler": "'preemptEmergencyVoice'",
+            "out-feedback": "'Alerta critico de seguranca: agente interrompido em estado HALTED.'",
+            "out-risk": "'CRITICAL'",
+            "out-arbitration": "'PREEMPT_IMMEDIATELY'"
+          },
+          {
+            "_id": "vg-rule-b-preempt-firewall",
+            "_description": "Law 5 Rule B: Emergency preemption when firewall returns HARD_BLOCK",
+            "in-intent": "'PHASE2_NOTIFICATION'",
+            "in-action": "",
+            "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "'HARD_BLOCK'",
+            "out-allowed": "true",
+            "out-handler": "'preemptEmergencyVoice'",
+            "out-feedback": "'Bloqueio imediato acionado pelo firewall soberano.'",
+            "out-risk": "'CRITICAL'",
+            "out-arbitration": "'PREEMPT_IMMEDIATELY'"
+          },
+          {
+            "_id": "vg-rule-b-queue-listening",
+            "_description": "Law 5 Rule B: Queue non-emergency Phase 2 notifications while operator is speaking ([LISTENING PT-BR])",
+            "in-intent": "'PHASE2_NOTIFICATION'",
+            "in-action": "",
+            "in-destructive": "",
+            "in-voice-state": "'[LISTENING PT-BR]', '[LISTENING]'",
+            "in-emergency": "false",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
+            "out-allowed": "true",
+            "out-handler": "'queuePendingVoice'",
+            "out-feedback": "'Notificacao verificada retida na fila ate o fim da fala do operador.'",
+            "out-risk": "'LOW'",
+            "out-arbitration": "'QUEUE_IN_PENDING_VOICE'"
+          },
           {
             "_id": "vg1",
             "_description": "Second Brain Gravitational Absorption",
             "in-intent": "'ACTIVATE_SECOND_BRAIN'",
             "in-action": "",
             "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
             "out-allowed": "true",
             "out-handler": "'activateSecondBrain'",
             "out-feedback": "'Gravidade do nucleo expandida. Absorvendo base de conhecimento do Second Brain.'",
-            "out-risk": "'LOW'"
+            "out-risk": "'LOW'",
+            "out-arbitration": "'SPEAK_NOW'"
           },
           {
             "_id": "vg2",
@@ -43,10 +101,15 @@
             "in-intent": "'GET_SWARM_STATUS'",
             "in-action": "",
             "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
             "out-allowed": "true",
             "out-handler": "'getSwarmDevelopmentStatus'",
             "out-feedback": "'Calculando telemetria do enxame. Transmitindo relatorio tatico agora.'",
-            "out-risk": "'LOW'"
+            "out-risk": "'LOW'",
+            "out-arbitration": "'SPEAK_NOW'"
           },
           {
             "_id": "vg3",
@@ -54,10 +117,15 @@
             "in-intent": "'CONTROL_AGENT'",
             "in-action": "'KILL'",
             "in-destructive": "true",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
             "out-allowed": "true",
             "out-handler": "'controlAgentExecution'",
             "out-feedback": "'Interrompendo processo do agente imediatamente sob protocolo de seguranca.'",
-            "out-risk": "'HIGH'"
+            "out-risk": "'HIGH'",
+            "out-arbitration": "'SPEAK_NOW'"
           },
           {
             "_id": "vg4",
@@ -65,10 +133,15 @@
             "in-intent": "'CONTROL_AGENT'",
             "in-action": "'APPROVE_DIFF'",
             "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
             "out-allowed": "true",
             "out-handler": "'controlAgentExecution'",
             "out-feedback": "'Diff aprovado. Gravando mutacao no disco com trava de gravacao.'",
-            "out-risk": "'MEDIUM'"
+            "out-risk": "'MEDIUM'",
+            "out-arbitration": "'SPEAK_NOW'"
           },
           {
             "_id": "vg5",
@@ -76,10 +149,15 @@
             "in-intent": "'CONTROL_AGENT'",
             "in-action": "",
             "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
             "out-allowed": "true",
             "out-handler": "'controlAgentExecution'",
             "out-feedback": "'Diretriz de controle de agente acionada.'",
-            "out-risk": "'LOW'"
+            "out-risk": "'LOW'",
+            "out-arbitration": "'SPEAK_NOW'"
           },
           {
             "_id": "vg6",
@@ -87,10 +165,15 @@
             "in-intent": "'DISPATCH_ANTIGRAVITY'",
             "in-action": "",
             "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
             "out-allowed": "true",
             "out-handler": "'dispatchAntigravityCommand'",
             "out-feedback": "'Feixe relativistico disparado. Instrucao propagada ao agente no Antigravity.'",
-            "out-risk": "'MEDIUM'"
+            "out-risk": "'MEDIUM'",
+            "out-arbitration": "'SPEAK_NOW'"
           },
           {
             "_id": "vg7",
@@ -98,10 +181,15 @@
             "in-intent": "",
             "in-action": "",
             "in-destructive": "",
+            "in-voice-state": "",
+            "in-emergency": "",
+            "in-agent-status": "",
+            "in-fw-verdict": "",
             "out-allowed": "false",
             "out-handler": "'rejectVoiceCommand'",
             "out-feedback": "'Comando nao reconhecido pelo nucleo. Repita a diretriz com clareza.'",
-            "out-risk": "'LOW'"
+            "out-risk": "'LOW'",
+            "out-arbitration": "'SPEAK_NOW'"
           }
         ]
       }

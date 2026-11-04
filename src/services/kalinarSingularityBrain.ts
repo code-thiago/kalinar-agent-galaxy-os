@@ -4,7 +4,7 @@
  * Strictly in pt-BR, strictly zero emojis, zero subservience.
  */
 
-import { AgentNode } from '../types/kalinar.js';
+import { AgentNode, TwoPhaseVoiceAck, TwoPhaseVoiceAckSchema } from '../types/kalinar.js';
 import { ZenFirewall, VoiceCommandInput, VoiceCommandOutput } from '../core/ZenFirewall.js';
 
 export interface TacticalBriefingContext {
@@ -202,6 +202,54 @@ export class KalinarSingularityBrain {
       spokenResponse,
       latencyMs,
     };
+  }
+
+  /**
+   * Law 4: Constructs deterministic Two-Phase Voice Ack payloads (STATUS_DISPATCHED vs STATUS_VERIFIED)
+   */
+  public buildTwoPhaseAck(params: {
+    phase: 'STATUS_DISPATCHED' | 'STATUS_VERIFIED';
+    taskId: string;
+    targetAgentId: string;
+    pid?: number;
+    exitCode?: number;
+    isFifoQueued?: boolean;
+    emergencyPreempt?: boolean;
+  }): TwoPhaseVoiceAck {
+    if (params.phase === 'STATUS_DISPATCHED') {
+      const msg = params.isFifoQueued
+        ? `${this.commanderName}, agente ${params.targetAgentId} em execucao ativa. Diretriz enfileirada em [FIFO_QUEUED] na tarefa ${params.taskId}.`
+        : `${this.commanderName}, diretriz despachada [ACK_DISPATCHED] para ${params.targetAgentId} na tarefa ${params.taskId}. Aguardando verificacao de codigo de saida.`;
+
+      return TwoPhaseVoiceAckSchema.parse({
+        phase: 'STATUS_DISPATCHED',
+        taskId: params.taskId,
+        targetAgentId: params.targetAgentId,
+        pid: params.pid,
+        spokenMessage: msg,
+        emergencyPreempt: Boolean(params.emergencyPreempt),
+      });
+    }
+
+    if (params.exitCode !== 0 && !params.emergencyPreempt) {
+      throw new Error(
+        `[LAW_4_VIOLATION]: Cannot emit STATUS_VERIFIED when exitCode is ${params.exitCode} (must be 0)`
+      );
+    }
+
+    const verifiedMsg = params.emergencyPreempt
+      ? `${this.commanderName}, alerta critico de preempcao imediata na tarefa ${params.taskId} para ${params.targetAgentId}.`
+      : `${this.commanderName}, execucao concluida e confirmada [ACK_VERIFIED] no SQLite WAL por ${params.targetAgentId} com exitCode 0.`;
+
+    return TwoPhaseVoiceAckSchema.parse({
+      phase: 'STATUS_VERIFIED',
+      taskId: params.taskId,
+      targetAgentId: params.targetAgentId,
+      pid: params.pid,
+      exitCode: params.exitCode ?? 0,
+      spokenMessage: verifiedMsg,
+      emergencyPreempt: Boolean(params.emergencyPreempt),
+    });
   }
 
   private extractTargetAgent(text: string): string | undefined {

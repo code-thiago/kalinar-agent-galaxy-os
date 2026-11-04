@@ -93,10 +93,18 @@
      TIER 3: COMPONENT-SCOPED TOKENS & HUD SPATIAL BINDINGS
      ===================================================================== */
   /* Layer 0: Singularity Background Canvas */
-  --ds-singularity-core-radius: 48px;
+  --ds-singularity-core-radius: 54px;
   --ds-singularity-accretion-inner: #aa88ff;
   --ds-singularity-accretion-outer: #dddddd;
-  --ds-singularity-particle-count: 65536;
+  --ds-singularity-particle-count: 262144;
+
+  /* Standardized ASCII Status Badge Semantic Colors (v1.1.0)
+     [VOICE_HIBERNATE] | [ACK_DISPATCHED] | [ACK_VERIFIED] | [FIFO_QUEUED] | [MODEL_HOTSWAP] */
+  --ds-badge-voice-hibernate-fg: #9a9a9a;
+  --ds-badge-ack-dispatched-fg: #00f0ff;
+  --ds-badge-ack-verified-fg: #34d399;
+  --ds-badge-fifo-queued-fg: #fbbf24;
+  --ds-badge-model-hotswap-fg: #e879f9;
 
   /* Layer 1: Left Dynamic Column */
   --ds-hud-left-offset: 24px;

@@ -219,7 +219,17 @@ export function KalinarGalaxyCanvas() {
       renderer.setSize(width, height);
     };
 
+    const onPointerDown = (e: MouseEvent) => {
+      const clickX = (e.clientX / width) * 2 - 1;
+      const clickY = -(e.clientY / height) * 2 + 1;
+      // Clicking the Black Hole Singularity center triggers Law 1 < 10ms TTS kill-switch
+      if (Math.hypot(clickX, clickY) < 0.28) {
+        kalinarVoiceService.triggerEmergencyKillSwitch('SINGULARITY_CLICK');
+      }
+    };
+
     window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('resize', onResize);
 
     // 9. Main Render Loop
@@ -305,6 +315,7 @@ export function KalinarGalaxyCanvas() {
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('resize', onResize);
 
       delete (window as any).__triggerGravitationalRAG;

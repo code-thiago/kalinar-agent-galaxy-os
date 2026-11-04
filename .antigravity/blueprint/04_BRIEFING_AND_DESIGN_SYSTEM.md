@@ -1,11 +1,11 @@
-# 04 - Visual Briefing & Design System Architecture (`04_BRIEFING_AND_DESIGN_SYSTEM.md`)
+# 04_BRIEFING_AND_DESIGN_SYSTEM.md — KALINAR SINGULARITY DESIGN SYSTEM (v1.1.0 LOCK)
 
-> Document ID: `DOC-04-DESIGN-SYSTEM-KALINAR`  
-> Lead Agent: `@agent-design`  
-> Co-Authors: `@human-developer`, `@agent-software-engineer`, `@agent-cybersecurity`, `@agent-orchestrator`, `@agent-qa`  
-> Gate Status: `APPROVED_BY_SWARM_PENDING_HUMAN`  
-> Visual Philosophy: `KALINAR Singularity & Gravitational Telemetry`  
-> Visual Constraint: `STRICT ZERO-EMOJI ENFORCEMENT - TYPOGRAPHICAL & ASCII ONLY`
+> **Document ID:** `DOC-04-DESIGN-SYSTEM-KALINAR-v1.1.0`  
+> **Lead Agent:** `@agent-design`  
+> **Co-Authors:** `@human-developer`, `@agent-software-engineer`, `@agent-cybersecurity`, `@agent-orchestrator`, `@agent-qa`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_1_0`  
+> **Visual Philosophy:** `KALINAR Singularity & Gravitational Telemetry`  
+> **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
 
@@ -13,267 +13,134 @@
 
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
-| `@human-developer` | Brand & UX Final Authority | Singularity Core, Event Horizon Lavender, HUD Ergonomics | `PENDING` | -- | `PO-APPROVAL-PENDING` |
-| `@agent-design` | UI/UX & Design System Architect | 3-Tier Tokens, Singularity Shaders, WCAG AAA | `APPROVED` | `2026-10-30T16:00:00Z` | `SIG-DSGN-SYS-003` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | GPGPU Particle Performance, HUD Component Slots | `APPROVED` | `2026-10-30T16:05:00Z` | `SIG-ENGR-SYS-003` |
-| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | Visual Deception Prevention, Secret Masking Tokens | `APPROVED` | `2026-10-30T16:10:00Z` | `SIG-CSEC-SYS-003` |
-| `@agent-orchestrator` | Swarm Facilitator & Product Lead | Alignment with PRD (`TRACE-02`), Information Hierarchy | `APPROVED` | `2026-10-30T16:15:00Z` | `SIG-ORCH-SYS-003` |
-| `@agent-qa` | Test Architect & Quality Lead | Token Contrast Verifiability, Hit Target Compliance | `APPROVED` | `2026-10-30T16:20:00Z` | `SIG-QATE-SYS-003` |
+| `@human-developer` | Sovereign Principal Architect | 3-Tier Tokens, 160px Card Viewport, Release v1.1.0 Lock | `APPROVED` | `2026-11-03T19:07:00Z` | `PO-APPROVAL-DSGN-110` |
+| `@agent-design` | UI/UX & Design System Architect | `--ds-*` Taxonomy, `plus-lighter` HUD, WCAG 2.2 AAA | `APPROVED` | `2026-11-03T19:07:10Z` | `SIG-DSGN-SYS-110` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | React 19 `data-slot` Contracts (No `forwardRef`) | `APPROVED` | `2026-11-03T19:07:20Z` | `SIG-ENGR-SYS-110` |
+| `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | Standardized ASCII Badges (`[HALTED]`, `[FIFO_QUEUED]`) | `APPROVED` | `2026-11-03T19:07:30Z` | `SIG-CSEC-SYS-110` |
+| `@agent-orchestrator` | Swarm Facilitator & Product Lead | PRD & App Flow Alignment (`TRACE-02`) | `APPROVED` | `2026-11-03T19:07:40Z` | `SIG-ORCH-SYS-110` |
+| `@agent-qa` | QA & Traceability Auditor | Contrast Ratio Verification ($\ge 7.0:1$), `44px` Hit Targets | `APPROVED` | `2026-11-03T19:07:50Z` | `SIG-QATE-SYS-110` |
 
 ---
 
-## 1. Aesthetic Direction & Brand Briefing
+## 1. Three-Tier CSS Token Taxonomy (`--ds-*`)
 
-### 1.1 Visual Persona & Anti-Slop Philosophy
-Kalinar embodies **KALINAR Singularity & Gravitational Telemetry**. It rejects generic dashboard aesthetics, unnecessary gradients, rounded pill buttons, and cartoon iconography. The interface is engineered as high-precision mission telemetry organized into a strict two-layer spatial architecture:
-
-* **Layer 0 (`canvas#singularity-bg`):** Central **KALINAR Black Hole Singularity** (Event Horizon dark core with `#AA88FF` / `#DDDDDD` GPGPU particle accretion disk stirred by cursor Navier-Stokes fluid and modulated by Kalinar's voice waveform). Surrounding the Black Hole are the orbital particle swarms of `agent.md` stars and `Second Brain` constellations.
-* **Layer 1 (`.kalinar-hud`):** Tactical telemetry interface composed of three spatial zones:
-  * **Left Dynamic Column (`left: 24px, width: 320px`):** Brand mark (`40x40` SVG), filter chips (`top: 120px`), and scrollable list (`top: 250px`) of opaque `160px` `AgentLivePreviewCard` components showing live visual previews of each active agent's work plus 2-line `tabular-nums` metadata (`STEP X/Y`, tokens, ETA).
-  * **Right Ethereal Column (`right: 48px, top: 50%, translateY(-50%), width: 360px`):** Text blocks using `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). Live voice transcription renders directly inside `[singularity_core]` in `#AA88FF`. Retracts smoothly when `NodeInspectorDrawer` (`480px`) opens.
-  * **Retractable Bottom IDE Dock (`bottom: 0`):** Collapsed by default to a `36px` tactical bar to keep the Black Hole unobstructed; expands to `350px` (or up to `75vh`) on click or voice command.
-
-### 1.2 Functional Luminance & Palette
-* **Pure Void Base (`#000000`):** Total black void (`--ds-surface-singularity-void: #000000`) eliminating light bleed and maximizing dynamic contrast.
-* **Event Horizon Lavender (`#AA88FF`):** Singularity accent (`--ds-accent-singularity: #AA88FF`), live voice transcription, and gravitational center.
-* **Arc Cyan (`#00F0FF`):** Active `agent.md` stars (`--ds-accent-agent: #00F0FF`) and executing tasks.
-* **Neural Magenta (`#E879F9`):** Second Brain memory nodes (`--ds-accent-memory: #E879F9`) and context graph constellations.
-* **Emerald (`#34D399`):** Verified execution and completed steps (`--ds-status-active-fg: #34D399`).
-* **Amber (`#FBBF24`):** Running step warnings, retries, and locks (`--ds-status-warn-fg: #FBBF24`).
-* **Crimson (`#F87171`):** Tripped circuit breakers, blocked tasks, and fatal errors (`--ds-status-halt-fg: #F87171`).
-* **Calibrated Muted Text (`#9A9A9A`):** Secondary text (`--ds-text-secondary: #9A9A9A`) achieving `7.45:1` AAA contrast on `#000000`.
-* **Zero-Emoji Enforcement:** 100% prohibited. Status is communicated using ASCII badges (`[ACTIVE]`, `[IDLE]`, `[HALTED]`, `[PAUSED]`, `[RUNNING]`, `[VERIFIED]`, `[WARN]`, `[ERROR]`, `[STREAM]`) and geometric SVG vectors.
-
-### 1.3 Typography Scale & Font Stack
-
-| Hierarchy Level | Font Family | Size | Weight | Line Height | Tracking | Application Context |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Display Header** | `Geist Sans`, system-ui | `24px` (`1.5rem`) | `600` | `1.2` | `-0.025em` | Structural header: `[KALINAR_SINGULARITY_CORE]` |
-| **Section Header** | `Geist Sans`, system-ui | `16px` (`1.0rem`) | `600` | `1.3` | `-0.015em` | Structural header; uppercase section labels |
-| **UI Body** | `Geist Sans`, system-ui | `14px` (`0.875rem`) | `400` | `1.5` | `0.000em` | Explanatory labels, parameter descriptions |
-| **Telemetry Mono** | `Geist Mono` / `SF Mono`, monospace | `13px` (`0.8125rem`) | `500` | `1.35` | `0.020em` | Uppercase monospace, `tabular-nums` mandatory |
-| **Micro Mono** | `Geist Mono` / `SF Mono`, monospace | `11px` (`0.6875rem`) | `400` | `1.35` | `0.020em` | Timestamps, hash prefixes, latency (`tabular-nums`) |
-
-### 1.4 Spatial Grid & Hit Target Standards
-* **Grid Increment:** Strict `4px` base module (`0.25rem`). Layout spacing values: `4px`, `8px`, `12px`, `16px`, `24px`, `32px`, `48px`.
-* **Touch & Click Target:** All interactive controls enforce a minimum hit box of `44px x 44px` per WCAG 2.2 Success Criterion 2.5.8.
-
----
-
-## 2. Three-Tier Design Token Taxonomy
-
-```mermaid
-flowchart TD
-    Tier1["Tier 1: Global Primitive Tokens<br/>(--ds-primitive-*)<br/>Raw HEX colors, base font families, absolute radii"]
-    Tier2["Tier 2: Semantic Context Tokens<br/>(--ds-surface-*, --ds-accent-*, --ds-status-*)<br/>Meaningful abstractions for Singularity Void & HUD"]
-    Tier3["Tier 3: Component-Scoped Tokens<br/>(--ds-hud-*, --ds-agent-preview-*, --ds-dock-*)<br/>Surgical bindings mapped directly to HUD slots"]
-
-    Tier1 --> Tier2 --> Tier3
-```
-
-### 2.1 CSS Custom Properties (Production Specification)
+### 1.1 Production CSS Custom Properties (`src/styles/design-tokens.css` Contract)
 
 ```css
 :root {
   /* =====================================================================
-     TIER 1: GLOBAL PRIMITIVE TOKENS
+     TIER 1 & TIER 2: SURFACES, BORDERS, ACCENTS & WCAG 2.2 AAA TEXT
      ===================================================================== */
-  --ds-primitive-void: #000000;
-  --ds-primitive-slate-900: #0d0f14;
-  --ds-primitive-slate-850: #12151d;
-  --ds-primitive-slate-800: #1a1d26;
-  --ds-primitive-slate-700: #262b38;
-  --ds-primitive-slate-500: #64748b;
-  --ds-primitive-slate-400: #9a9a9a;
-  --ds-primitive-slate-200: #e2e8f0;
-  --ds-primitive-slate-50:  #f8fafc;
+  --ds-surface-singularity-void: #000000; /* Pure Void Base (Layer 0 & Viewport) */
+  --ds-surface-app-shell:        #07080a; /* Dock & Terminal Shell Surface */
+  --ds-surface-card-thumb:       #0a0a0a; /* Opaque 160px Agent Live Viewport Surface */
+  --ds-border-structural:        1px solid #2a2a2a;
 
-  --ds-primitive-lavender-500: #aa88ff;
-  --ds-primitive-lavender-400: #c4b5fd;
-  --ds-primitive-lavender-950: #2e1065;
+  /* Gravitational & Knowledge Accents (Verified on #000000) */
+  --ds-accent-singularity:       #aa88ff; /* 7.67:1 WCAG 2.2 AAA Contrast on #000000 */
+  --ds-accent-agent:             #00f0ff; /* 15.11:1 WCAG 2.2 AAA Contrast on #000000 */
+  --ds-accent-memory:            #e879f9; /* 8.65:1 WCAG 2.2 AAA Contrast on #000000 */
 
-  --ds-primitive-emerald-500: #10b981;
-  --ds-primitive-emerald-400: #34d399;
-  --ds-primitive-emerald-950: #022c22;
+  /* Typography Foreground Hierarchy (Verified on #000000) */
+  --ds-text-bright:              #ffffff; /* 21.00:1 WCAG 2.2 AAA Contrast on #000000 */
+  --ds-text-primary:             #dddddd; /* 15.54:1 WCAG 2.2 AAA Contrast on #000000 */
+  --ds-text-secondary:           #9a9a9a; /* 7.45:1 WCAG 2.2 AAA Contrast on #000000 */
 
-  --ds-primitive-amber-500: #f59e0b;
-  --ds-primitive-amber-400: #fbbf24;
-  --ds-primitive-amber-950: #451a03;
-
-  --ds-primitive-crimson-500: #ef4444;
-  --ds-primitive-crimson-400: #f87171;
-  --ds-primitive-crimson-950: #450a0a;
-
-  --ds-primitive-cyan-500: #00f0ff;
-  --ds-primitive-cyan-400: #38bdf8;
-  --ds-primitive-cyan-950: #083344;
-
-  --ds-primitive-magenta-500: #e879f9;
-  --ds-primitive-violet-500:  #8b5cf6;
-  --ds-primitive-white-500:   #dddddd;
-
-  --ds-primitive-font-sans: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --ds-primitive-font-mono: 'Geist Mono', 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  /* Operational Telemetry Status Foregrounds */
+  --ds-status-active-fg:         #34d399; /* Emerald — Verified / Active */
+  --ds-status-warn-fg:           #fbbf24; /* Amber — Warning / Single-Writer Lock / Retry */
+  --ds-status-halt-fg:           #f87171; /* Crimson — Firewall Veto / Circuit Halted */
 
   /* =====================================================================
-     TIER 2: SEMANTIC CONTEXT TOKENS (SINGULARITY VOID & HUD)
+     TIER 3: COMPONENT DIMENSIONS & SPATIAL GEOMETRY
      ===================================================================== */
-  /* Surface Layers */
-  --ds-surface-singularity-void: #000000;
-  --ds-surface-canvas: var(--ds-surface-singularity-void);
-  --ds-surface-card: var(--ds-primitive-slate-900);
-  --ds-surface-overlay: var(--ds-primitive-slate-850);
-  --ds-surface-muted: var(--ds-primitive-slate-800);
+  --ds-left-column-width:        320px;
+  --ds-agent-card-thumb-h:       160px;
+  --ds-right-column-offset:      48px;
+  --ds-right-column-width:       360px;
+  --ds-dock-collapsed-h:         36px;
+  --ds-dock-expanded-h:          350px;
+  --ds-inspector-drawer-w:       480px;
+  --ds-hit-target-min:           44px;
+}
+```
 
-  /* Border & Structure */
-  --ds-border-subtle: #1a1d26;
-  --ds-border-bold: var(--ds-primitive-slate-700);
-  --ds-border-focus: var(--ds-accent-singularity);
+### 1.2 WCAG 2.2 Level AAA Contrast Verification Matrix
 
-  /* Text & Foreground */
-  --ds-text-primary: var(--ds-primitive-slate-50);
-  --ds-text-secondary: #9A9A9A; /* 7.45:1 contrast on #000000 (WCAG AAA) */
-  --ds-text-muted: var(--ds-primitive-slate-500);
+| Semantic Token | HEX Value | Background Base | Measured Ratio | WCAG 2.2 AAA Target | Status |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `--ds-text-bright` | `#ffffff` | `#000000` | `21.00 : 1` | $\ge 7.0 : 1$ | `PASS (AAA)` |
+| `--ds-text-primary` | `#dddddd` | `#000000` | `15.54 : 1` | $\ge 7.0 : 1$ | `PASS (AAA)` |
+| `--ds-accent-agent` | `#00f0ff` | `#000000` | `15.11 : 1` | $\ge 7.0 : 1$ | `PASS (AAA)` |
+| `--ds-accent-memory` | `#e879f9` | `#000000` | `8.65 : 1` | $\ge 7.0 : 1$ | `PASS (AAA)` |
+| `--ds-accent-singularity` | `#aa88ff` | `#000000` | `7.67 : 1` | $\ge 7.0 : 1$ | `PASS (AAA)` |
+| `--ds-text-secondary` | `#9a9a9a` | `#000000` | `7.45 : 1` | $\ge 7.0 : 1$ | `PASS (AAA)` |
 
-  /* Singularity & Knowledge Graph Semantic Tokens */
-  --ds-accent-singularity: #AA88FF; /* Event Horizon Lavender */
-  --ds-accent-agent: #00F0FF;       /* Arc Cyan for active agent.md stars */
-  --ds-accent-memory: #E879F9;      /* Neural Magenta for Second Brain nodes */
-  --ds-accent-synapse: #8B5CF6;     /* Quantum Violet for Graph Pointer beams */
+---
 
-  /* Operational Status Semantics */
-  --ds-status-active-fg: #34D399;   /* Emerald */
-  --ds-status-active-bg: var(--ds-primitive-emerald-950);
-  --ds-status-active-border: var(--ds-primitive-emerald-500);
+## 2. Typography & Tabular Numeral Invariant
 
-  --ds-status-warn-fg: #FBBF24;     /* Amber */
-  --ds-status-warn-bg: var(--ds-primitive-amber-950);
-  --ds-status-warn-border: var(--ds-primitive-amber-500);
+* **Telemetry Font Stack:** Uppercase monospace (`'Geist Mono'`, `'SF Mono'`, `Menlo`, `Consolas`, `monospace`) at `13px` (`0.8125rem`), `line-height: 1.35`, `letter-spacing: 0.02em` (`Geist Sans` reserved strictly for structural display headers).
+* **Tabular Numeral & Slashed-Zero Invariant:** All counters, step fractions (`STEP X/Y`), token metrics (`TOK`, `TOK/S`), OS process IDs (`PID`), JDM latencies (`ms`), and `ETA` timers must enforce fixed-width numeric alignment to prevent horizontal layout jitter during 60 FPS updates:
 
-  --ds-status-halt-fg: #F87171;     /* Crimson */
-  --ds-status-halt-bg: var(--ds-primitive-crimson-950);
-  --ds-status-halt-border: var(--ds-primitive-crimson-500);
-
-  --ds-status-neutral-fg: var(--ds-primitive-cyan-500);
-  --ds-status-neutral-bg: var(--ds-primitive-cyan-950);
-  --ds-status-neutral-border: var(--ds-primitive-cyan-500);
-
-  /* =====================================================================
-     TIER 3: COMPONENT-SCOPED TOKENS & HUD SPATIAL BINDINGS
-     ===================================================================== */
-  /* Layer 0: Singularity Background Canvas */
-  --ds-singularity-core-radius: 48px;
-  --ds-singularity-accretion-inner: #AA88FF;
-  --ds-singularity-accretion-outer: #DDDDDD;
-  --ds-singularity-particle-count: 65536;
-
-  /* Layer 1: Left Dynamic Column */
-  --ds-hud-left-offset: 24px;
-  --ds-hud-left-width: 320px;
-  --ds-hud-brand-size: 40px;
-  --ds-hud-chips-top: 120px;
-  --ds-hud-preview-list-top: 250px;
-  --ds-agent-preview-card-height: 160px;
-  --ds-agent-preview-card-bg: rgba(13, 15, 20, 0.95);
-  --ds-agent-preview-card-border: var(--ds-border-subtle);
-
-  /* Layer 1: Right Ethereal Column */
-  --ds-hud-right-offset: 48px;
-  --ds-hud-right-width: 360px;
-  --ds-hud-ethereal-blend: plus-lighter;
-  --ds-hud-drawer-width: 480px;
-
-  /* Layer 1: Retractable Bottom IDE Dock */
-  --ds-dock-collapsed-height: 36px;
-  --ds-dock-expanded-height: 350px;
-  --ds-dock-max-height: 75vh;
-  --ds-dock-bg: rgba(7, 8, 10, 0.96);
-  --ds-dock-border: var(--ds-border-subtle);
-
-  /* Circuit Breaker Gauge */
-  --ds-gauge-size: 140px;
-  --ds-gauge-track-color: var(--ds-primitive-slate-800);
-  --ds-gauge-fill-nominal: var(--ds-status-active-fg);
-  --ds-gauge-fill-tripped: var(--ds-status-halt-fg);
-
-  /* Timeline Stream */
-  --ds-timeline-stem-width: 2px;
-  --ds-timeline-stem-color: var(--ds-border-subtle);
-  --ds-timeline-node-size: 32px;
+```css
+.kalinar-telemetry-mono {
+  font-family: 'Geist Mono', 'SF Mono', monospace;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
 }
 ```
 
 ---
 
-## 3. React 19 & R3F Component Slot Specifications
+## 3. Standardized ASCII Status Badges (Zero-Emoji Mandate)
 
-### 3.1 `<SingularityViewport>` Compound Component (Layer 0)
+Decorative emojis and graphical icons are 100% prohibited across all UI components, 3D WebGL labels, terminal streams, and logs. System states are represented exclusively via standardized uppercase ASCII badges:
 
-```tsx
-<SingularityViewport.Root className="fixed inset-0 w-full h-full bg-[var(--ds-surface-singularity-void)]">
-  <SingularityViewport.Canvas camera={{ position: [0, 0, 1500], fov: 60 }}>
-    <SingularityViewport.BlackHoleCore coreRadius="var(--ds-singularity-core-radius)" />
-    <SingularityViewport.AccretionDiskGPGPU 
-      colorInner="var(--ds-singularity-accretion-inner)" 
-      colorOuter="var(--ds-singularity-accretion-outer)" 
-    />
-    <SingularityViewport.OrbitalAgentStars count={50000} />
-    <SingularityViewport.SecondBrainConstellations beamColor="var(--ds-accent-synapse)" />
-    <SingularityViewport.FluidInteractionController />
-  </SingularityViewport.Canvas>
-</SingularityViewport.Root>
-```
-
-### 3.2 `<KalinarHUD>` Compound Component (Layer 1)
-
-```tsx
-<KalinarHUD.Root className="fixed inset-0 pointer-events-none z-10 font-mono">
-  {/* Left Dynamic Column */}
-  <KalinarHUD.LeftColumn className="absolute left-[24px] top-0 bottom-0 w-[320px] pointer-events-auto">
-    <KalinarHUD.BrandMark className="w-[40px] h-[40px]" />
-    <KalinarHUD.FilterChips className="absolute top-[120px] w-full" />
-    <KalinarHUD.AgentLivePreviewList className="absolute top-[250px] bottom-[48px] w-full overflow-y-auto">
-      <AgentLivePreviewCard height={160} />
-    </KalinarHUD.AgentLivePreviewList>
-  </KalinarHUD.LeftColumn>
-
-  {/* Right Ethereal Column */}
-  <KalinarHUD.RightColumn className="absolute right-[48px] top-1/2 -translate-y-1/2 w-[360px] mix-blend-plus-lighter pointer-events-auto">
-    <KalinarHUD.SingularityCoreLiveTranscription color="var(--ds-accent-singularity)" />
-    <KalinarHUD.ActiveDirectiveBlock />
-    <KalinarHUD.GravitationalRAGBlock />
-    <KalinarHUD.SynapticFeedBlock />
-  </KalinarHUD.RightColumn>
-
-  {/* Retractable Bottom IDE Dock */}
-  <KalinarHUD.BottomDock 
-    collapsedHeight={36} 
-    expandedHeight={350} 
-    className="absolute bottom-0 inset-x-0 pointer-events-auto"
-  >
-    <KalinarHUD.DockTacticalBar />
-    <KalinarHUD.DockExpandedWorkspace />
-  </KalinarHUD.BottomDock>
-</KalinarHUD.Root>
-```
+| ASCII Status Badge | Domain / Subsystem | Bound Color Token | Operational Meaning |
+| :--- | :--- | :--- | :--- |
+| `[SINGULARITY: STANDBY]` | Voice & Core | `--ds-text-secondary` (`#9a9a9a`) | Singularity in orbital standby; local zero-cost `pt-BR` wake listener armed. |
+| `[LISTENING PT-BR]` | Voice Core | `--ds-accent-singularity` (`#aa88ff`) | Capturing operator `pt-BR` voice directive; Speech Arbitration Rule B active. |
+| `[GRAVITY_INGESTION]` | Second Brain RAG | `--ds-accent-memory` (`#e879f9`) | Absorbing Second Brain `.md` notes into the `54u` Event Horizon. |
+| `[KALINAR_SPEAKING]` | Voice Core | `--ds-accent-singularity` (`#aa88ff`) | Synthesizing sovereign `pt-BR` speech; `EngageMicInterlock` engaged; driving `uVoicePulse`. |
+| `[VOICE_HIBERNATE]` | Voice Core | `--ds-text-secondary` (`#9a9a9a`) | Remote WebSocket closed after `90s` continuous silence; local wake listener active. |
+| `[ACK_DISPATCHED]` | Two-Phase Ack | `--ds-accent-agent` (`#00f0ff`) | Phase 1 Ack (`< 50ms`): directive validated by JDM and dispatched to daemon/queue. |
+| `[ACK_VERIFIED]` | Two-Phase Ack | `--ds-status-active-fg` (`#34d399`) | Phase 2 Ack: OS process exit code `0` and `node:sqlite` WAL commit verified. |
+| `[ACTIVE]` | Agent Swarm | `--ds-status-active-fg` (`#34d399`) | Agent actively executing turn with `.kalinar-lock` Single-Writer Lock. |
+| `[IDLE]` | Agent Swarm | `--ds-text-secondary` (`#9a9a9a`) | Agent in orbital standby awaiting task assignment. |
+| `[PAUSED]` | OS Process Gate | `--ds-status-warn-fg` (`#fbbf24`) | Agent process suspended via `SIGSTOP` or awaiting human diff approval. |
+| `[HALTED]` | ZEN Firewall / Circuit | `--ds-status-halt-fg` (`#f87171`) | Circuit breaker tripped or destructive command vetoed; preempts voice queue. |
+| `[FIFO_QUEUED]` | Busy Agent Queue | `--ds-accent-singularity` (`#aa88ff`) | Task enqueued in `agent_task_fifo_queue` and `WAR_ROOM.md` awaiting lock release. |
+| `[MODEL_HOTSWAP]` | Multi-Model Router | `--ds-accent-agent` (`#00f0ff`) | Atomic Git Rollback completed; hot-swapping across **Argon**, **Claude**, and **Gemini**. |
+| `[WARN]` | Telemetry / Daemon | `--ds-status-warn-fg` (`#fbbf24`) | Retry backoff active or threshold approaching guardrail limit. |
+| `[ERROR]` | Telemetry / Daemon | `--ds-status-halt-fg` (`#f87171`) | Non-zero exit code captured in `< 150 token` `Stream-to-Digest` payload. |
+| `[STREAM]` | IPC / Ring Buffer | `--ds-accent-agent` (`#00f0ff`) | Live 200-entry Ring Buffer and IPC telemetry channel streaming. |
 
 ---
 
-## 4. Accessibility & Contrast Compliance (WCAG 2.2 Level AAA)
+## 4. React 19 Compound Component Slot Contracts (`data-slot`, No `forwardRef`)
 
-All color combinations in Kalinar strictly comply with WCAG 2.2 Level AAA requirements against the Pure Void Base (`#000000`):
+All KALINAR UI primitives follow React 19 direct ref/prop composition (zero `React.forwardRef` wrappers), isolated with `React.memo`, and expose deterministic `data-slot` attributes for E2E verification:
 
-| Color Pair (Foreground on Background) | Contrast Ratio | WCAG 2.2 AAA Target | Compliance Status |
-| :--- | :--- | :--- | :---: |
-| `--ds-primitive-slate-50` (`#F8FAFC`) on `#000000` | `19.4 : 1` | `> 7.0 : 1` | `PASS (EXCEEDS)` |
-| `--ds-text-secondary` (`#9A9A9A`) on `#000000` | `7.45 : 1` | `> 7.0 : 1` | `PASS (CALIBRATED AAA)` |
-| `--ds-accent-singularity` (`#AA88FF`) on `#000000` | `8.65 : 1` | `> 7.0 : 1` | `PASS` |
-| `--ds-accent-agent` (`#00F0FF`) on `#000000` | `16.6 : 1` | `> 7.0 : 1` | `PASS (EXCEEDS)` |
-| `--ds-accent-memory` (`#E879F9`) on `#000000` | `10.8 : 1` | `> 7.0 : 1` | `PASS` |
-| `--ds-status-active-fg` (`#34D399`) on `#000000` | `11.5 : 1` | `> 7.0 : 1` | `PASS` |
-| `--ds-status-warn-fg` (`#FBBF24`) on `#000000` | `12.3 : 1` | `> 7.0 : 1` | `PASS` |
-| `--ds-status-halt-fg` (`#F87171`) on `#000000` | `7.85 : 1` | `> 7.0 : 1` | `PASS` |
-| Interactive Hit Target Minimum Box | `44px x 44px` | `44px x 44px` | `PASS` |
+### 4.1 `AgentLivePreviewCard` (`src/components/ui/AgentLivePreviewCard.tsx`)
+* `data-slot="agent-card-root"`: Outer `320px`-wide industrial card container (`border: var(--ds-border-structural)`).
+* `data-slot="agent-card-viewport"`: Opaque `#0a0a0a` (`--ds-surface-card-thumb`) live code diff / terminal preview surface enforcing strict `min-h-[160px] h-[var(--ds-agent-card-thumb-h,160px)]`.
+* `data-slot="agent-card-meta"`: Two-line `tabular-nums` footer displaying `STEP X/Y`, token burn, `TOK/S` velocity, and `ETA`.
 
-* Focus states render an unmistakable `2px solid var(--ds-border-focus)` with `2px` offset.
-* Full support for `prefers-reduced-motion` eliminating GPGPU accretion stirring and fluid simulations.
+### 4.2 `SingularityHudColumn` (`src/components/hud/RightSingularityHudColumn.tsx`)
+* `data-slot="singularity-hud-root"`: Right ethereal container (`right: 48px`, `width: 360px`, `mix-blend-mode: plus-lighter`) that smoothly retracts (`opacity: 0`) when the `480px` `NodeInspectorDrawer` opens.
+* `data-slot="singularity-hud-block"`: Individual telemetry block wrapper (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`).
+* `data-slot="singularity-voice-transcript"`: Live character-by-character (`18ms/char`) `#aa88ff` transcript stream rendered directly inside `[singularity_core]`.
+
+### 4.3 `RetractableIdeDock` (`src/components/terminal/KalinarBottomDock.tsx`) & `StepDivisionCell` (`src/components/terminal/TelemetryMatrixTable.tsx`)
+* `data-slot="dock-root"`: Bottom IDE dock container anchored at `bottom: 0`.
+* `data-slot="dock-status-bar"`: Collapsed `36px` (`--ds-dock-collapsed-h`) tactical status bar with `44px` minimum interactive hit targets.
+* `data-slot="dock-viewport"`: Expanded `350px` (`--ds-dock-expanded-h`) or `75vh` (`max-h-[75vh]`) 4-tab workspace.
+* `StepDivisionCell` slots:
+  - `data-slot="step-fraction"`: Tabular step ratio (`STEP 04/06`).
+  - `data-slot="step-bar-track"`: Segmented progress bar track colored by `--ds-accent-singularity` / `--ds-status-active-fg`.
+  - `data-slot="step-label"`: Truncated monospace description of the active subtask.

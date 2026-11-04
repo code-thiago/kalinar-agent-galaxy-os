@@ -1,10 +1,10 @@
-# 05 - Back-End Schema, API Contracts & Security Policies (`05_BACKEND_SCHEMA.md`)
+# 05_BACKEND_SCHEMA.md — KALINAR SINGULARITY BACKEND SCHEMA, JDM GRAPHS & SECURITY (v1.1.0 LOCK)
 
-> Document ID: `DOC-05-BACKEND-SCHEMA-KALINAR`  
-> Lead Agents: `@agent-software-engineer` + `@agent-cybersecurity`  
-> Co-Authors: `@human-developer`, `@agent-data`, `@agent-design`, `@agent-orchestrator`, `@agent-qa`  
-> Gate Status: `APPROVED_BY_SWARM_PENDING_HUMAN`  
-> Visual Constraint: `STRICT ZERO-EMOJI ENFORCEMENT - TYPOGRAPHICAL & ASCII ONLY`
+> **Document ID:** `DOC-05-BACKEND-SCHEMA-KALINAR-v1.1.0`  
+> **Lead Agents:** `@agent-software-engineer` + `@agent-cybersecurity` + `@agent-data`  
+> **Co-Authors:** `@human-developer`, `@agent-design`, `@agent-orchestrator`, `@agent-qa`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_1_0`  
+> **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
 
@@ -12,78 +12,52 @@
 
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
-| `@human-developer` | Data & Security Final Authority | Schema Ownership, DDL Invariants, STRIDE Matrix | `PENDING` | -- | `PO-APPROVAL-PENDING` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | SQLite DDL, WAL Indexes, Node 24 Type Alignment | `APPROVED` | `2026-10-28T11:20:00Z` | `SIG-ENGR-SCH-002` |
-| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | Append-Only Triggers, Electron IPC, Voice STRIDE | `APPROVED` | `2026-10-28T11:21:00Z` | `SIG-CSEC-SCH-002` |
-| `@agent-data` | Decision Engine Specialist | Zen-Engine Voice & Swarm JDM Tables, Canvas Sync | `APPROVED` | `2026-10-28T11:22:00Z` | `SIG-DATA-SCH-002` |
-| `@agent-design` | UI/UX & Design System Architect | DTO Shapes for 3D Galaxy & Canvas Nodes | `APPROVED` | `2026-10-28T11:23:00Z` | `SIG-DSGN-SCH-002` |
-| `@agent-orchestrator` | Swarm Facilitator & Product Lead | PRD Traceability (`TRACE-03`), State Completeness | `APPROVED` | `2026-10-28T11:24:00Z` | `SIG-ORCH-SCH-002` |
-| `@agent-qa` | Test Architect & Quality Lead | SQL Migration Rollback & Concurrency Testability | `APPROVED` | `2026-10-28T11:25:00Z` | `SIG-QATE-SCH-002` |
+| `@human-developer` | Sovereign Principal Architect | WAL DDL, 5 JDM Graphs, Multi-Model Checkpoints, v1.1.0 Lock | `APPROVED` | `2026-11-03T19:09:00Z` | `PO-APPROVAL-SCH-110` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | `node:sqlite` WAL DDL, FIFO Queue & Git Checkpoint Tables | `APPROVED` | `2026-11-03T19:09:10Z` | `SIG-ENGR-SCH-110` |
+| `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | Append-Only Triggers, `PID > 100` Gate, STRIDE Threat Matrix | `APPROVED` | `2026-11-03T19:09:20Z` | `SIG-CSEC-SCH-110` |
+| `@agent-data` | Decision Engine Specialist | 5 GoRules ZEN Graphs (`< 0.45ms`), `< 150 token` StreamDigest | `APPROVED` | `2026-11-03T19:09:30Z` | `SIG-DATA-SCH-110` |
+| `@agent-orchestrator` | Swarm Facilitator & Product Lead | Two-Phase Voice Ack, Speech Arbitration Rule B, FIFO Routing | `APPROVED` | `2026-11-03T19:09:40Z` | `SIG-ORCH-SCH-110` |
+| `@agent-qa` | QA & Traceability Auditor | Foreign Key Seed Integrity (`CLI_GATE`, `CLI_EXEC`, `SYSTEM`) | `APPROVED` | `2026-11-03T19:09:50Z` | `SIG-QATE-SCH-110` |
 
 ---
 
-## 1. Entity-Relationship Diagram (Mermaid ERD)
+## 1. Production `node:sqlite` WAL DDL & Seeded Integrity (`electron/db/sqliteStore.ts`)
+
+### 1.1 Entity-Relationship Diagram (Mermaid ERD)
 
 ```mermaid
 erDiagram
-    TASKS ||--o{ TURNS : "contains execution history"
-    TASKS ||--o{ TELEMETRY_LOGS : "generates append-only logs"
-    AGENT_REGISTRY ||--o{ TURNS : "executes turns"
-    CIRCUIT_BREAKER_EVENTS ||--o| TASKS : "halts or resumes"
-    CANVAS_NODES ||--o| TASKS : "mirrors in KALINAR_GALAXY.canvas"
+    AGENT_REGISTRY ||--o{ TASKS : "assigned to"
+    TASKS ||--o{ TELEMETRY_LOGS : "records append-only events"
+    TASKS ||--o{ CANVAS_NODES : "mirrors in KALINAR_GALAXY.canvas"
+    AGENT_REGISTRY ||--o{ AGENT_TASK_FIFO_QUEUE : "queues busy directives"
+    TASKS ||--o{ LLM_MODEL_CHECKPOINTS : "guards file edits with git hash"
 
     TASKS {
-        text id PK
+        text id PK "Includes seeded CLI_GATE, CLI_EXEC, SYSTEM"
         text project_path
         text title
         text status "PENDING | RUNNING | COMPLETED | BLOCKED | PAUSED"
         text current_agent FK
-        text from_agent
-        text contract_path
-        text context_notes "JSON Array (Max 2 items)"
-        text action_instruction
+        text context_notes "JSON Array (Max 2 Wikilinks)"
         integer qa_retries
         integer total_turns
         text created_at
         text updated_at
     }
 
-    TURNS {
-        integer id PK
-        text task_id FK
-        text agent_name FK
-        integer turn_number
-        text status "HANDOFF | COMPLETED | NEEDS_HUMAN_INPUT"
-        text next_agent
-        text contract_path
-        text summary
-        text question_for_human
-        integer duration_ms
-        text created_at
-    }
-
     TELEMETRY_LOGS {
         integer id PK
         text task_id FK
-        text event_type "TURN_START | TURN_END | CIRCUIT_TRIP | HALT | VOICE_CMD"
+        text event_type "TURN_START | TURN_END | CIRCUIT_TRIP | HALT | VOICE_CMD | FILE_WATCH"
         text agent_name
-        text payload "JSON String"
+        text payload "JSON String (< 150 token digest or audit payload)"
         integer latency_ms
         text created_at
     }
 
-    CIRCUIT_BREAKER_EVENTS {
-        integer id PK
-        text task_id FK
-        text state "CLOSED | OPEN | HALF_OPEN"
-        text trip_reason
-        text jdm_rule_matched
-        text triggered_by "ZEN_ENGINE | OPERATOR_OVERRIDE | VOICE_CORE"
-        text created_at
-    }
-
     CANVAS_NODES {
-        text id PK "node-task-id or node-agent-id"
+        text id PK
         text task_id FK
         real x
         real y
@@ -94,34 +68,45 @@ erDiagram
         text last_synced_at
     }
 
-    AGENT_REGISTRY {
-        text name PK "agent-orchestrator | agent-software-engineer | ..."
-        text role_description
-        text system_prompt_ref
-        integer is_active
+    AGENT_TASK_FIFO_QUEUE {
+        integer id PK
+        text target_agent_id FK
+        text instruction
+        text model_id "argon | claude-sonnet | gemini-pro | gemini-flash"
+        text status "FIFO_QUEUED | DISPATCHED | COMPLETED | CANCELLED"
+        text created_at
+    }
+
+    LLM_MODEL_CHECKPOINTS {
+        integer id PK
+        text agent_id FK
+        text task_id FK
+        text git_commit_or_stash_hash
+        text active_model_id "argon | claude-sonnet | gemini-pro | gemini-flash"
+        text fallback_model_id "argon | claude-sonnet | gemini-pro | gemini-flash"
+        integer retry_count
+        text status "CHECKPOINT_ACTIVE | COMMITTED | ROLLED_BACK | HOT_SWAPPED"
+        text created_at
     }
 ```
 
----
-
-## 2. Production Database DDL (SQLite `node:sqlite` Native Specification)
+### 1.2 Canonical SQLite WAL Schema & Append-Only Triggers
 
 ```sql
--- SQLite Performance Pragmas
+-- 1. Performance & Integrity Pragmas
 PRAGMA journal_mode = WAL;
 PRAGMA synchronous = NORMAL;
 PRAGMA foreign_keys = ON;
 PRAGMA busy_timeout = 5000;
 
--- 1. Agent Registry Table
+-- 2. Agent Registry Table
 CREATE TABLE IF NOT EXISTS agent_registry (
-    name TEXT PRIMARY KEY NOT NULL,
-    role_description TEXT NOT NULL,
-    system_prompt_ref TEXT NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+  name TEXT PRIMARY KEY NOT NULL,
+  role_description TEXT NOT NULL,
+  system_prompt_ref TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
 );
 
--- Seed Canonical 7 Agents
 INSERT OR IGNORE INTO agent_registry (name, role_description, system_prompt_ref) VALUES
 ('agent-orchestrator', 'Swarm Facilitator, PM, and Queue Controller', '05_AGENTS/agent-orchestrator.md'),
 ('agent-software-engineer', 'Principal Full-Stack & Contract-First Architect', '05_AGENTS/agent-software-engineer.md'),
@@ -131,254 +116,252 @@ INSERT OR IGNORE INTO agent_registry (name, role_description, system_prompt_ref)
 ('agent-qa', 'Test Architect, Vitest, Playwright, DAST Lead', '05_AGENTS/agent-qa.md'),
 ('agent-content', 'Technical Documentation and Developer Writing Lead', '05_AGENTS/agent-content.md');
 
--- 2. Tasks Table
+-- 3. Tasks Table + Seeded System Keys for Foreign-Key Integrity
 CREATE TABLE IF NOT EXISTS tasks (
-    id TEXT PRIMARY KEY NOT NULL,
-    project_path TEXT NOT NULL,
-    title TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'BLOCKED', 'PAUSED')),
-    current_agent TEXT NOT NULL REFERENCES agent_registry(name),
-    from_agent TEXT,
-    contract_path TEXT,
-    context_notes TEXT NOT NULL DEFAULT '[]',
-    action_instruction TEXT,
-    qa_retries INTEGER NOT NULL DEFAULT 0,
-    total_turns INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  id TEXT PRIMARY KEY NOT NULL,
+  project_path TEXT NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'BLOCKED', 'PAUSED')),
+  current_agent TEXT NOT NULL REFERENCES agent_registry(name),
+  from_agent TEXT,
+  contract_path TEXT,
+  context_notes TEXT NOT NULL DEFAULT '[]',
+  action_instruction TEXT,
+  qa_retries INTEGER NOT NULL DEFAULT 0,
+  total_turns INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at DESC);
+INSERT OR IGNORE INTO tasks (id, project_path, title, status, current_agent) VALUES
+('SYSTEM', 'c:/Kalinar', 'System Daemon', 'COMPLETED', 'agent-orchestrator'),
+('CLI_GATE', 'c:/Kalinar', 'GoRules Zen Firewall Gate', 'COMPLETED', 'agent-cybersecurity'),
+('CLI_EXEC', 'c:/Kalinar', 'Native Shell Execution', 'COMPLETED', 'agent-software-engineer');
 
--- 3. Turns Table
-CREATE TABLE IF NOT EXISTS turns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    agent_name TEXT NOT NULL REFERENCES agent_registry(name),
-    turn_number INTEGER NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('HANDOFF', 'COMPLETED', 'NEEDS_HUMAN_INPUT')),
-    next_agent TEXT,
-    contract_path TEXT NOT NULL,
-    summary TEXT NOT NULL,
-    question_for_human TEXT,
-    duration_ms INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_turns_task_id ON turns(task_id, turn_number);
-
--- 4. Telemetry Logs Table (Append-Only)
+-- 4. Append-Only Telemetry Logs Table & Mutation-Blocking Triggers
 CREATE TABLE IF NOT EXISTS telemetry_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    event_type TEXT NOT NULL,
-    agent_name TEXT NOT NULL,
-    payload TEXT NOT NULL,
-    latency_ms INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  agent_name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  latency_ms INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_telemetry_task_created ON telemetry_logs(task_id, created_at DESC);
-
--- Invariant Enforcement: Prevent UPDATE and DELETE on telemetry_logs
-CREATE TRIGGER IF NOT EXISTS trg_prevent_telemetry_update
+CREATE TRIGGER IF NOT EXISTS trg_telemetry_no_update
 BEFORE UPDATE ON telemetry_logs
 BEGIN
-    SELECT RAISE(ABORT, 'SECURITY_VIOLATION: telemetry_logs table is strictly append-only. UPDATE prohibited.');
+  SELECT RAISE(ABORT, 'TELEMETRY_IMMUTABLE: UPDATE operations are strictly forbidden on telemetry_logs');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_prevent_telemetry_delete
+CREATE TRIGGER IF NOT EXISTS trg_telemetry_no_delete
 BEFORE DELETE ON telemetry_logs
 BEGIN
-    SELECT RAISE(ABORT, 'SECURITY_VIOLATION: telemetry_logs table is strictly append-only. DELETE prohibited.');
+  SELECT RAISE(ABORT, 'TELEMETRY_IMMUTABLE: DELETE operations are strictly forbidden on telemetry_logs');
 END;
 
--- 5. Circuit Breaker Events Table
-CREATE TABLE IF NOT EXISTS circuit_breaker_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    state TEXT NOT NULL CHECK (state IN ('CLOSED', 'OPEN', 'HALF_OPEN')),
-    trip_reason TEXT NOT NULL,
-    jdm_rule_matched TEXT,
-    triggered_by TEXT NOT NULL CHECK (triggered_by IN ('ZEN_ENGINE', 'OPERATOR_OVERRIDE', 'VOICE_CORE')),
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_cb_task_id ON circuit_breaker_events(task_id);
-
--- 6. Canvas Nodes Table (Mirror of KALINAR_GALAXY.canvas)
+-- 5. Canvas Nodes Table (Bidirectional Sync with KALINAR_GALAXY.canvas)
 CREATE TABLE IF NOT EXISTS canvas_nodes (
-    id TEXT PRIMARY KEY NOT NULL,
-    task_id TEXT REFERENCES tasks(id) ON DELETE SET NULL,
-    x REAL NOT NULL DEFAULT 0.0,
-    y REAL NOT NULL DEFAULT 0.0,
-    width REAL NOT NULL DEFAULT 320.0,
-    height REAL NOT NULL DEFAULT 160.0,
-    color_token TEXT NOT NULL DEFAULT '--ds-accent-agent',
-    canvas_file TEXT NOT NULL DEFAULT 'KALINAR_GALAXY.canvas',
-    last_synced_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  id TEXT PRIMARY KEY NOT NULL,
+  task_id TEXT NOT NULL,
+  x REAL NOT NULL DEFAULT 0,
+  y REAL NOT NULL DEFAULT 0,
+  width REAL NOT NULL DEFAULT 320,
+  height REAL NOT NULL DEFAULT 160,
+  color_token TEXT NOT NULL DEFAULT '#00F0FF',
+  canvas_file TEXT NOT NULL,
+  last_synced_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+
+-- 6. Busy Agent FIFO Task Queue Table (FLOW-AGENT-FIFO-01)
+CREATE TABLE IF NOT EXISTS agent_task_fifo_queue (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  target_agent_id TEXT NOT NULL REFERENCES agent_registry(name),
+  instruction TEXT NOT NULL,
+  model_id TEXT NOT NULL CHECK (model_id IN ('argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash')),
+  status TEXT NOT NULL DEFAULT 'FIFO_QUEUED' CHECK (status IN ('FIFO_QUEUED', 'DISPATCHED', 'COMPLETED', 'CANCELLED')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- 7. Multi-Model LLM Atomic Git Checkpoints Table (FLOW-LLM-FAILOVER-01)
+CREATE TABLE IF NOT EXISTS llm_model_checkpoints (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  agent_id TEXT NOT NULL REFERENCES agent_registry(name),
+  task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  git_commit_or_stash_hash TEXT NOT NULL,
+  active_model_id TEXT NOT NULL CHECK (active_model_id IN ('argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash')),
+  fallback_model_id TEXT NOT NULL CHECK (fallback_model_id IN ('argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash')),
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL CHECK (status IN ('CHECKPOINT_ACTIVE', 'COMMITTED', 'ROLLED_BACK', 'HOT_SWAPPED')),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+```
+
+### 1.3 Canonical `KalinarSqliteStore` Repository Methods
+* `getHistoricalTelemetry(limit = 100)`: Returns `SELECT id, task_id, event_type, agent_name, payload, latency_ms, created_at as timestamp FROM telemetry_logs ORDER BY id DESC LIMIT ?` to hydrate Tab 2 `EvolutionChartsView`.
+* `getEvolutionSummary()`: Returns `{ totalEvents, avgLatencyMs, agentDistribution }` aggregated across `telemetry_logs`.
+* `enqueueAgentTaskFifo({ targetAgentId, instruction, modelId })`: Inserts a `FIFO_QUEUED` record into `agent_task_fifo_queue` when the target agent holds `.kalinar-lock` (`[ACTIVE]`) and mirrors the pointer to `WAR_ROOM.md`.
+* `recordModelCheckpoint({ agentId, taskId, gitCommitOrStashHash, activeModelId, fallbackModelId, retryCount, status })`: Persists pre-edit Git hashes and tracks automatic model hot-swaps across **Argon**, **Claude**, and **Gemini**.
+
+---
+
+## 2. Five GoRules ZEN Engine Deterministic JDM Graphs (`< 0.45ms` Evaluation)
+
+All 5 graphs reside in `src/rules/*.jdm.json` and are pre-loaded into `ZenFirewall.jdmBufferCache` at startup:
+
+### 2.1 `daemon-event-router.jdm.json`
+* **Purpose:** Evaluates `< 150 token` `StreamDigest` payloads and Chokidar `300ms` debounced events, enforces loop suppression and `maxAuditCycles = 2` (`auditCycle >= 3` -> `HALT_AUDIT_CYCLE_CAP`), computes deterministic `baseEtaSeconds`, and maps file paths to Second Brain `[[Wikilinks]]` (strictly capped at max 2 per handoff).
+* **Outputs:** `{ action: 'DROP_LOOP_SUPPRESSED' | 'IGNORE_HARD' | 'WATCH_VISUAL_ONLY' | 'HALT_AUDIT_CYCLE_CAP' | 'DISPATCH_AGENT' | 'RECONCILE_WORKSPACE', secondBrainTag, auditAllowed, baseEtaSeconds }`.
+
+### 2.2 `os-execution-firewall.jdm.json`
+* **Purpose:** Gates every `kalinar:execute_shell_command` (`powershell.exe -NoProfile`) and `node-pty` command in `< 0.45ms` prior to process creation.
+* **Verdict Policies:**
+  - `HARD_BLOCK` (`allowed: false`, `riskLevel: 'CRITICAL'`): Rejects recursive deletion (`rm -rf /`, `del /f /s /q`), disk formatting (`Format-Volume`), or raw secret exfiltration.
+  - `REQUIRE_APPROVAL` (`allowed: false`, `riskLevel: 'HIGH'`): Holds non-sandboxed network/system mutations for operator approval.
+  - `AUTO_ALLOW` (`allowed: true`, `riskLevel: 'LOW'`): Permits safe workspace inspection, `git status`, `vitest`, and `tsc` runs.
+
+### 2.3 `voice-command-guard.jdm.json`
+* **Purpose:** Validates spoken `pt-BR` intents and enforces **Speech Arbitration Rule B**.
+* **Arbitration Invariant:** When `voiceState === '[LISTENING PT-BR]'`, standard Phase 2 `STATUS_VERIFIED` messages are routed to `PendingVoiceQueue` (`deliveryMode: 'QUEUE_UNTIL_SILENCE'`). Immediate audio preemption (`deliveryMode: 'PREEMPT_IMMEDIATE'`) is permitted **exclusively** when `swarmStatus === '[HALTED]'` or `firewallVerdict === 'HARD_BLOCK'`.
+
+### 2.4 `execution-gate.jdm.json`
+* **Purpose:** Enforces `AUTO_PILOT`, `STEP_BY_STEP_GATE`, and `SANDBOX_DRY_RUN` modes, verifies Single-Writer Lock ownership (`.kalinar-lock`), and enforces `validatePidSafety(pid)` (`Number.isInteger(pid) && pid > 100`) before any OS signal (`SIGSTOP`, `SIGCONT`, `SIGTERM`, `taskkill`).
+
+### 2.5 `llm-model-router.jdm.json`
+* **Purpose:** Selects the optimal primary and fallback LLM engine (**Argon**, **Claude**, or **Gemini**) per task domain and triggers automatic hot-swap + Atomic Git Rollback on `HTTP_429` or `TIMEOUT`:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "llmRouterTable",
+      "type": "decisionTableNode",
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "field": "taskDomain", "name": "Task Domain" },
+          { "field": "errorType", "name": "Provider Error Signal" },
+          { "field": "retryCount", "name": "Current Retry Count" }
+        ],
+        "outputs": [
+          { "field": "activeModelId", "name": "Selected Model ID" },
+          { "field": "fallbackModelId", "name": "Fallback Model ID" },
+          { "field": "recoveryAction", "name": "Checkpoint Action" }
+        ],
+        "rules": [
+          {
+            "taskDomain": "any",
+            "errorType": "'HTTP_429' | 'TIMEOUT'",
+            "retryCount": ">= 1",
+            "activeModelId": "'claude-sonnet'",
+            "fallbackModelId": "'gemini-pro'",
+            "recoveryAction": "'ATOMIC_GIT_ROLLBACK_AND_HOTSWAP'"
+          },
+          {
+            "taskDomain": "'ARCHITECTURE' | 'FULLSTACK_CODE' | 'BLUEPRINT'",
+            "errorType": "'NONE'",
+            "retryCount": "0",
+            "activeModelId": "'argon'",
+            "fallbackModelId": "'claude-sonnet'",
+            "recoveryAction": "'CREATE_GIT_CHECKPOINT'"
+          },
+          {
+            "taskDomain": "'UI_SHADER' | 'SECURITY_AUDIT'",
+            "errorType": "'NONE'",
+            "retryCount": "0",
+            "activeModelId": "'claude-sonnet'",
+            "fallbackModelId": "'argon'",
+            "recoveryAction": "'CREATE_GIT_CHECKPOINT'"
+          },
+          {
+            "taskDomain": "'FAST_TRIAGE' | 'VOICE_INTENT'",
+            "errorType": "'NONE'",
+            "retryCount": "0",
+            "activeModelId": "'gemini-flash'",
+            "fallbackModelId": "'gemini-pro'",
+            "recoveryAction": "'NONE'"
+          }
+        ]
+      }
+    }
+  ]
+}
 ```
 
 ---
 
-## 3. Zod API Contracts & Runtime Validation Schemas
+## 3. Zod Runtime Contracts & STRIDE Threat Matrix
+
+### 3.1 Canonical Zod Schemas (`src/types/kalinar.ts`)
 
 ```typescript
 import { z } from 'zod';
 
-export const VALID_AGENTS = [
-  'agent-orchestrator',
-  'agent-software-engineer',
-  'agent-design',
-  'agent-data',
-  'agent-cybersecurity',
-  'agent-qa',
-  'agent-content'
-] as const;
-
-export type ValidAgent = (typeof VALID_AGENTS)[number];
-
-// Contract: Turn Output Emitted by Any Swarm Agent
-export const AgentTurnOutputSchema = z.object({
-  status: z.enum(['HANDOFF', 'COMPLETED', 'NEEDS_HUMAN_INPUT']),
-  nextAgent: z.enum(VALID_AGENTS).nullable(),
-  contractPath: z.string().min(1, 'contractPath cannot be empty'),
-  contextNotes: z.array(z.string()).max(2, 'Strict cap: max 2 context notes allowed'),
-  actionInstruction: z.string().min(1, 'actionInstruction cannot be empty'),
-  summary: z.string().min(1, 'summary cannot be empty'),
-  questionForHuman: z.string().optional()
+// 1. Deterministic 2-Stage Log Triage Digest (< 150 Tokens Hard Cap)
+export const StreamDigestSchema = z.object({
+  taskId: z.string().min(1),
+  agentId: z.string().min(1),
+  exitCode: z.number().int(),
+  filePath: z.string().optional(),
+  line: z.number().int().positive().optional(),
+  col: z.number().int().positive().optional(),
+  errorSignature: z.string().max(160).optional(),
+  digestSummary: z.string().max(420), // Enforces < 150 tokens ceiling
+  estimatedTokens: z.number().int().max(150),
 });
 
-export type AgentTurnOutput = z.infer<typeof AgentTurnOutputSchema>;
-
-// Contract: Voice Command Ingress Intent
-export const VoiceCommandIntentSchema = z.object({
-  rawTranscript: z.string().min(1),
-  locale: z.literal('pt-BR'),
-  intent: z.enum(['STATUS', 'PAUSE', 'RESUME', 'APPROVE_RELEASE', 'HALT', 'GALAXY_FOCUS']),
-  targetEntityId: z.string().optional(),
-  confidence: z.number().min(0.0).max(1.0)
+// 2. Two-Phase Truthful Voice Ack Contract (US-009)
+export const TwoPhaseVoiceAckSchema = z.object({
+  directiveId: z.string().uuid(),
+  ackPhase: z.enum(['STATUS_DISPATCHED', 'STATUS_VERIFIED']),
+  voiceState: z.enum([
+    '[SINGULARITY: STANDBY]',
+    '[LISTENING PT-BR]',
+    '[GRAVITY_INGESTION]',
+    '[KALINAR_SPEAKING]',
+    '[VOICE_HIBERNATE]',
+  ]),
+  deliveryMode: z.enum(['SPEAK_NOW', 'QUEUE_UNTIL_SILENCE', 'PREEMPT_IMMEDIATE']),
+  sqliteVerified: z.boolean(),
+  exitCodeVerified: z.number().int().nullable(),
+  spokenPhrasePtBr: z.string().min(1),
 });
 
-// Contract: Electron IPC Channel Whitelist
-export const ELECTRON_IPC_CHANNELS = [
-  'kalinar:task:action',
-  'kalinar:telemetry:stream',
-  'kalinar:terminal:write',
-  'kalinar:terminal:resize',
-  'kalinar:voice:state',
-  'kalinar:canvas:sync'
-] as const;
+// 3. Busy Agent FIFO Queue Contract (FLOW-AGENT-FIFO-01)
+export const FifoQueueItemSchema = z.object({
+  id: z.number().int().positive().optional(),
+  targetAgentId: z.string().min(1),
+  instruction: z.string().min(1),
+  contextWikilinks: z.array(z.string()).max(2),
+  modelId: z.enum(['argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash']),
+  status: z.enum(['FIFO_QUEUED', 'DISPATCHED', 'COMPLETED', 'CANCELLED']),
+});
+
+// 4. Multi-Model LLM Router & Atomic Git Checkpoint Contract (US-010)
+export const LlmModelRouteSchema = z.object({
+  agentId: z.string().min(1),
+  taskId: z.string().min(1),
+  gitCommitOrStashHash: z.string().min(7),
+  activeModelId: z.enum(['argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash']),
+  fallbackModelId: z.enum(['argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash']),
+  retryCount: z.number().int().min(0).max(3),
+  recoveryAction: z.enum([
+    'CREATE_GIT_CHECKPOINT',
+    'RETRY_WITH_BACKOFF',
+    'ATOMIC_GIT_ROLLBACK_AND_HOTSWAP',
+    'NONE',
+  ]),
+});
 ```
 
----
+### 3.2 STRIDE Threat Matrix (`@agent-cybersecurity`)
 
-## 4. GoRules Zen-Engine Decision Table Specifications
-
-### 4.1 Swarm Guard (`rules/swarm-guard.jdm.json`)
-```json
-{
-  "nodes": [
-    {
-      "id": "decisionTable",
-      "type": "decisionTable",
-      "content": {
-        "hitPolicy": "first",
-        "inputs": [
-          { "field": "consecutiveFailures", "type": "number" },
-          { "field": "totalTurns", "type": "number" },
-          { "field": "turnDurationMs", "type": "number" },
-          { "field": "loopDetected", "type": "boolean" }
-        ],
-        "outputs": [
-          { "field": "action", "type": "string" },
-          { "field": "reason", "type": "string" }
-        ],
-        "rules": [
-          {
-            "inputs": [">= 3", "-", "-", "-"],
-            "outputs": ["PAUSE", "CONSECUTIVE_FAILURES_EXCEEDED"]
-          },
-          {
-            "inputs": ["-", ">= 50", "-", "-"],
-            "outputs": ["PAUSE", "MAX_TURNS_PER_TASK_EXCEEDED"]
-          },
-          {
-            "inputs": ["-", "-", "> 600000", "-"],
-            "outputs": ["PAUSE", "TURN_DURATION_TIMEOUT_EXCEEDED"]
-          },
-          {
-            "inputs": ["-", "-", "-", "true"],
-            "outputs": ["PAUSE", "CYCLIC_LOOP_DETECTED"]
-          },
-          {
-            "inputs": ["-", "-", "-", "-"],
-            "outputs": ["ALLOW", "ALL_GUARDRAILS_NOMINAL"]
-          }
-        ]
-      }
-    }
-  ]
-}
-```
-
-### 4.2 Voice Command Safety Guard (`rules/voice-command-guard.jdm.json`)
-```json
-{
-  "nodes": [
-    {
-      "id": "voiceGuardTable",
-      "type": "decisionTable",
-      "content": {
-        "hitPolicy": "first",
-        "inputs": [
-          { "field": "intent", "type": "string" },
-          { "field": "confidence", "type": "number" },
-          { "field": "isAcousticMuted", "type": "boolean" }
-        ],
-        "outputs": [
-          { "field": "action", "type": "string" },
-          { "field": "feedbackPrompt", "type": "string" }
-        ],
-        "rules": [
-          {
-            "inputs": ["-", "-", "true"],
-            "outputs": ["DROP", "MIC_MUTED_DURING_TTS"]
-          },
-          {
-            "inputs": ["'HALT' | 'APPROVE_RELEASE'", "< 0.85", "false"],
-            "outputs": ["CONFIRM", "Comando critico requer confirmacao falada"]
-          },
-          {
-            "inputs": ["'STATUS' | 'GALAXY_FOCUS'", ">= 0.60", "false"],
-            "outputs": ["ALLOW", "Executando consulta"]
-          },
-          {
-            "inputs": ["'PAUSE' | 'RESUME'", ">= 0.75", "false"],
-            "outputs": ["ALLOW", "Estado de execucao alterado"]
-          },
-          {
-            "inputs": ["-", "-", "-"],
-            "outputs": ["IGNORE", "Comando nao reconhecido"]
-          }
-        ]
-      }
-    }
-  ]
-}
-```
-
----
-
-## 5. STRIDE Threat Model Matrix
-
-| Threat Category | Specific Kalinar Vector | Impact & Severity | Cryptographic / Technical Mitigation |
-| :--- | :--- | :--- | :--- |
-| **Spoofing** | Compromised renderer script attempts sending spoofed IPC calls to spawn native processes. | **CRITICAL** - Host shell compromise. | Electron `contextIsolation: true` and strict `preload.ts` channel whitelist with payload schema validation. |
-| **Tampering** | Rogue worker process attempts modifying historical turn summaries or audit logs in SQLite. | **HIGH** - Obfuscated failure modes or corrupted compliance history. | Database triggers `trg_prevent_telemetry_update` and `trg_prevent_telemetry_delete` reject mutations at SQLite engine level. |
-| **Repudiation** | Operator denies issuing spoken emergency halt or release approval. | **MEDIUM** - Disputed operational timeline. | All voice-triggered events record audio transcript, intent confidence, and are written append-only to `telemetry_logs`. |
-| **Information Disclosure** | Local filesystem paths or environment secrets leaked into 3D Galaxy node labels. | **HIGH** - Localhost reconnaissance by malicious plugins. | Sanitization transformer scrubs user home directory paths (`C:\Users\thiag\`) before serializing node coordinates. |
-| **Denial of Service** | Malicious script launches 100,000 un-culled Three.js meshes to crash GPU driver. | **CRITICAL** - System freeze and VRAM exhaustion. | `THREE.InstancedMesh` with strict Spatial Octree LOD culling caps simultaneous render draw calls. |
-| **Elevation of Privilege** | Acoustic feedback loop triggers unauthorized spoken commands from assistant output. | **HIGH** - Runaway execution triggered by voice reflection. | Hardware mic-muting interlock engages unconditionally whenever TTS audio is playing. |
+| STRIDE Category | Specific KALINAR Attack Vector | Severity | Deterministic Mitigation & Verification Gate |
+| :--- | :--- | :---: | :--- |
+| **Spoofing** | Renderer script attempts invoking unwhitelisted IPC channels or spoofing PID `0`/`1` to kill OS kernel processes. | `CRITICAL` | Strict `ELECTRON_IPC_CHANNELS` whitelist in `preload.ts` + `validatePidSafety(pid)` enforcing integer `PID > 100`. |
+| **Tampering** | Compromised process attempts `UPDATE` or `DELETE` on `telemetry_logs`, or leaves half-written corrupt code after LLM stream drop. | `CRITICAL` | SQLite triggers `trg_telemetry_no_update` / `trg_telemetry_no_delete` (`RAISE(ABORT)`) + Atomic Git Checkpoints rolling back dirty partial files prior to hot-swap. |
+| **Repudiation** | Agent claims task completion via voice before command finishes or when build exits with non-zero code. | `HIGH` | Two-Phase Voice Ack (`TwoPhaseVoiceAckSchema`): `STATUS_VERIFIED` requires `exitCode === 0` and committed SQLite row. |
+| **Information Disclosure** | Raw 50MB terminal dump containing env vars or secrets forwarded to conversational voice plane. | `HIGH` | Layer 3 `Stream-to-Digest` Ring Buffer strips secrets and compresses logs into `< 150 tokens` (`StreamDigestSchema`). |
+| **Denial of Service** | Chokidar self-write infinite loop, unbounded agent audit loop, or HTTP 429 provider lockup. | `CRITICAL` | `.kalinar-lock` single-writer token, `maxAuditCycles = 2` in `daemon-event-router.jdm.json`, and automatic failover across **Argon**, **Claude**, and **Gemini**. |
+| **Elevation of Privilege** | Destructive shell command (`rm -rf /`, `Format-Volume`) injected via Tab 4 CLI or acoustic voice echo loop. | `CRITICAL` | `os-execution-firewall.jdm.json` (`< 0.45ms` `HARD_BLOCK`) + `EngageMicInterlock` hardware mute + `400ms` post-TTS decay. |

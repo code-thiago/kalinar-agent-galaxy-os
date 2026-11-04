@@ -2,8 +2,8 @@
 
 > Document ID: `WAR-ROOM-KALINAR-MASTER`  
 > Security Classification: `RESTRICTED - ZERO TRUST SWARM`  
-> System Horizon: `v1.0.0 PRODUCTION RELEASE COMPLETED`  
-> Active Release: `v1.0.0`  
+> System Horizon: `v1.1.0 PRODUCTION RELEASE COMPLETED`  
+> Active Release: `v1.1.0`  
 > Visual Policy: `STRICT ZERO-EMOJI ENFORCEMENT - TYPOGRAPHICAL & ASCII ONLY`
 
 ---
@@ -19,6 +19,8 @@
 | `TASK-04` | Sovereign Singularity Voice Core & Black Hole Modulation | `@agent-design` | `COMPLETED` | `TASK-03` Component Freeze | `UNLOCKED` |
 | `TASK-05` | Retractable IDE Bottom Dock, Step Matrix & Evolution Charts | `@agent-data` | `COMPLETED` | `TASK-04` Pipeline Pass | `UNLOCKED` |
 | `TASK-06` | Second Brain Cortex, Native CLI, Packaging & E2E Audit | `@agent-orchestrator` | `COMPLETED` | `TASK-05` 100% Pass Rate | `UNLOCKED` |
+| `TASK-07` | Surgical Remediation v1.0.1 (262k GPGPU, 160px, IPC Shell) | `@agent-software-engineer` | `COMPLETED` | `TASK-06` Release Audit | `UNLOCKED` |
+| `TASK-08` | 7 Laws of Voice & Multi-Model Router (Argon/Claude/Gemini) | `@agent-orchestrator` | `COMPLETED` | `TASK-07` Baseline Lock | `UNLOCKED` |
 
 ---
 
@@ -26,20 +28,23 @@
 
 | Swarm Agent | Architectural Responsibility | Verification Result | Final Status |
 | :--- | :--- | :---: | :---: |
-| `@agent-orchestrator` | Project Lead, Sequential Lock Controller, Scope Lock | PRD Traceability 100%, 0 Gaps | `RELEASED` |
-| `@agent-software-engineer` | Full-Stack Architect, Electron, SQLite & Connector SDK | Schema Integrity, Node 24 Native Performance | `RELEASED` |
+| `@agent-orchestrator` | Project Lead, Sequential Lock Controller, FIFO Queue | PRD Traceability 100%, 0 Gaps | `RELEASED` |
+| `@agent-software-engineer` | Full-Stack Architect, Electron, SQLite, Git Checkpoints | Schema Integrity, Node 24 Native Performance | `RELEASED` |
 | `@agent-design` | Design System Architect, Black Hole Singularity WebGL | WCAG AAA (7.67:1), 44px Targets, 60 FPS | `RELEASED` |
-| `@agent-data` | Decision Engine Specialist, Zen-Engine, Data Charts | 4 JDM Graphs, Sub-millisecond (< 0.45ms) | `RELEASED` |
-| `@agent-cybersecurity` | Zero-Trust Auditor, PID Safety, Auth Guard, Mic Interlock | Electron IPC Isolation, Acoustic Lock Vetted | `RELEASED` |
-| `@agent-qa` | Test Architect, Vitest, Browser Verification | 38 / 38 Tests Passing Deterministically | `RELEASED` |
-| `@agent-content` | Sovereign Cosmic Commander Persona, Zero Servility | Tauz-style pt-BR, 0 Emojis, 0 J.A.R.V.I.S. | `RELEASED` |
+| `@agent-data` | Decision Engine Specialist, Zen-Engine, Stream-to-Digest | 5 JDM Graphs (< 0.45ms), Digest <= 150 tokens | `RELEASED` |
+| `@agent-cybersecurity` | Zero-Trust Auditor, PID Safety, < 10ms Esc Kill-Switch | Electron IPC Isolation, 400ms Mic Interlock | `RELEASED` |
+| `@agent-qa` | Test Architect, Vitest, Browser Verification | 49 / 49 Tests Passing Deterministically | `RELEASED` |
+| `@agent-content` | Sovereign Cosmic Commander Persona, Two-Phase Ack | Tauz-style pt-BR, 90s Hot Window, 0 Emojis | `RELEASED` |
 
 ---
 
 ## 3. Protocol Invariants Sign-Off
 
-1. `INV-01 (PRE_CODE_BLUEPRINT_LOCK)`: Pre-Code Blueprint Gate fully reconciled and preserved.
-2. `INV-02 (SEQUENTIAL_LOCK)`: All 6 development phases completed in strict chronological order.
+1. `INV-01 (PRE_CODE_BLUEPRINT_LOCK)`: Pre-Code Blueprint Gate fully reconciled and preserved (`v1.1.0`).
+2. `INV-02 (SEQUENTIAL_LOCK)`: All 8 development phases completed in strict chronological order.
 3. `INV-03 (ZERO_EMOJI_STANDARD)`: Rigorously 0 emojis across the entire codebase, commits, and logs.
 4. `INV-04 (ZERO_TRUST_BOUNDARY)`: Electron IPC channel whitelist, PID <= 100 protection and strict localhost-only webhook binding.
-5. `INV-05 (CIRCUIT_BREAKER_ENFORCEMENT)`: GoRules Zen-Engine JDM decision tables operating deterministically in under 1ms.
+5. `INV-05 (CIRCUIT_BREAKER_ENFORCEMENT)`: 5 GoRules Zen-Engine JDM decision tables operating deterministically in under 0.45ms.
+
+## 4. Handoff & FIFO Queue Ledger
+- `[FROM: @agent-orchestrator] -> [TO: @agent-software-engineer] | Required Domain: multi-model-router | Max Wikilinks (<=2): [[00_INDEX]], [[zen-engine]] | Action: Lock v1.1.0 7 Laws of Voice and Argon/Claude/Gemini Router`

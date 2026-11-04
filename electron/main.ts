@@ -12,7 +12,7 @@ import { KalinarSqliteStore } from './db/sqliteStore.js';
 import { KalinarDaemon } from './daemon/KalinarDaemon.js';
 import { eventBus } from '../src/core/KalinarEventBus.js';
 import { ZenFirewall } from '../src/core/ZenFirewall.js';
-import { SingularityCoreState, AgentNode, SCHEMA_VERSION } from '../src/types/kalinar.js';
+import { SingularityCoreState, AgentNode, SCHEMA_VERSION, LlmModelId } from '../src/types/kalinar.js';
 
 let mainWindow: BrowserWindow | null = null;
 let sqliteStore: KalinarSqliteStore | null = null;
@@ -207,6 +207,79 @@ function setupIpcHandlers(): void {
       });
     });
   });
+
+  ipcMain.handle(
+    'kalinar:enqueue_agent_fifo',
+    async (
+      _event,
+      payload: { targetAgentId: string; instruction: string; modelId?: LlmModelId }
+    ) => {
+      if (!daemon && sqliteStore) {
+        daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+      }
+      if (!daemon) {
+        return {
+          dispatchedImmediately: false,
+          badge: '[FIFO_QUEUED]' as const,
+          queueItem: null,
+        };
+      }
+      return daemon.dispatchOrEnqueueAgentDirective(payload);
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:switch_llm_model',
+    async (
+      _event,
+      payload: {
+        agentId: string;
+        taskId?: string;
+        taskDomain?: string;
+        checkpointId?: string;
+        errorCode?: 429 | 'TIMEOUT' | 'HTTP_429' | 'NONE';
+      }
+    ) => {
+      const firewall = ZenFirewall.getInstance();
+      if (daemon && payload.checkpointId && payload.errorCode && payload.errorCode !== 'NONE') {
+        return await daemon.handleModelFailureAndHotSwap({
+          checkpointId: payload.checkpointId,
+          taskDomain: payload.taskDomain,
+          errorCode: payload.errorCode,
+        });
+      }
+
+      const evaluation = await firewall.evaluateLlmModelRouter({
+        taskDomain: payload.taskDomain || 'ARCHITECTURE',
+        errorCode: payload.errorCode || 'NONE',
+        retryCount: 0,
+      });
+
+      if (daemon) {
+        const checkpoint = await daemon.createAtomicGitCheckpoint(
+          payload.agentId,
+          payload.taskId || 'SYSTEM',
+          payload.taskDomain || 'ARCHITECTURE'
+        );
+        return {
+          verdict: evaluation.result.failoverVerdict,
+          badge: '[MODEL_HOTSWAP]' as const,
+          activeModelId: evaluation.result.activeModelId,
+          fallbackModelId: evaluation.result.fallbackModelId,
+          latencyMs: evaluation.latencyMs,
+          checkpoint,
+        };
+      }
+
+      return {
+        verdict: evaluation.result.failoverVerdict,
+        badge: '[MODEL_HOTSWAP]' as const,
+        activeModelId: evaluation.result.activeModelId,
+        fallbackModelId: evaluation.result.fallbackModelId,
+        latencyMs: evaluation.latencyMs,
+      };
+    }
+  );
 }
 
 app.whenReady().then(async () => {

@@ -152,6 +152,13 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
       rules: 6,
       desc: 'Debounce de 300ms, supressao de loops recursivos e deteccao de mutacoes.',
     },
+    'llm-model-router.jdm.json': {
+      name: 'Multi-Model LLM Router & Failover',
+      latency: '0.26ms',
+      nodes: 3,
+      rules: 10,
+      desc: 'Roteamento soberano entre Argon, Claude Sonnet e Gemini Pro/Flash com rollback Git atomico e hot-swap.',
+    },
   };
 
   return (

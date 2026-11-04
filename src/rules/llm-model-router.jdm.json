@@ -1,0 +1,150 @@
+{
+  "contentType": "application/vnd.gorules.decision",
+  "nodes": [
+    {
+      "id": "input-llm-router",
+      "type": "inputNode",
+      "name": "LlmModelRouterRequest",
+      "position": { "x": 40, "y": 140 }
+    },
+    {
+      "id": "dt-llm-router",
+      "type": "decisionTableNode",
+      "name": "LlmModelRouterTable",
+      "position": { "x": 280, "y": 140 },
+      "content": {
+        "hitPolicy": "first",
+        "inputs": [
+          { "id": "in-domain", "field": "taskDomain", "name": "Task Domain" },
+          { "id": "in-error", "field": "errorCode", "name": "Error Code" },
+          { "id": "in-retry", "field": "retryCount", "name": "Retry Count" }
+        ],
+        "outputs": [
+          { "id": "out-active", "field": "activeModelId", "name": "Active Model ID" },
+          { "id": "out-fallback", "field": "fallbackModelId", "name": "Fallback Model ID" },
+          { "id": "out-verdict", "field": "failoverVerdict", "name": "Failover Verdict" }
+        ],
+        "rules": [
+          {
+            "_id": "mr-failover-argon-swap",
+            "_description": "Second failure on architectural/fullstack task triggers atomic rollback and hot-swap from argon to claude-sonnet",
+            "in-domain": "'ARCHITECTURE', 'FULLSTACK', 'SOVEREIGN_REASONING'",
+            "in-error": "429, '429', 'HTTP_429', 'TIMEOUT'",
+            "in-retry": ">= 1",
+            "out-active": "'claude-sonnet'",
+            "out-fallback": "'gemini-pro'",
+            "out-verdict": "'ATOMIC_ROLLBACK_AND_HOTSWAP'"
+          },
+          {
+            "_id": "mr-failover-ui-swap",
+            "_description": "Second failure on UI/WebGL/shader task triggers atomic rollback and hot-swap from claude-sonnet to argon",
+            "in-domain": "'UI', 'WEBGL', 'SHADER', 'FRONTEND'",
+            "in-error": "429, '429', 'HTTP_429', 'TIMEOUT'",
+            "in-retry": ">= 1",
+            "out-active": "'argon'",
+            "out-fallback": "'gemini-pro'",
+            "out-verdict": "'ATOMIC_ROLLBACK_AND_HOTSWAP'"
+          },
+          {
+            "_id": "mr-failover-rag-swap",
+            "_description": "Second failure on RAG/data/audit task triggers atomic rollback and hot-swap from gemini-pro to argon",
+            "in-domain": "'RAG', 'DATA', 'AUDIT'",
+            "in-error": "429, '429', 'HTTP_429', 'TIMEOUT'",
+            "in-retry": ">= 1",
+            "out-active": "'argon'",
+            "out-fallback": "'claude-sonnet'",
+            "out-verdict": "'ATOMIC_ROLLBACK_AND_HOTSWAP'"
+          },
+          {
+            "_id": "mr-failover-triage-swap",
+            "_description": "Second failure on fast telemetry/triage triggers atomic rollback and hot-swap from gemini-flash to gemini-pro",
+            "in-domain": "'TELEMETRY', 'FAST_TRIAGE'",
+            "in-error": "429, '429', 'HTTP_429', 'TIMEOUT'",
+            "in-retry": ">= 1",
+            "out-active": "'gemini-pro'",
+            "out-fallback": "'argon'",
+            "out-verdict": "'ATOMIC_ROLLBACK_AND_HOTSWAP'"
+          },
+          {
+            "_id": "mr-failover-backoff",
+            "_description": "First HTTP 429 or TIMEOUT triggers single backoff retry on current model",
+            "in-domain": "",
+            "in-error": "429, '429', 'HTTP_429', 'TIMEOUT'",
+            "in-retry": "< 1",
+            "out-active": "'argon'",
+            "out-fallback": "'claude-sonnet'",
+            "out-verdict": "'RETRY_WITH_BACKOFF'"
+          },
+          {
+            "_id": "mr-route-argon",
+            "_description": "Default route for architectural, complex full-stack, or sovereign reasoning tasks",
+            "in-domain": "'ARCHITECTURE', 'FULLSTACK', 'SOVEREIGN_REASONING'",
+            "in-error": "",
+            "in-retry": "",
+            "out-active": "'argon'",
+            "out-fallback": "'claude-sonnet'",
+            "out-verdict": "'PROCEED_PRIMARY'"
+          },
+          {
+            "_id": "mr-route-claude",
+            "_description": "Default route for UI, WebGL, shader, and frontend tasks",
+            "in-domain": "'UI', 'WEBGL', 'SHADER', 'FRONTEND'",
+            "in-error": "",
+            "in-retry": "",
+            "out-active": "'claude-sonnet'",
+            "out-fallback": "'argon'",
+            "out-verdict": "'PROCEED_PRIMARY'"
+          },
+          {
+            "_id": "mr-route-gemini-pro",
+            "_description": "Default route for high-context RAG, data, and audit tasks",
+            "in-domain": "'RAG', 'DATA', 'AUDIT'",
+            "in-error": "",
+            "in-retry": "",
+            "out-active": "'gemini-pro'",
+            "out-fallback": "'argon'",
+            "out-verdict": "'PROCEED_PRIMARY'"
+          },
+          {
+            "_id": "mr-route-gemini-flash",
+            "_description": "Default route for fast telemetry and lightweight triage",
+            "in-domain": "'TELEMETRY', 'FAST_TRIAGE'",
+            "in-error": "",
+            "in-retry": "",
+            "out-active": "'gemini-flash'",
+            "out-fallback": "'gemini-pro'",
+            "out-verdict": "'PROCEED_PRIMARY'"
+          },
+          {
+            "_id": "mr-route-default",
+            "_description": "Fallback default route to Argon sovereign engine",
+            "in-domain": "",
+            "in-error": "",
+            "in-retry": "",
+            "out-active": "'argon'",
+            "out-fallback": "'claude-sonnet'",
+            "out-verdict": "'PROCEED_PRIMARY'"
+          }
+        ]
+      }
+    },
+    {
+      "id": "output-llm-router",
+      "type": "outputNode",
+      "name": "LlmModelRouterResponse",
+      "position": { "x": 540, "y": 140 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-mr1",
+      "sourceId": "input-llm-router",
+      "targetId": "dt-llm-router"
+    },
+    {
+      "id": "edge-mr2",
+      "sourceId": "dt-llm-router",
+      "targetId": "output-llm-router"
+    }
+  ]
+}

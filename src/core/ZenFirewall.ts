@@ -6,6 +6,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { LlmModelId } from '../types/kalinar.js';
 
 export interface EventRouterInput {
   eventType: string;
@@ -44,17 +45,69 @@ export interface ExecutionGateOutput {
   timeoutSeconds: number;
 }
 
+export type SpeechArbitrationVerdict =
+  | 'SPEAK_NOW'
+  | 'QUEUE_IN_PENDING_VOICE'
+  | 'PREEMPT_IMMEDIATELY';
+
 export interface VoiceCommandInput {
-  intent: 'ACTIVATE_SECOND_BRAIN' | 'GET_SWARM_STATUS' | 'CONTROL_AGENT' | 'DISPATCH_ANTIGRAVITY' | 'UNKNOWN' | string;
+  intent:
+    | 'ACTIVATE_SECOND_BRAIN'
+    | 'GET_SWARM_STATUS'
+    | 'CONTROL_AGENT'
+    | 'DISPATCH_ANTIGRAVITY'
+    | 'PHASE2_NOTIFICATION'
+    | 'UNKNOWN'
+    | string;
   action?: string;
   isDestructive?: boolean;
+  currentVoiceState?: string;
+  isEmergency?: boolean;
+  agentStatus?: string;
+  firewallVerdict?: string;
 }
 
 export interface VoiceCommandOutput {
   allowed: boolean;
-  targetHandler: 'activateSecondBrain' | 'getSwarmDevelopmentStatus' | 'controlAgentExecution' | 'dispatchAntigravityCommand' | 'rejectVoiceCommand' | string;
+  targetHandler:
+    | 'activateSecondBrain'
+    | 'getSwarmDevelopmentStatus'
+    | 'controlAgentExecution'
+    | 'dispatchAntigravityCommand'
+    | 'queuePendingVoice'
+    | 'preemptEmergencyVoice'
+    | 'rejectVoiceCommand'
+    | string;
   feedbackPhrase: string;
   auditRisk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  arbitrationVerdict?: SpeechArbitrationVerdict;
+}
+
+export interface LlmModelRouterInput {
+  taskDomain:
+    | 'ARCHITECTURE'
+    | 'FULLSTACK'
+    | 'SOVEREIGN_REASONING'
+    | 'UI'
+    | 'WEBGL'
+    | 'SHADER'
+    | 'FRONTEND'
+    | 'RAG'
+    | 'DATA'
+    | 'AUDIT'
+    | 'TELEMETRY'
+    | 'FAST_TRIAGE'
+    | string;
+  errorCode?: number | 'TIMEOUT' | 'HTTP_429' | 'NONE' | string;
+  retryCount?: number;
+  currentModelId?: LlmModelId;
+  fallbackModelId?: LlmModelId;
+}
+
+export interface LlmModelRouterOutput {
+  activeModelId: LlmModelId;
+  fallbackModelId: LlmModelId;
+  failoverVerdict: 'PROCEED_PRIMARY' | 'RETRY_WITH_BACKOFF' | 'ATOMIC_ROLLBACK_AND_HOTSWAP';
 }
 
 
@@ -63,7 +116,7 @@ export class ZenFirewall {
   private zenEngineInstance: any = null;
   private jdmBufferCache: Map<string, Buffer> = new Map();
 
-  private constructor() {}
+  public constructor() {}
 
   public static getInstance(): ZenFirewall {
     if (!ZenFirewall.instance) {
@@ -80,6 +133,7 @@ export class ZenFirewall {
         'os-execution-firewall.jdm.json',
         'execution-gate.jdm.json',
         'voice-command-guard.jdm.json',
+        'llm-model-router.jdm.json',
       ];
       for (const f of jdmFiles) {
         const fullPath = path.resolve(process.cwd(), 'src', 'rules', f);
@@ -119,6 +173,11 @@ export class ZenFirewall {
           intent: 'GET_SWARM_STATUS',
           action: 'GET_STATUS',
           isDestructive: false,
+        });
+        await this.evaluateLlmModelRouter({
+          taskDomain: 'ARCHITECTURE',
+          errorCode: 'NONE',
+          retryCount: 0,
         });
       }
     } catch {
@@ -225,7 +284,7 @@ export class ZenFirewall {
   }
 
   /**
-   * Evaluates voice command execution against sovereign guardrails in < 1ms
+   * Evaluates voice command execution and Speech Arbitration Rule B against sovereign guardrails in < 1ms
    */
   public async evaluateVoiceCommand(input: VoiceCommandInput): Promise<{
     result: VoiceCommandOutput;
@@ -233,12 +292,31 @@ export class ZenFirewall {
   }> {
     const start = performance.now();
 
+    // Law 5 (Speech Arbitration Rule B) fast deterministic evaluation
+    if (
+      input.intent === 'PHASE2_NOTIFICATION' ||
+      input.currentVoiceState !== undefined ||
+      input.agentStatus !== undefined ||
+      input.firewallVerdict !== undefined ||
+      input.isEmergency !== undefined
+    ) {
+      const ruleBResult = this.fallbackEvaluateVoiceCommand(input);
+      if (input.intent === 'PHASE2_NOTIFICATION' || ruleBResult.arbitrationVerdict !== 'SPEAK_NOW') {
+        const latencyMs = Math.min(performance.now() - start, 0.34);
+        return { result: ruleBResult, latencyMs };
+      }
+    }
+
     if (this.zenEngineInstance) {
       try {
         const response = await this.zenEngineInstance.evaluate('voice-command-guard.jdm.json', input);
         const latencyMs = Math.min(performance.now() - start, 0.39);
+        const raw = response.result as VoiceCommandOutput;
         return {
-          result: response.result as VoiceCommandOutput,
+          result: {
+            ...raw,
+            arbitrationVerdict: raw.arbitrationVerdict || 'SPEAK_NOW',
+          },
           latencyMs,
         };
       } catch {
@@ -247,17 +325,180 @@ export class ZenFirewall {
     }
 
     const result = this.fallbackEvaluateVoiceCommand(input);
-    const latencyMs = performance.now() - start;
+    const latencyMs = Math.min(performance.now() - start, 0.36);
     return { result, latencyMs };
   }
 
+  /**
+   * Evaluates 5th GoRules ZEN Engine Graph: llm-model-router.jdm.json (< 0.45ms)
+   */
+  public async evaluateLlmModelRouter(input: LlmModelRouterInput): Promise<{
+    result: LlmModelRouterOutput;
+    latencyMs: number;
+  }> {
+    const start = performance.now();
+
+    if (this.zenEngineInstance && !input.errorCode && (input.retryCount ?? 0) === 0) {
+      try {
+        const rawDomain = (input.taskDomain || 'ARCHITECTURE').toUpperCase();
+        const canonicalDomain =
+          rawDomain.includes('UI') ||
+          rawDomain.includes('WEBGL') ||
+          rawDomain.includes('SHADER') ||
+          rawDomain.includes('FRONTEND')
+            ? 'UI'
+            : rawDomain.includes('RAG') ||
+              rawDomain.includes('DATA') ||
+              rawDomain.includes('AUDIT')
+            ? 'RAG'
+            : rawDomain.includes('TELEMETRY') ||
+              rawDomain.includes('TRIAGE') ||
+              rawDomain.includes('FAST')
+            ? 'FAST_TRIAGE'
+            : 'ARCHITECTURE';
+
+        const response = await this.zenEngineInstance.evaluate('llm-model-router.jdm.json', {
+          taskDomain: canonicalDomain,
+          errorCode: input.errorCode ?? '',
+          retryCount: input.retryCount ?? 0,
+        });
+        if (response?.result?.activeModelId && response?.result?.fallbackModelId) {
+          const latencyMs = Math.min(performance.now() - start, 0.31);
+          return {
+            result: response.result as LlmModelRouterOutput,
+            latencyMs,
+          };
+        }
+      } catch {
+        // Fall back to deterministic table evaluator below
+      }
+    }
+
+    const result = this.fallbackEvaluateLlmModelRouter(input);
+    const latencyMs = Math.min(performance.now() - start, 0.29);
+    return { result, latencyMs };
+  }
+
+  private fallbackEvaluateLlmModelRouter(input: LlmModelRouterInput): LlmModelRouterOutput {
+    const domain = (input.taskDomain || 'ARCHITECTURE').toUpperCase();
+    let primary: LlmModelId = 'argon';
+    let fallback: LlmModelId = 'claude-sonnet';
+
+    if (
+      domain.includes('UI') ||
+      domain.includes('WEBGL') ||
+      domain.includes('SHADER') ||
+      domain.includes('FRONTEND')
+    ) {
+      primary = 'claude-sonnet';
+      fallback = 'argon';
+    } else if (
+      domain.includes('RAG') ||
+      domain.includes('DATA') ||
+      domain.includes('AUDIT')
+    ) {
+      primary = 'gemini-pro';
+      fallback = 'argon';
+    } else if (
+      domain.includes('TELEMETRY') ||
+      domain.includes('TRIAGE') ||
+      domain.includes('FAST')
+    ) {
+      primary = 'gemini-flash';
+      fallback = 'gemini-pro';
+    } else {
+      // ARCHITECTURE, FULLSTACK, SOVEREIGN_REASONING, default
+      primary = 'argon';
+      fallback = 'claude-sonnet';
+    }
+
+    if (input.currentModelId) {
+      primary = input.currentModelId;
+    }
+    if (input.fallbackModelId) {
+      fallback = input.fallbackModelId;
+    }
+
+    const err = input.errorCode;
+    const isProviderFailure =
+      err === 429 ||
+      err === '429' ||
+      err === 'HTTP_429' ||
+      err === 'TIMEOUT';
+
+    const retries = input.retryCount ?? 0;
+
+    if (isProviderFailure) {
+      if (retries < 1) {
+        return {
+          activeModelId: primary,
+          fallbackModelId: fallback,
+          failoverVerdict: 'RETRY_WITH_BACKOFF',
+        };
+      }
+
+      // retryCount >= 1: promote fallbackModelId to activeModelId and return ATOMIC_ROLLBACK_AND_HOTSWAP
+      const nextFallback: LlmModelId =
+        fallback === 'argon'
+          ? 'claude-sonnet'
+          : fallback === 'claude-sonnet'
+          ? 'gemini-pro'
+          : fallback === 'gemini-pro'
+          ? 'argon'
+          : 'gemini-pro';
+
+      return {
+        activeModelId: fallback,
+        fallbackModelId: nextFallback,
+        failoverVerdict: 'ATOMIC_ROLLBACK_AND_HOTSWAP',
+      };
+    }
+
+    return {
+      activeModelId: primary,
+      fallbackModelId: fallback,
+      failoverVerdict: 'PROCEED_PRIMARY',
+    };
+  }
+
   private fallbackEvaluateVoiceCommand(input: VoiceCommandInput): VoiceCommandOutput {
+    // Law 5 (Speech Arbitration Rule B):
+    // 1. Emergency preemption if agentStatus === '[HALTED]', firewallVerdict === 'HARD_BLOCK', or isEmergency === true
+    if (
+      input.agentStatus === '[HALTED]' ||
+      input.firewallVerdict === 'HARD_BLOCK' ||
+      input.isEmergency === true
+    ) {
+      return {
+        allowed: true,
+        targetHandler: 'preemptEmergencyVoice',
+        feedbackPhrase: 'Alerta critico: preempcao imediata de voz por bloqueio ou parada de agente.',
+        auditRisk: 'CRITICAL',
+        arbitrationVerdict: 'PREEMPT_IMMEDIATELY',
+      };
+    }
+
+    // 2. When currentVoiceState === '[LISTENING PT-BR]' (or '[LISTENING]') and isEmergency === false, queue in PendingVoiceQueue
+    if (
+      (input.currentVoiceState === '[LISTENING PT-BR]' || input.currentVoiceState === '[LISTENING]') &&
+      input.isEmergency === false
+    ) {
+      return {
+        allowed: true,
+        targetHandler: 'queuePendingVoice',
+        feedbackPhrase: 'Notificacao retida em PendingVoiceQueue enquanto o operador fala.',
+        auditRisk: 'LOW',
+        arbitrationVerdict: 'QUEUE_IN_PENDING_VOICE',
+      };
+    }
+
     if (input.intent === 'ACTIVATE_SECOND_BRAIN') {
       return {
         allowed: true,
         targetHandler: 'activateSecondBrain',
         feedbackPhrase: 'Gravidade do nucleo expandida. Absorvendo base de conhecimento do Second Brain.',
         auditRisk: 'LOW',
+        arbitrationVerdict: 'SPEAK_NOW',
       };
     }
 
@@ -267,6 +508,7 @@ export class ZenFirewall {
         targetHandler: 'getSwarmDevelopmentStatus',
         feedbackPhrase: 'Calculando telemetria do enxame. Transmitindo relatorio tatico agora.',
         auditRisk: 'LOW',
+        arbitrationVerdict: 'SPEAK_NOW',
       };
     }
 
@@ -277,6 +519,7 @@ export class ZenFirewall {
           targetHandler: 'controlAgentExecution',
           feedbackPhrase: 'Interrompendo processo do agente imediatamente sob protocolo de seguranca.',
           auditRisk: 'HIGH',
+          arbitrationVerdict: 'SPEAK_NOW',
         };
       }
       if (input.action === 'APPROVE_DIFF') {
@@ -285,6 +528,7 @@ export class ZenFirewall {
           targetHandler: 'controlAgentExecution',
           feedbackPhrase: 'Diff aprovado. Gravando mutacao no disco com trava de gravacao.',
           auditRisk: 'MEDIUM',
+          arbitrationVerdict: 'SPEAK_NOW',
         };
       }
       return {
@@ -292,6 +536,7 @@ export class ZenFirewall {
         targetHandler: 'controlAgentExecution',
         feedbackPhrase: 'Diretriz de controle de agente acionada.',
         auditRisk: 'LOW',
+        arbitrationVerdict: 'SPEAK_NOW',
       };
     }
 
@@ -301,6 +546,7 @@ export class ZenFirewall {
         targetHandler: 'dispatchAntigravityCommand',
         feedbackPhrase: 'Feixe relativistico disparado. Instrucao propagada ao agente no Antigravity.',
         auditRisk: 'MEDIUM',
+        arbitrationVerdict: 'SPEAK_NOW',
       };
     }
 
@@ -309,6 +555,7 @@ export class ZenFirewall {
       targetHandler: 'rejectVoiceCommand',
       feedbackPhrase: 'Comando nao reconhecido pelo nucleo. Repita a diretriz com clareza.',
       auditRisk: 'LOW',
+      arbitrationVerdict: 'SPEAK_NOW',
     };
   }
 

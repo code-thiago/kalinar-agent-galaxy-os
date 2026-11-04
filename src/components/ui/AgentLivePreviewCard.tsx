@@ -74,10 +74,16 @@ export function AgentLivePreviewCardMetadataRow({
     switch (status) {
       case '[ACTIVE]':
       case '[VERIFIED]':
+      case '[ACK_VERIFIED]':
         return 'text-[var(--ds-status-active-fg)]';
+      case '[ACK_DISPATCHED]':
+        return 'text-[var(--ds-accent-agent)]';
+      case '[MODEL_HOTSWAP]':
+        return 'text-[var(--ds-accent-memory)]';
       case '[WARN]':
       case '[PAUSED]':
       case '[RUNNING]':
+      case '[FIFO_QUEUED]':
         return 'text-[var(--ds-status-warn-fg)]';
       case '[HALTED]':
       case '[ERROR]':
@@ -94,6 +100,8 @@ export function AgentLivePreviewCardMetadataRow({
   const minutes = Math.floor(agent.etaSeconds / 60);
   const seconds = agent.etaSeconds % 60;
   const timeFormatted = `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  const modelLabel = (agent.activeModelId || 'argon').toUpperCase();
+  const fifoCount = agent.fifoQueueCount ?? 0;
 
   return (
     <div
@@ -103,7 +111,9 @@ export function AgentLivePreviewCardMetadataRow({
     >
       {/* Left Column (#FFFFFF) */}
       <div className="flex flex-col text-[#FFFFFF] truncate pr-1">
-        <span className="font-semibold truncate">{agent.filename}</span>
+        <span className="font-semibold truncate">
+          {agent.filename} · [{modelLabel}]
+        </span>
         <span className="text-[9.5px] text-[var(--ds-primitive-white-500)] truncate opacity-85">
           {agent.stepDescription || 'Compiling IPC Bridge'}
         </span>
@@ -116,7 +126,7 @@ export function AgentLivePreviewCardMetadataRow({
           <span>{stepFormatted}</span>
         </div>
         <div className="text-[9.5px]">
-          {totalTokens} TOK · {timeFormatted}
+          {totalTokens} TOK · FIFO:{fifoCount} · {timeFormatted}
         </div>
       </div>
     </div>

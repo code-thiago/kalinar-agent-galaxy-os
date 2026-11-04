@@ -72,9 +72,15 @@ export function SingularityCoreBlock({
 }: SingularityCoreBlockProps) {
   // Format tactical status badge
   let statusBadge = '[SINGULARITY: STANDBY]';
-  if (voiceState === '[LISTENING]') statusBadge = '[LISTENING PT-BR]';
-  if (voiceState === '[GRAVITY_PULL]') statusBadge = '[GRAVITY_INGESTION]';
-  if (voiceState === '[SPEAKING]') statusBadge = '[KALINAR_SPEAKING]';
+  if (voiceState === '[LISTENING]' || voiceState === '[LISTENING PT-BR]') {
+    statusBadge = '[LISTENING PT-BR]';
+  } else if (voiceState === '[GRAVITY_PULL]' || voiceState === '[GRAVITY_INGESTION]') {
+    statusBadge = '[GRAVITY_INGESTION]';
+  } else if (voiceState === '[SPEAKING]' || voiceState === '[KALINAR_SPEAKING]') {
+    statusBadge = '[KALINAR_SPEAKING]';
+  } else if (voiceState === '[VOICE_HIBERNATE]') {
+    statusBadge = '[VOICE_HIBERNATE]';
+  }
 
   return (
     <div

@@ -5,7 +5,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { AgentNode, AgentStatus, SingularityCoreState } from '../src/types/kalinar.js';
+import { AgentNode, AgentStatus, LlmModelId, SingularityCoreState } from '../src/types/kalinar.js';
 
 export interface ShellResult {
   allowed: boolean;
@@ -21,6 +21,18 @@ export interface KalinarApiBridge {
   getHistoricalTelemetry: (limit?: number) => Promise<any[]>;
   getEvolutionSummary: () => Promise<any>;
   executeShellCommand: (cmd: string, cwd?: string) => Promise<ShellResult>;
+  enqueueAgentFifo: (payload: {
+    targetAgentId: string;
+    instruction: string;
+    modelId?: LlmModelId;
+  }) => Promise<any>;
+  switchLlmModel: (payload: {
+    agentId: string;
+    taskId?: string;
+    taskDomain?: string;
+    checkpointId?: string;
+    errorCode?: 429 | 'TIMEOUT' | 'HTTP_429' | 'NONE';
+  }) => Promise<any>;
   onTelemetryStream: (callback: (data: any) => void) => () => void;
   onVoiceStateChange: (callback: (state: any) => void) => () => void;
   onAgentUpdate: (callback: (agent: AgentNode) => void) => () => void;
@@ -37,6 +49,10 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:get_evolution_summary'),
   executeShellCommand: (cmd: string, cwd?: string) =>
     ipcRenderer.invoke('kalinar:execute_shell_command', { cmd, cwd }),
+  enqueueAgentFifo: (payload) =>
+    ipcRenderer.invoke('kalinar:enqueue_agent_fifo', payload),
+  switchLlmModel: (payload) =>
+    ipcRenderer.invoke('kalinar:switch_llm_model', payload),
   onTelemetryStream: (callback: (data: any) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on('telemetry:stream', handler);

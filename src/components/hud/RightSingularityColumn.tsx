@@ -45,12 +45,25 @@ export function RightSingularityColumn() {
         />
 
 
-        {/* 2. Active Directive */}
+        {/* 2. Active Directive & Multi-Model Router Telemetry */}
         <SingularityHudColumn.Block tag="ACTIVE_DIRECTIVE">
-          <div className="p-2.5 bg-[rgba(13,15,20,0.85)] border border-[var(--ds-border-subtle)] text-[11px] leading-tight flex flex-col gap-1">
-            <span className="text-[var(--ds-status-active-fg)] font-semibold">
-              {singularity.activeDirective}
-            </span>
+          <div className="p-2.5 bg-[rgba(13,15,20,0.85)] border border-[var(--ds-border-subtle)] text-[11px] leading-tight flex flex-col gap-1.5 tabular-nums">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--ds-status-active-fg)] font-semibold truncate">
+                {singularity.activeDirective}
+              </span>
+              <span className="text-[10px] text-[var(--ds-accent-agent)] shrink-0">
+                {singularity.lastAckBadge || '[ACK_VERIFIED]'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-[var(--ds-text-secondary)]">
+              <span>
+                MODEL: {(singularity.activeModelId || 'argon').toUpperCase()}
+              </span>
+              <span>
+                PENDING VOICE: {singularity.pendingVoiceQueueCount ?? 0}
+              </span>
+            </div>
             <span className="text-[var(--ds-text-secondary)] text-[10.5px]">
               Vigilância heurística sobre workspaces e barramento SQLite WAL ativo.
             </span>

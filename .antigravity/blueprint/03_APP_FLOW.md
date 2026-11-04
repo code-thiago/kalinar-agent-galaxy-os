@@ -1,10 +1,10 @@
-# 03_APP_FLOW.md — KALINAR SINGULARITY APP FLOW & STATE MACHINES (v1.0.1 DESKTOP OS)
+# 03_APP_FLOW.md — KALINAR SINGULARITY APP FLOW & STATE MACHINES (v1.1.0 LOCK)
 
-> **System ID:** `KALINAR-FLOW-V1.0.1`  
-> **Lead Architect:** `@agent-orchestrator` & `@agent-design`  
-> **Co-Authors:** `@agent-software-engineer`, `@agent-data`, `@agent-cybersecurity`, `@agent-qa`  
-> **Gate Status:** `APPROVED_BY_SWARM_VERIFIED_V1_0_1`  
-> **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`  
+> **Document ID:** `DOC-03-APP-FLOW-KALINAR-v1.1.0`  
+> **Lead Architects:** `@agent-orchestrator` & `@agent-design`  
+> **Co-Authors:** `@human-developer`, `@agent-software-engineer`, `@agent-data`, `@agent-cybersecurity`, `@agent-qa`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_1_0`  
+> **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
 
@@ -12,168 +12,209 @@
 
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
-| `@human-developer` | Product & UX Final Authority | User Journeys, Edge-Case Recovery Paths | `APPROVED` | `2026-10-30T18:50:00Z` | `PO-APPROVAL-VERIFIED` |
-| `@agent-design` | UI/UX & Design System Architect | 3D Galaxy Navigation, Voice State HUD, Screen Ergonomics | `APPROVED` | `2026-10-30T18:51:00Z` | `SIG-DSGN-FLO-003` |
-| `@agent-orchestrator` | Swarm Facilitator & Product Lead | PRD Flow Coverage (`TRACE-01`), State Integrity | `APPROVED` | `2026-10-30T18:52:00Z` | `SIG-ORCH-FLO-003` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron Navigation, IPC Channels, WebGL Pipeline | `APPROVED` | `2026-10-30T18:53:00Z` | `SIG-ENGR-FLO-003` |
-| `@agent-data` | Decision Engine Specialist | Zen-Engine Voice Guard, Canvas Coordinate Sync | `APPROVED` | `2026-10-30T18:54:00Z` | `SIG-DATA-FLO-003` |
-| `@agent-cybersecurity` | Shift-Left DevSecOps Lead | IPC Whitelist Guard, Voice Execution Authorization | `APPROVED` | `2026-10-30T18:55:00Z` | `SIG-CSEC-FLO-003` |
-| `@agent-qa` | Test Architect & Quality Lead | Flow Testability, Race Condition & WebGL Discovery | `APPROVED` | `2026-10-30T18:56:00Z` | `SIG-QATE-FLO-003` |
+| `@human-developer` | Sovereign Principal Architect | Spatial Viewport, 5 State Machines, Release v1.1.0 Lock | `APPROVED` | `2026-11-03T19:05:00Z` | `PO-APPROVAL-FLO-110` |
+| `@agent-design` | UI/UX & Design System Architect | 262k GPGPU Singularity, 160px Cards, Right HUD Retraction | `APPROVED` | `2026-11-03T19:05:10Z` | `SIG-DSGN-FLO-110` |
+| `@agent-orchestrator` | Swarm Facilitator & Product Lead | `FLOW-AGENT-FIFO-01`, `FLOW-LLM-FAILOVER-01`, Two-Phase Ack | `APPROVED` | `2026-11-03T19:05:20Z` | `SIG-ORCH-FLO-110` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | Atomic Git Rollback, Hot-Swap across Argon/Claude/Gemini | `APPROVED` | `2026-11-03T19:05:30Z` | `SIG-ENGR-FLO-110` |
+| `@agent-data` | Decision Engine Specialist | Stream-to-Digest (`< 150 tokens`), 5 ZEN Graphs (`< 0.45ms`) | `APPROVED` | `2026-11-03T19:05:40Z` | `SIG-DATA-FLO-110` |
+| `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | `validatePidSafety` (`PID > 100`), Speech Preemption Guard | `APPROVED` | `2026-11-03T19:05:50Z` | `SIG-CSEC-FLO-110` |
+| `@agent-qa` | QA & Traceability Auditor | 6-Column UI State & Recovery Matrix, E2E Determinism | `APPROVED` | `2026-11-03T19:06:00Z` | `SIG-QATE-FLO-110` |
 
 ---
 
-## 1. ARQUITETURA ESPACIAL DO VIEWPORT DESKTOP (`100vw x 100vh`)
+## 1. Spatial Viewport Hierarchy (`100vw x 100vh`, `overflow: hidden`, `#000000`)
 
-O KALINAR opera como uma aplicação desktop nativa Electron em janela única sem scroll de página (`overflow: hidden`, fundo `#000000`), organizada em 2 camadas sobrepostas:
+KALINAR executes as a single-window native Electron 33 Desktop OS with zero page scroll (`overflow: hidden`, pure void background `--ds-surface-singularity-void: #000000`), structured across two strictly decoupled spatial layers:
 
-1. **Camada 0 — Singularity & Procedural Galaxy WebGL (`canvas#singularity-bg`, `z-index: 0`):**
-   - **Horizonte de Eventos (Raio `54u`) & Anel de Fótons:** Esfera negra central cujo anel Fresnel pulsa radialmente via uniform `uVoicePulse` em sincronia com a magnitude acústica (`AnalyserNode`) da voz do KALINAR.
-   - **Disco de Acreção GPGPU (`262.144` partículas desktop / `65.536` fallback):** Nuvem toroidal esculpida por SDF + Bridson Curl Noise mesclando prata estelar (`#DDDDDD`) e cintilações Lavanda (`#AA88FF`), reagindo ao solver de fluido Navier-Stokes 2D no cursor (`256x256` velocity / `512x512` density, decaimento `1.5s`).
-   - **Galáxia Infinita (`50.000` nós via `THREE.InstancedMesh`):** Constelações em espiral logarítmica (`01_PROJETOS` a `05_AGENTS`), enxames orbitais Ciano (`#00F0FF`) para cada `agent.md` ativo e satélites de artefatos Âmbar (`#FBBF24`).
-2. **Camada 1 — Asymmetric Monospace Telemetry HUD (`.kalinar-hud`, `z-index: 1`):**
-   - **Coluna Esquerda Dinâmica (`left: 24px`, `width: 320px`):** Marca vetorial `40x40px`, chips de filtro (`top: 120px`) e lista rolável (`top: 250px`) de `AgentLivePreviewCard` com viewport opaco de **`160px`** (`#0a0a0a`) exibindo diffs/streams ao vivo e 2 linhas de metadados `tabular-nums`.
-   - **Contador/Gatilho Superior Direito (`top: 24px`, `right: 24px`):** Círculo `44x44px` de agentes ativos + botão `[ ACIONAR SECOND BRAIN ]`.
-   - **Coluna Direita Etérea (`right: 48px`, `top: 50%`, `translateY(-50%)`, `width: 360px`):** Quatro blocos com `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). A transcrição da voz do KALINAR é renderizada caractere a caractere (`18ms`) dentro de `[singularity_core]` em `#AA88FF`. Recolhe suavemente (`opacity: 0`) quando o `NodeInspectorDrawer` (`480px`) é aberto.
-   - **Dock IDE Retrátil Inferior (`bottom: 0`):** Colapsado por padrão em `36px`; expande para `350px` ou `75vh` revelando as 4 abas (Matriz de Etapas/PID, Gráficos Históricos SQLite, Córtex Second Brain/JDM e Terminal `node-pty`/IPC).
+1. **Layer 0 — Singularity & Procedural Galaxy WebGL (`canvas#singularity-bg`, `z-index: 0`):**
+   - **Event Horizon (`54u` Radius) & Fresnel Photon Ring:** Central pure black sphere surrounded by a relativistic Fresnel photon ring driven at `60 FPS` by the `uVoicePulse` uniform coupled to the Web Audio API `AnalyserNode` of KALINAR's voice.
+   - **GPGPU Accretion Disk (`262,144` Desktop Particles / `65,536` Mobile Fallback):** `512x512` float RGBA buffer sculpted by twisted toroidal SDF + Bridson Curl Noise, blending stellar silver (`#DDDDDD`) with high-contrast Event Horizon Lavender sparks (`#AA88FF`, `pow(aRandom.z, 60.0)`), perturbed in real time by a 2D Navier-Stokes cursor fluid solver (`256x256` velocity / `512x512` density, `1.5s` decay).
+   - **Procedural Galaxy (`50,000` Nodes via `THREE.InstancedMesh`):** Logarithmic spiral constellations (`01_PROJETOS` through `05_AGENTS`) with Spatial Octree LOD culling (`< 4ms`), orbital Arc Cyan (`#00F0FF`) agent swarms, and Amber (`#FBBF24`) artifact satellites.
+2. **Layer 1 — Asymmetric Monospace Telemetry HUD (`.kalinar-hud`, `z-index: 1`):**
+   - **Left Dynamic Column (`left: 24px`, `width: 320px`):** `40x40px` 8-point geometric SVG brand mark (`top: 24px`), domain filter chips (`top: 120px`), and a scrollable stack (`top: 250px`) of `AgentLivePreviewCard` components featuring an opaque **`160px`** (`min-h-[160px]`, `#0a0a0a`) live code/diff viewport (`data-slot="agent-card-viewport"`) and a 2-line `tabular-nums` metadata footer (`STEP X/Y`, `TOK/S`, `ETA`).
+   - **Top-Right Counter & Second Brain Trigger (`top: 24px`, `right: 24px`):** `44x44px` circular active-agent badge paired with the `[ ACIONAR SECOND BRAIN ]` gravitational RAG button.
+   - **Right Ethereal Column (`right: 48px`, `top: 50%`, `translateY(-50%)`, `width: 360px`):** Four stacked telemetry blocks rendered with `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). Live spoken transcripts stream at `18ms/char` in `#AA88FF` directly inside `[singularity_core]` (zero floating corner voice orbs). Smoothly retracts (`opacity: 0`, `pointer-events: none`) whenever the `480px` `NodeInspectorDrawer` opens.
+   - **Retractable Bottom IDE Dock (`bottom: 0`):** Collapsed by default to a `36px` tactical bar (`data-slot="dock-status-bar"`) so the central Black Hole remains unobstructed; expands smoothly to `350px` or `75vh` exposing 4 tabs:
+     - **Tab 1:** Step Division & PID Matrix (`TelemetryMatrixTable`).
+     - **Tab 2:** Real-Time & `node:sqlite` Historical Evolution Charts (`EvolutionChartsView`).
+     - **Tab 3:** Second Brain & GoRules ZEN Cortex (`CortexSecondBrainView`).
+     - **Tab 4:** Antigravity CLI & `WAR_ROOM.md` Wiretap (`AntigravityCliTab`).
 
 ---
 
-## 2. MÁQUINAS DE ESTADO CANÔNICAS
+## 2. Five Canonical Mermaid State Machines
 
-### 2.1 `FLOW-GALAXY-LOD-01`: Navegação Espacial, Ingestão Gravitacional e Inspeção de Diff
+### 2.1 `FLOW-GALAXY-LOD-01`: Spatial Navigation, Gravitational RAG Pull & Diff Inspection
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SingularityOverview
-    SingularityOverview --> GravitationalRAGPull: Click [ACIONAR SECOND BRAIN] / Voice / Tab 3 Pull
-    GravitationalRAGPull --> RelativisticAgentPulse: #E879F9 Particle Stream Absorbed by Black Hole
-    RelativisticAgentPulse --> SingularityOverview: #AA88FF Beam Fired to Target Agent Swarm
-    SingularityOverview --> AgentSwarmFocus: Click Left AgentLivePreviewCard (160px) / Lerp 0.05
-    AgentSwarmFocus --> NodeInspectorOpen: Click [INSPECT DIFF] / Right HUD Retracts
-    NodeInspectorOpen --> ExecutionGateDecision: Inspect Live Diff & PID (>100 Verified)
-    ExecutionGateDecision --> AgentSwarmFocus: [APPROVE DIFF] / [REVERT FILE] / [KILL PID]
+    [*] --> SingularityOverview: Initial Boot (262,144 GPGPU Particles + 50,000 Instanced Nodes)
+    
+    SingularityOverview --> GravitationalRAGPull: Click [ACIONAR SECOND BRAIN] / Voice Pull / Tab 3 [PULL]
+    GravitationalRAGPull --> RelativisticAgentPulse: #E879F9 Magenta Particle Stream Absorbed by 54u Event Horizon
+    RelativisticAgentPulse --> SingularityOverview: #AA88FF Relativistic Beam Fired to Target @agent-* Swarm
+    
+    SingularityOverview --> AgentSwarmFocus: Click Left AgentLivePreviewCard (160px Viewport) / Camera Lerp 0.05
     AgentSwarmFocus --> SingularityOverview: Zoom Out / Reset Camera
+    
+    AgentSwarmFocus --> NodeInspectorOpen: Click [INSPECT DIFF] / Right Ethereal HUD Retracts (480px Drawer)
+    NodeInspectorOpen --> AgentSwarmFocus: Close Drawer / Press Esc (Right HUD Restores)
+    
+    NodeInspectorOpen --> ExecutionGateDecision: Inspect Unified Diff & Validate PID (validatePidSafety PID > 100)
+    ExecutionGateDecision --> AgentSwarmFocus: [APPROVE DIFF] / [REVERT FILE] / [PAUSE PID] / [KILL PID]
 ```
 
-### 2.2 `STATE-TASK-01`: Ciclo de Vida da Tarefa e Handoff do Enxame Autônomo
+### 2.2 `FLOW-VOICE-KALINAR-01`: Sovereign Voice Lifecycle, 90s Hot Window & Speech Arbitration Rule B
+
+> **Voice Persona & Arbitration Invariant:** KALINAR speaks in `pt-BR` with a sovereign, commanding Tauz-style tactical persona, addressing the operator as "Thiago". Outbound speech obeys **Speech Arbitration Rule B**: while in `ListeningPtBR`, standard Phase 2 `STATUS_VERIFIED` messages are queued in `PendingVoiceQueue` and spoken only after operator speech completes; immediate preemption is restricted strictly to `[HALTED]` circuit trips or `CRITICAL` firewall violations.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING: Operator Queues Task (CLI, File Watcher, or Voice)
-    PENDING --> RUNNING: Swarm Daemon Acquires Task Lock
+    [*] --> SingularityStandby: Boot / Local Zero-Cost pt-BR Wake Listener Armed
     
-    state RUNNING {
-        [*] --> ExecutingAgentTurn
-        ExecutingAgentTurn --> ValidatingTurnOutput: Agent Emits AgentTurnOutput
-        ValidatingTurnOutput --> EvaluatingZenEngine: Zod Schema Pass
-        ValidatingTurnOutput --> RetryingTurn: Zod Schema Failure (Max 3)
-        RetryingTurn --> ExecutingAgentTurn: Corrective Prompt Injected
-        RetryingTurn --> BLOCKED: Retries Exhausted
-        EvaluatingZenEngine --> CheckCircuitBreaker: Evaluate swarm-guard.jdm.json
+    SingularityStandby --> ListeningPtBR: Wake Directive / Click Singularity Core
+    ListeningPtBR --> ZenVoiceGuard: Candidate Intent Extracted (pt-BR)
+    
+    state ZenVoiceGuard {
+        [*] --> EvaluateVoiceJDM: voice-command-guard.jdm.json (< 0.45ms)
+        EvaluateVoiceJDM --> AllowedDirective: allowed == true
+        EvaluateVoiceJDM --> BlockedDirective: allowed == false (Risk CRITICAL)
     }
 
-    RUNNING --> HANDOFF: Next Agent Assigned (status == 'HANDOFF')
-    HANDOFF --> RUNNING: Context Ingested by Next Agent
-    RUNNING --> NEEDS_HUMAN_INPUT: Question For Human Triggered
-    NEEDS_HUMAN_INPUT --> RUNNING: Operator Answers via Voice or UI Modal
-    RUNNING --> PAUSED: Zen-Engine Trips Circuit Breaker
-    PAUSED --> RUNNING: Operator Issues Spoken /resume or Clicks Reset
-    RUNNING --> COMPLETED: Final Deliverable Validated by @agent-qa
-    RUNNING --> BLOCKED: Critical Unrecoverable Error
-    COMPLETED --> [*]
-    BLOCKED --> [*]
+    AllowedDirective --> Phase1AckDispatched: Emit STATUS_DISPATCHED (< 50ms)
+    BlockedDirective --> KalinarSpeaking: Immediate Firewall Preemption Alert
+    
+    Phase1AckDispatched --> KalinarSpeaking: Synthesize Sovereign pt-BR Response
+    
+    state KalinarSpeaking {
+        [*] --> EngageMicInterlock: Strict Hardware Mic Mute Engaged
+        EngageMicInterlock --> ModulateAccretionDisk: uVoicePulse Drives 262k GPGPU Disk & [singularity_core] (18ms/char)
+        ModulateAccretionDisk --> PostTtsDecay400ms: Audio Playback Finished -> Hold Mute 400ms (Reverb Decay)
+    }
+
+    KalinarSpeaking --> HotWindow90s: Kill-Switch (Esc / Core Click < 10ms Abort)
+    PostTtsDecay400ms --> HotWindow90s: Release Mic Interlock & Flush PendingVoiceQueue
+    
+    HotWindow90s --> ListeningPtBR: Operator Speaks Within 90s Window
+    HotWindow90s --> KalinarSpeaking: Phase 2 STATUS_VERIFIED Arrives (User Idle)
+    ListeningPtBR --> ListeningPtBR: Phase 2 STATUS_VERIFIED Queued in PendingVoiceQueue (Speech Arbitration Rule B)
+    ListeningPtBR --> KalinarSpeaking: Emergency Preemption ONLY on [HALTED] or Firewall Violation
+    
+    HotWindow90s --> VoiceAutoHibernate: 90s Continuous Silence Elapsed
+    VoiceAutoHibernate --> SingularityStandby: Close Remote Socket & Arm Local Wake Listener
 ```
 
-### 2.3 `FLOW-VOICE-KALINAR-01`: Singularity Voice Core, Persona e Interlock Acústico
-
-> **Voice Persona Contract:** O KALINAR é a própria Singularidade (Buraco Negro), expressando-se em `pt-BR` com persona soberana, tática e imponente (tom autoritário estilo Tauz), dirigindo-se ao operador como "Thiago". A transcrição é transmitida caractere a caractere diretamente em `[singularity_core]` em `#AA88FF`, modulando a amplitude do disco de acreção GPGPU.
+### 2.3 `FLOW-WATCHER-01`: Chokidar 300ms Debounce, Stream-to-Digest & Phase 2 Verified Ack
 
 ```mermaid
 stateDiagram-v2
-    [*] --> MicIdle: Web Speech API Initialized (Locale: pt-BR)
+    [*] --> DaemonWatching: Chokidar Monitoring Workspace + node-pty Streams
     
-    MicIdle --> SpeechDetected: Audio Level > Ambient Threshold
-    SpeechDetected --> AudioCapture: Transcribe Spoken Words to [singularity_core]
-    AudioCapture --> IntentExtraction: Parse Candidate Voice Directive
+    DaemonWatching --> DebounceCoalesce300ms: File Modified or Shell Output Emitted
     
-    state IntentExtraction {
-        [*] --> EvaluateZenVoiceGuard: Query voice-command-guard.jdm.json (< 1ms)
-        EvaluateZenVoiceGuard --> SafeIntentAllowed: Action == 'ALLOW'
-        EvaluateZenVoiceGuard --> DangerousIntentGated: Action == 'CONFIRM'
-        EvaluateZenVoiceGuard --> UnknownIntentIgnored: Action == 'IGNORE'
+    state DebounceCoalesce300ms {
+        [*] --> CoalesceWindow: Sliding 300ms Timer + 200-Entry O(1) Ring Buffer
     }
 
-    DangerousIntentGated --> AwaitSpokenConfirmation: Speak Prompt "Confirmar diretriz tatica?"
-    AwaitSpokenConfirmation --> SafeIntentAllowed: Operator Speaks "Confirmado"
-    AwaitSpokenConfirmation --> MicIdle: Operator Speaks "Cancelar" or 5s Timeout
-
-    SafeIntentAllowed --> DispatchCommandToDaemon: Send Gated Action to Swarm Daemon
-    DispatchCommandToDaemon --> TriggerTTSResponse: Singularity Synthesizes Voice Response
+    DebounceCoalesce300ms --> IGNORE_HARD: Matches .git, node_modules, dist, *.db-wal, or .kalinar-lock
+    IGNORE_HARD --> DaemonWatching: Zero Downstream Trigger
     
-    state TriggerTTSResponse {
-        [*] --> AcousticMicMuteEngaged: Hardware Mute Audio Input Stream
-        AcousticMicMuteEngaged --> ModulateAccretionDisk: Voice Waveform Modulates GPGPU Accretion Disk
-        ModulateAccretionDisk --> PlayTTSAudio: Output Sovereign Commanding Audio via Speaker
-        PlayTTSAudio --> AcousticMicMuteReleased: Playback Finished
+    DebounceCoalesce300ms --> WATCH_VISUAL_ONLY: Non-Code Asset Change (Update Galaxy Node Color Only)
+    WATCH_VISUAL_ONLY --> DaemonWatching
+    
+    DebounceCoalesce300ms --> StreamToDigestExtractor: Code / Test / CLI Execution Event
+    
+    state StreamToDigestExtractor {
+        [*] --> ExtractRegexAst: Compress Raw Stream to < 150 Token Structured Digest
+        ExtractRegexAst --> EmitDigestPayload: { exitCode, filePath:line:col, errorSignature }
     }
 
-    AcousticMicMuteReleased --> MicIdle: Restore Audio Input Stream
+    StreamToDigestExtractor --> ZenEventRouter: Evaluate daemon-event-router.jdm.json (< 0.45ms)
+    ZenEventRouter --> SqliteAppendOnlyLog: Persist to telemetry_logs (WAL Mode)
+    SqliteAppendOnlyLog --> Phase2VoiceVerifiedAck: Verify exitCode === 0 & Commit STATUS_VERIFIED
+    Phase2VoiceVerifiedAck --> DaemonWatching: Enqueue Verified Ack to Voice Plane
 ```
 
-### 2.4 `FLOW-WATCHER-01`: Multi-Workspace Chokidar Daemon & Trava de PID
+### 2.4 `FLOW-AGENT-FIFO-01`: Busy Agent Single-Writer Lock & Deterministic FIFO Queueing
 
 ```mermaid
 stateDiagram-v2
-    [*] --> WatcherStandby: Chokidar Watching Registered Workspaces
+    [*] --> DirectiveReceived: Voice or CLI Directive Targets @agent-*
     
-    WatcherStandby --> FileEventDetected: File Created / Modified / Deleted
-    FileEventDetected --> DebounceSlidingWindow: Start 300ms Timer
+    DirectiveReceived --> CheckAgentLockState: Inspect Agent Status & .kalinar-lock
     
-    state DebounceSlidingWindow {
-        [*] --> AccumulateEvents: Deduplicate Rapid Multi-File Saves
+    CheckAgentLockState --> ImmediateDispatch: Target Agent is [IDLE] or [STANDBY]
+    ImmediateDispatch --> AcquireSingleWriterLock: Set Status [ACTIVE] & Write .kalinar-lock
+    
+    CheckAgentLockState --> EnqueueAgentFifo: Target Agent is Already [ACTIVE] with Single-Writer Lock
+    
+    state EnqueueAgentFifo {
+        [*] --> InsertSqliteFifo: INSERT INTO agent_task_fifo_queue (status = '[FIFO_QUEUED]')
+        InsertSqliteFifo --> MirrorWarRoomPointer: Append [FIFO_QUEUED] Handoff to WAR_ROOM.md
+        MirrorWarRoomPointer --> EmitPhase1QueuedAck: Notify Operator "Diretriz enfileirada em FIFO"
     }
 
-    DebounceSlidingWindow --> FilterIgnoredPaths: Timer Expires (300ms)
+    AcquireSingleWriterLock --> TurnCompleted: Agent Finishes Turn & Commits SQLite State
+    EnqueueAgentFifo --> WaitLockRelease: Monitor Active Turn Completion
+    TurnCompleted --> CheckFifoQueue: Release Lock & Query Next FIFO Entry
+    WaitLockRelease --> CheckFifoQueue
     
-    state FilterIgnoredPaths {
-        [*] --> CheckExclusions: Match against .git, node_modules, *.db-wal
-        CheckExclusions --> CheckAgentToken: Inspect .kalinar-lock Single-Writer Token
-        CheckAgentToken --> ValidatePidSafety: Enforce PID > 100 Zero-Trust OS Gate
+    CheckFifoQueue --> AcquireSingleWriterLock: Next FIFO Task Found -> Auto-Dispatch Immediately
+    CheckFifoQueue --> [*]: FIFO Queue Empty -> Return Agent to [STANDBY]
+```
+
+### 2.5 `FLOW-LLM-FAILOVER-01`: Multi-Model Router (`Argon` / `Claude` / `Gemini`), Atomic Git Checkpoint & Hot-Swap
+
+```mermaid
+stateDiagram-v2
+    [*] --> CreateGitCheckpoint: Agent Turn Scheduled
+    
+    state CreateGitCheckpoint {
+        [*] --> SnapshotWorkingTree: Record Atomic Git Checkpoint Ref Before File Edits
     }
 
-    CheckAgentToken --> DropInternalAgentWrite: Event Generated by Kalinar Agent
-    DropInternalAgentWrite --> WatcherStandby: Zero Downstream Re-Trigger
+    CreateGitCheckpoint --> ExecuteAgentTurn: Dispatch via llm-model-router.jdm.json (Argon / Claude / Gemini)
+    
+    ExecuteAgentTurn --> CommitTurnSuccess: Stream Completes Cleanly & Tests Pass
+    CommitTurnSuccess --> [*]: Emit STATUS_VERIFIED
+    
+    ExecuteAgentTurn --> HandleStreamFailure: HTTP_429_OR_TIMEOUT or Mid-Stream Crash
+    
+    state HandleStreamFailure {
+        [*] --> CheckRetryCount: Inspect Turn Attempt Counter
+        CheckRetryCount --> RetryWithBackoff: Attempt == 1 (Exponential Backoff + Jitter)
+        CheckRetryCount --> AtomicGitRollback: Retries Exhausted on Primary Model
+    }
 
-    CheckAgentToken --> CommitExternalChange: Event Generated by External User / Tool
-    CommitExternalChange --> ReconcileCanvasSync: Update KALINAR_GALAXY.canvas
-    ReconcileCanvasSync --> WatcherStandby
+    RetryWithBackoff --> ExecuteAgentTurn: Replay Turn on Primary Model
+    
+    state AtomicGitRollback {
+        [*] --> DiscardDirtyPartialFiles: Restore Clean Pre-Turn Files from Git Checkpoint
+        DiscardDirtyPartialFiles --> VerifyCleanWorktree: Confirm Zero Half-Written Syntax Corruption
+    }
+
+    AtomicGitRollback --> ZenModelHotSwap: Query llm-model-router.jdm.json (< 0.45ms)
+    
+    state ZenModelHotSwap {
+        [*] --> SelectFallbackTier: Hot-Swap Provider (Argon <-> Claude <-> Gemini)
+        SelectFallbackTier --> LogModelFailover: Record Model Switch in telemetry_logs
+    }
+
+    ZenModelHotSwap --> ResumeTurnOnFallbackModel: Re-Run Turn from Clean Checkpoint on New Model
+    ResumeTurnOnFallbackModel --> CommitTurnSuccess
 ```
 
 ---
 
-## 3. MATRIZ EXAUSTIVA DE ESTADOS DE UI E RECUPERAÇÃO DE FALHAS
+## 3. Exhaustive UI State & Recovery Matrix
 
-| Viewport / Componente | Estado de Carga (`STATE-LOADING`) | Estado Vazio (`STATE-EMPTY`) | Estado de Erro (`STATE-ERROR`) | Ação de Recuperação |
-| :--- | :--- | :--- | :--- | :--- |
-| **Camada 0: Singularidade & Galáxia (`canvas#singularity-bg`)** | Núcleo escuro com anel Fresnel e nuvem toroidal GPGPU girando a `262.144` partículas. | `[SINGULARITY_STANDBY] Horizonte de eventos estável. Aguardando varredura.` | `[WEBGL_CONTEXT_LOST] Falha ou reset do driver de GPU.` | Recriar contexto WebGL automaticamente e recarregar buffers instanciados sem reconsultar SQLite. |
-| **Camada 1: Núcleo da Singularidade (`[singularity_core]`)** | Pulso radial em Lavanda (`--ds-accent-singularity: #AA88FF`). | `[VOICE_IDLE] Aguardando diretriz tática do operador (pt-BR)...` | `[MIC_STREAM_BLOCKED] Permissão de áudio negada ou microfone indisponível.` | Exibir seletor e indicador visual no HUD direito. |
-| **Cards de Agente Esquerda (`AgentLivePreviewCard`)** | Skeleton opaco de `160px` com gradiente suave. | `[NO_ACTIVE_AGENTS] Enxame em repouso orbital.` | `[STREAM_OFFLINE] Falha no pipe IPC de telemetria.` | Reconexão de canal IPC com polling de fallback de 5s. |
-| **Drawer de Inspeção (`NodeInspectorDrawer`)** | Painel lateral `480px` com shimmer em linhas de código. | `[NO_DIFF_DETECTED] Workspace em sincronia perfeita.` | `[PROCESS_NOT_FOUND] PID encerrado ou inacessível.` | Atualizar tabela de PIDs do sistema operacional. |
-| **Aba 1: Matriz de Etapas (`TelemetryMatrixTable`)** | Linhas tabulares `tabular-nums` com indicador de carregamento. | `[EMPTY_STEP_LEDGER] Nenhuma etapa em execução.` | `[DATA_DESYNC] Dessincronia de eventos do daemon.` | Reconsultar estado ativo do SQLite via `getActiveTasks()`. |
-| **Aba 2: Gráficos de Evolução (`EvolutionChartsView`)** | 3 colunas de gráficos vetoriais com linhas de grade. | `[AWAITING_TELEMETRY] Sem amostras históricas suficientes.` | `[SQLITE_LOCKED] Base de dados WAL ocupada.` | Retry com `busy_timeout = 5000` e normalização assíncrona. |
-| **Aba 3: Córtex Second Brain (`CortexSecondBrainView`)** | Árvore de nós Obsidian com feixes quânticos. | `[COFRES_SINCRONIZADOS] Todas as notas em ordem.` | `[SYNC_CONFLICT] Colisão de escrita em notas markdown.` | Aplicar regra de trava Single-Writer (`.kalinar-lock`). |
-| **Aba 4: Terminal Nativo (`AntigravityCliTab`)** | Prompt monospace `kalinar@singularity:~$` piscando. | `[BUFFER_CLEAR] Terminal pronto para ordens táticas.` | `[FIREWALL_BLOCKED] Comando rejeitado pelo GoRules ZEN Engine.` | Exibir motivo do veredito e nível de risco no console. |
-
----
-
-## 4. PROTOCOLOS DE RECUPERAÇÃO DE CASOS EXTREMOS
-
-### 4.1 Interrupção de Loop Acústico na Voz
-* **Condição:** Alto-falantes reproduzem áudio que é recapturado pelo microfone, criando loop de auto-reforço.
-* **Invariante:** Interlock acústico desabilita captura do microfone sempre que a fala do KALINAR estiver em reprodução (`audioElement.paused === false`).
-* **Recuperação:** Deadband acústico de `500ms` após o término do áudio e corte de ganho em `-12dB` se ressonância residual for detectada.
-
-### 4.2 Restauração de Contexto WebGL na Galáxia 3D
-* **Condição:** Suspensão de energia ou crash transiente de driver de GPU reinicia o contexto WebGL.
-* **Invariante:** As posições das `50.000` estrelas e das `262.144` partículas GPGPU são preservadas em memória RAM do processo via arrays tipados (`Float32Array`).
-* **Recuperação:** Captura de `webglcontextlost`, chamada de `event.preventDefault()` e escuta do evento `webglcontextrestored` para reinicializar shaders sem recarregar o banco de dados.
+| HUD Module / Viewport | `STATE-LOADING` | `STATE-EMPTY` | `STATE-ERROR` | `STATE-SANDBOX-BLOCKED` | `STATE-FIFO-QUEUED` | `STATE-MODEL-FAILOVER` |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Layer 0: Singularity & Galaxy (`canvas#singularity-bg`)** | `54u` dark core + `262,144` `#AA88FF` / `#DDDDDD` GPGPU particles spinning up. | `[SINGULARITY_STANDBY] Event Horizon stable at 60 FPS.` | `[WEBGL_CONTEXT_LOST] Auto-restoring Float32Array buffers.` | Amber `#FBBF24` containment ring around blocked orbital cluster. | Pulsing Lavender `#AA88FF` orbital waiting ring around busy `@agent-*`. | Relativistic color shift (`#AA88FF` -> `#00F0FF`) during provider hot-swap. |
+| **Layer 1: Left Agent Cards (`AgentLivePreviewCard` `160px`)** | Opaque `#0a0a0a` `160px` skeleton with `tabular-nums` placeholder. | `[SWARM_IDLE] Zero active agent streams.` | `[IPC_STREAM_DROP] Re-establishing telemetry pipe.` | `[SANDBOX_HALT]` Crimson `#F87171` badge + blocked command diff. | `[FIFO_QUEUED #N]` Lavender badge + queued directive summary in `160px` viewport. | `[HOT_SWAP: ARGON -> CLAUDE]` badge + checkpoint rollback notice. |
+| **Layer 1: Right Ethereal HUD (`[singularity_core]`)** | Radial `#AA88FF` pulse + `[CALIBRATING_ACOUSTICS]`. | `[STANDBY] Local pt-BR wake listener active.` | `[MIC_UNAVAILABLE] Fallback to Tab 4 CLI input.` | `[FIREWALL_VETO]` Immediate spoken + `#F87171` transcript alert. | `[PENDING_VOICE_QUEUE]` Holds Phase 2 TTS while user is in `ListeningPtBR`. | `[MODEL_SWITCH_ACTIVE]` Streams failover status at `18ms/char` in `#AA88FF`. |
+| **Slide-Over Diff Drawer (`NodeInspectorDrawer` `480px`)** | Monospace unified diff skeleton (`Right HUD opacity: 0`). | `[CLEAN_WORKTREE] Zero uncommitted file mutations.` | `[PID_UNREACHABLE] Refreshing OS process table.` | `[GATE_LOCKED] Requires explicit operator [APPROVE DIFF] or PID > 100 check.` | Displays active turn diff + read-only list of queued FIFO tasks. | `[GIT_ROLLBACK_VERIFIED] Dirty partial files restored to checkpoint.` |
+| **Dock Tab 1: Step Matrix (`TelemetryMatrixTable`)** | `tabular-nums` row shimmer across `STEP X/Y` cells. | `[NO_RUNNING_STEPS] All agent queues nominal.` | `[SQLITE_READ_RETRY] Re-querying WAL store.` | Row highlighted in `#F87171` with `[BLOCKED_BY_ZEN_JDM]`. | Row displays `[FIFO_WAIT]` status with queue position and target agent lock. | Displays active model badge (`[ARGON]` / `[CLAUDE]` / `[GEMINI]`) and retry count. |
+| **Dock Tab 2: Evolution Charts (`EvolutionChartsView`)** | 3-column SVG grid skeleton on `#07080a`. | `[AWAITING_SAMPLES] Zero historical turns in SQLite.` | `[WAL_BUSY_TIMEOUT] Retrying getHistoricalTelemetry.` | Spike marker on firewall rejection counter. | Displays queued vs. completed step throughput curve. | Annotates latency chart with checkpoint rollback & hot-swap timestamp. |
+| **Dock Tab 3: ZEN Cortex (`CortexSecondBrainView`)** | Loading 5 pre-warmed JDM graphs into `jdmBufferCache`. | `[COFRES_SYNCED] Zero pending Obsidian diffs.` | `[LOCK_COLLISION] Enforcing .kalinar-lock single-writer.` | Displays triggered JDM rule row (`riskLevel: CRITICAL`, `< 0.45ms`). | Shows `WAR_ROOM.md` pointer queue (capped at max 2 `[[Wikilinks]]`). | Highlights `llm-model-router.jdm.json` active failover path. |
+| **Dock Tab 4: Native CLI (`AntigravityCliTab`)** | `kalinar@singularity:~$` prompt initializing IPC bridge. | `[READY] Protected by os-execution-firewall.jdm.json.` | `[SHELL_SPAWN_ERROR] Fallback to sandboxed evaluator.` | `[FIREWALL_HALT] Command rejected in < 0.45ms (exitCode: 1).` | Prints `[FIFO_ENQUEUED] Task scheduled after active @agent-* lock release.` | Prints `[CHECKPOINT_RESTORED] Switched LLM provider and resumed turn.` |
