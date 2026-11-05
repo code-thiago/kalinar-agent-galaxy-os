@@ -9,6 +9,9 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { KalinarSqliteStore } from './db/sqliteStore.js';
 import { KalinarDaemon } from './daemon/KalinarDaemon.js';
 import { eventBus } from '../src/core/KalinarEventBus.js';
