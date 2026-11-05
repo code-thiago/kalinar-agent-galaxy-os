@@ -15,7 +15,7 @@
 | `@human-developer` | Sovereign Principal Architect | Business Value, Strategic Scope, Release v1.1.0 Lock | `APPROVED` | `2026-11-03T19:00:00Z` | `PO-APPROVAL-V1-1-0` |
 | `@agent-orchestrator` | Swarm Facilitator & Product Lead | Traceability Matrix (`US-001`..`US-010`), FIFO Queueing | `APPROVED` | `2026-11-03T19:01:00Z` | `SIG-ORCH-PRD-110` |
 | `@agent-design` | UI/UX & Design System Architect | 262k GPGPU Singularity, 160px Cards, WCAG 2.2 AAA | `APPROVED` | `2026-11-03T19:01:15Z` | `SIG-DSGN-PRD-110` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron 33, IPC Shell, Atomic Git Checkpoint, Multi-LLM | `APPROVED` | `2026-11-03T19:01:30Z` | `SIG-ENGR-PRD-110` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron 35, IPC Shell, Atomic Git Checkpoint, Multi-LLM | `APPROVED` | `2026-11-03T19:01:30Z` | `SIG-ENGR-PRD-110` |
 | `@agent-data` | Decision Engine Specialist | GoRules ZEN `< 0.45ms`, Stream-to-Digest, SQLite Charts | `APPROVED` | `2026-11-03T19:01:45Z` | `SIG-DATA-PRD-110` |
 | `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | PID > 100 Gate, OS Firewall JDM, Preload Whitelist | `APPROVED` | `2026-11-03T19:02:00Z` | `SIG-CSEC-PRD-110` |
 | `@agent-qa` | QA & Traceability Auditor | Gherkin Determinism, Abuse Cases, Zero-Flake E2E | `APPROVED` | `2026-11-03T19:02:15Z` | `SIG-QATE-PRD-110` |
@@ -26,7 +26,7 @@
 ## 1. Executive Vision & North Star KPIs
 
 ### 1.1 Executive Vision
-KALINAR is a native **Electron 33 Desktop OS** engineered for autonomous multi-agent orchestration (`05_AGENTS/@agent-*.md`), **Second Brain gravitational RAG**, and real-time **3D WebGL telemetry** centered on a **Black Hole Singularity** (`--ds-surface-singularity-void: #000000` pure void base + `--ds-accent-singularity: #AA88FF` Event Horizon Lavender).
+KALINAR is a native **Electron 35 Desktop OS** engineered for autonomous multi-agent orchestration (`05_AGENTS/@agent-*.md`), **Second Brain gravitational RAG**, and real-time **3D WebGL telemetry** centered on a **Black Hole Singularity** (`--ds-surface-singularity-void: #000000` pure void base + `--ds-accent-singularity: #AA88FF` Event Horizon Lavender).
 
 Unlike conventional chat wrappers or fragmented web dashboards, KALINAR unifies thecentral Black Hole Singularity as both the spatial gravitational center of the 50,000-node knowledge galaxy and the physical acoustic body of the sovereign voice commander (`pt-BR`). Every agent turn, OS process signal, file diff, Second Brain memory ingestion, and multi-model LLM routing decision (`Argon`, `Claude`, `Gemini`) is governed by sub-millisecond GoRules ZEN Engine JDM graphs and persisted in a native `node:sqlite` WAL ledger.
 

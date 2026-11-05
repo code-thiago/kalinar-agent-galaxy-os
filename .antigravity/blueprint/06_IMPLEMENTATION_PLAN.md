@@ -14,7 +14,7 @@
 | :--- | :--- | :--- | :---: | :---: | :--- |
 | `@human-developer` | Sovereign Principal Architect | `TRACE-01`..`TRACE-07`, 9 Test Suites, Release v1.1.0 Lock | `APPROVED` | `2026-11-03T19:11:00Z` | `PO-APPROVAL-PLN-110` |
 | `@agent-orchestrator` | Swarm Facilitator & Product Lead | End-to-End Traceability (`US-001`..`US-010`), FIFO Gates | `APPROVED` | `2026-11-03T19:11:10Z` | `SIG-ORCH-PLN-110` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron 33, Multi-Model Router, Atomic Git Rollback | `APPROVED` | `2026-11-03T19:11:20Z` | `SIG-ENGR-PLN-110` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron 35, Multi-Model Router, Atomic Git Rollback | `APPROVED` | `2026-11-03T19:11:20Z` | `SIG-ENGR-PLN-110` |
 | `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | `PID > 100` OS Gate, JDM Firewall `< 0.45ms`, Zero-Trust IPC | `APPROVED` | `2026-11-03T19:11:30Z` | `SIG-CSEC-PLN-110` |
 | `@agent-design` | UI/UX & Design System Architect | 262k GPGPU Singularity, 160px Cards, WCAG 2.2 AAA | `APPROVED` | `2026-11-03T19:11:40Z` | `SIG-DSGN-PLN-110` |
 | `@agent-data` | Decision Engine Specialist | 5 GoRules ZEN Graphs, `< 150 token` Stream-to-Digest | `APPROVED` | `2026-11-03T19:11:50Z` | `SIG-DATA-PLN-110` |

@@ -13,7 +13,7 @@
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
 | `@human-developer` | Sovereign Principal Architect | Technical Strategy, 4-Layer Decoupling, Release v1.1.0 Lock | `APPROVED` | `2026-11-03T19:03:00Z` | `PO-APPROVAL-TRD-110` |
-| `@agent-software-engineer` | Full-Stack Architect & Author | Electron 33, Node 24 WAL, Multi-LLM Router, Git Checkpoint | `APPROVED` | `2026-11-03T19:03:10Z` | `SIG-ENGR-TRD-110` |
+| `@agent-software-engineer` | Full-Stack Architect & Author | Electron 35, Node 22/24 WAL, Multi-LLM Router, Git Checkpoint | `APPROVED` | `2026-11-03T19:03:10Z` | `SIG-ENGR-TRD-110` |
 | `@agent-orchestrator` | Swarm Facilitator & Technical Lead | 4-Layer Decoupling, FIFO Queue, Pipeline Latency Budgets | `APPROVED` | `2026-11-03T19:03:20Z` | `SIG-ORCH-TRD-110` |
 | `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | `ELECTRON_IPC_CHANNELS` Whitelist, `PID > 100` OS Gate | `APPROVED` | `2026-11-03T19:03:30Z` | `SIG-CSEC-TRD-110` |
 | `@agent-design` | UI/UX & Design System Architect | 262k GPGPU Ping-Pong Targets, 50k InstancedMesh, 60 FPS | `APPROVED` | `2026-11-03T19:03:40Z` | `SIG-DSGN-TRD-110` |
@@ -26,7 +26,7 @@
 
 | Architectural Layer | Selected Technology | Exact Version / Mode | Rationale & Architectural Invariant |
 | :--- | :--- | :--- | :--- |
-| **Desktop Runtime & OS Shell** | Electron + Node.js 24 LTS | `Electron ^33.x` / `Node.js 24 LTS` | Native desktop container (`electron/main.ts` + `electron/preload.ts`) with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. |
+| **Desktop Runtime & OS Shell** | Electron + Node.js 22/24 LTS | `Electron ^35.x` / `Node.js 22/24 LTS` | Native desktop container (`electron/main.ts` + `electron/preload.ts`) with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. |
 | **Frontend UI & Build Pipeline** | React 19 + TypeScript + Vite | `React ^19.0.0`, `TS ^5.8.x`, `Vite ^6.x` | Isolated `React.memo` HUD islands over a locked `100vw x 100vh` `#000000` canvas; zero layout thrashing. |
 | **Styling & Token System** | Tailwind CSS v4 | `Tailwind v4.x` + 3-Tier CSS Tokens | `--ds-surface-singularity-void: #000000`, `--ds-accent-singularity: #AA88FF`, `--ds-text-secondary: #9A9A9A` (`7.45:1` WCAG AAA). |
 | **3D Singularity & Galaxy Engine** | Three.js / `@react-three/fiber` | `three ^0.187.0` + GPGPU Float Ping-Pong | `262,144` GPGPU accretion disk particles (`512x512` float RGBA buffer) + Navier-Stokes 2D cursor fluid (`256x256`) + `50,000` `THREE.InstancedMesh` nodes with Spatial Octree LOD. |
@@ -114,7 +114,7 @@ All 5 canonical JSON Decision Models are pre-loaded into `jdmBufferCache` at sta
 
 ## 3. Strict Electron IPC Channel Whitelist (`ELECTRON_IPC_CHANNELS`)
 
-All communication between the sandboxed React 19 renderer and the Electron 33 main process is restricted to the following canonical whitelist in [`electron/preload.ts`](file:///c:/Kalinar/electron/preload.ts) and [`electron/main.ts`](file:///c:/Kalinar/electron/main.ts). Arbitrary `ipcRenderer.send` or unvalidated channels are rejected at the bridge boundary:
+All communication between the sandboxed React 19 renderer and the Electron 35 main process is restricted to the following canonical whitelist in [`electron/preload.ts`](file:///c:/Kalinar/electron/preload.ts) and [`electron/main.ts`](file:///c:/Kalinar/electron/main.ts). Arbitrary `ipcRenderer.send` or unvalidated channels are rejected at the bridge boundary:
 
 ```typescript
 export const ELECTRON_IPC_CHANNELS = [

@@ -24,7 +24,7 @@
 
 ## 1. Spatial Viewport Hierarchy (`100vw x 100vh`, `overflow: hidden`, `#000000`)
 
-KALINAR executes as a single-window native Electron 33 Desktop OS with zero page scroll (`overflow: hidden`, pure void background `--ds-surface-singularity-void: #000000`), structured across two strictly decoupled spatial layers:
+KALINAR executes as a single-window native Electron 35 Desktop OS with zero page scroll (`overflow: hidden`, pure void background `--ds-surface-singularity-void: #000000`), structured across two strictly decoupled spatial layers:
 
 1. **Layer 0 — Singularity & Procedural Galaxy WebGL (`canvas#singularity-bg`, `z-index: 0`):**
    - **Event Horizon (`54u` Radius) & Fresnel Photon Ring:** Central pure black sphere surrounded by a relativistic Fresnel photon ring driven at `60 FPS` by the `uVoicePulse` uniform coupled to the Web Audio API `AnalyserNode` of KALINAR's voice.
