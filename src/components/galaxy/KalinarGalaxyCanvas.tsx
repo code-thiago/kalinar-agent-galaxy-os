@@ -243,13 +243,16 @@ export function KalinarGalaxyCanvas() {
       // Fluid Simulation Step
       fluid.step(dt);
 
-      // Acoustic coupling: Read real-time frequency magnitude from Web Audio AnalyserNode
-      const audioMagnitude = kalinarVoiceService.getAudioFrequencyMagnitude();
+      // Acoustic coupling: Sample real-time Tauz frequency bands at 60 FPS
+      const bands =
+        singularity.voiceState === '[SPEAKING]' || singularity.voiceState === '[LISTENING]'
+          ? kalinarVoiceService.getRealtimeFrequencyBands()
+          : { subBass: 0, lowMid: 0, highPresence: 0, compositePulse: 0 };
       const voicePulse =
         singularity.voiceState === '[SPEAKING]'
-          ? 1.0 + audioMagnitude * 0.85
+          ? 1.0 + bands.compositePulse * 0.85 + bands.subBass * 0.45
           : singularity.voiceState === '[LISTENING]'
-          ? 0.35 + audioMagnitude * 0.35
+          ? 0.35 + bands.compositePulse * 0.35 + bands.subBass * 0.25
           : 0.08 + Math.sin(elapsedTime * 2.0) * 0.02;
 
       // Update Black Hole Singularity Core
@@ -257,7 +260,8 @@ export function KalinarGalaxyCanvas() {
         elapsedTime,
         voicePulse,
         fluid.getVelocityTexture(),
-        isReducedMotion
+        isReducedMotion,
+        bands
       );
 
       // Rotate domain constellations slowly

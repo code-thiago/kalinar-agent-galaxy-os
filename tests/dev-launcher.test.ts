@@ -31,3 +31,4 @@ describe('Dev Launcher & Windows CRLF Sanitization', () => {
     expect(content).toContain('shell: false');
   });
 });
+

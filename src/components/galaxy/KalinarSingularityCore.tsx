@@ -6,6 +6,9 @@
 
 import * as THREE from 'three';
 import { photonRingShader, accretionDiskShader } from '../../core/shaders/singularityShaders.js';
+import { kalinarVoiceService } from '../../services/kalinarVoiceService.js';
+import { useKalinarStore } from '../../store/useKalinarStore.js';
+import { TauzFrequencyBands } from '../../types/kalinar.js';
 
 export interface SingularityCoreConfig {
   coreRadius?: number;
@@ -52,6 +55,8 @@ export class KalinarSingularityCore {
       uniforms: {
         uTime: { value: 0 },
         uVoicePulse: { value: 0 },
+        uSubBass: { value: 0 },
+        uCompositePulse: { value: 0 },
         uColorInner: { value: new THREE.Color(0xaa88ff) },
         uColorOuter: { value: new THREE.Color(0xdddddd) },
       },
@@ -100,6 +105,8 @@ export class KalinarSingularityCore {
       uniforms: {
         uTime: { value: 0 },
         uVoicePulse: { value: 0 },
+        uSubBass: { value: 0 },
+        uCompositePulse: { value: 0 },
         uFluidVelocity: { value: null },
         uReducedMotion: { value: 0 },
       },
@@ -112,14 +119,53 @@ export class KalinarSingularityCore {
     this.group.add(this.accretionParticles);
   }
 
-  public update(time: number, voicePulse: number, fluidVelocityTexture: THREE.Texture | null, isReducedMotion: boolean): void {
+  public useFrame(
+    time: number,
+    fluidVelocityTexture: THREE.Texture | null,
+    isReducedMotion: boolean
+  ): TauzFrequencyBands {
+    const voiceState = useKalinarStore.getState().singularity.voiceState;
+    const isVoiceActive = voiceState === '[SPEAKING]' || voiceState === '[LISTENING]';
+    const bands = isVoiceActive
+      ? kalinarVoiceService.getRealtimeFrequencyBands()
+      : { subBass: 0, lowMid: 0, highPresence: 0, compositePulse: 0 };
+
+    const voicePulse =
+      voiceState === '[SPEAKING]'
+        ? 1.0 + bands.compositePulse * 0.85 + bands.subBass * 0.45
+        : voiceState === '[LISTENING]'
+        ? 0.35 + bands.compositePulse * 0.35 + bands.subBass * 0.25
+        : 0.08 + Math.sin(time * 2.0) * 0.02;
+
+    this.update(time, voicePulse, fluidVelocityTexture, isReducedMotion, bands);
+    return bands;
+  }
+
+  public update(
+    time: number,
+    voicePulse: number,
+    fluidVelocityTexture: THREE.Texture | null,
+    isReducedMotion: boolean,
+    frequencyBands?: TauzFrequencyBands
+  ): void {
+    const voiceState = useKalinarStore.getState().singularity.voiceState;
+    const activeBands =
+      frequencyBands ||
+      (voiceState === '[SPEAKING]' || voiceState === '[LISTENING]'
+        ? kalinarVoiceService.getRealtimeFrequencyBands()
+        : { subBass: 0, lowMid: 0, highPresence: 0, compositePulse: 0 });
+
     // 1. Update Photon Ring
     this.photonRingMaterial.uniforms.uTime.value = time;
     this.photonRingMaterial.uniforms.uVoicePulse.value = voicePulse;
+    this.photonRingMaterial.uniforms.uSubBass.value = activeBands.subBass;
+    this.photonRingMaterial.uniforms.uCompositePulse.value = activeBands.compositePulse;
 
-    // 2. Update Accretion Disk Shaders
+    // 2. Update Accretion Disk Shaders (262,144 GPGPU particles)
     this.accretionMaterial.uniforms.uTime.value = time;
     this.accretionMaterial.uniforms.uVoicePulse.value = voicePulse;
+    this.accretionMaterial.uniforms.uSubBass.value = activeBands.subBass;
+    this.accretionMaterial.uniforms.uCompositePulse.value = activeBands.compositePulse;
     this.accretionMaterial.uniforms.uFluidVelocity.value = fluidVelocityTexture;
     this.accretionMaterial.uniforms.uReducedMotion.value = isReducedMotion ? 1.0 : 0.0;
   }

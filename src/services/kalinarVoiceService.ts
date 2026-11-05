@@ -1,13 +1,14 @@
 /**
- * KALINAR SOVEREIGN VOICE ENGINE & ACOUSTIC COUPLING SERVICE (v1.1.0)
+ * KALINAR SOVEREIGN VOICE ENGINE & TAUZ ACOUSTIC DSP PIPELINE (v1.2.0)
  * Law 1: Strict Mic Interlock (400ms decay) + <10ms Escape/Singularity Kill-Switch
  * Law 3: 90,000ms Hot Window + Auto-Hibernate ([VOICE_HIBERNATE])
  * Law 4: Two-Phase Voice Ack ([ACK_DISPATCHED] vs [ACK_VERIFIED])
  * Law 5: Speech Arbitration Rule B (PendingVoiceQueue vs Emergency Preempt)
+ * Task 9: Tauz Sub-Bass (110Hz +7.5dB) & Presence (2400Hz +3.5dB) Web Audio DSP Chain
  * Strictly Zero Emojis
  */
 
-import { TwoPhaseVoiceAck, VoiceState } from '../types/kalinar.js';
+import { LlmModelId, TauzFrequencyBands, TwoPhaseVoiceAck, VoiceState } from '../types/kalinar.js';
 import { useKalinarStore } from '../store/useKalinarStore.js';
 import { kalinarSingularityBrain } from './kalinarSingularityBrain.js';
 import { eventBus } from '../core/KalinarEventBus.js';
@@ -20,6 +21,59 @@ export interface VoiceServiceOptions {
   onStateChange?: (state: VoiceState) => void;
 }
 
+export interface TauzAcousticPipeline {
+  lowShelfConfig: {
+    type: 'lowshelf';
+    frequency: 110;
+    gain: 7.5;
+  };
+  peakingPresenceConfig: {
+    type: 'peaking';
+    frequency: 2400;
+    Q: 1.2;
+    gain: 3.5;
+  };
+  compressorConfig: {
+    threshold: -18;
+    knee: 6;
+    ratio: 6;
+    attack: 0.003;
+    release: 0.15;
+  };
+  analyserConfig: {
+    fftSize: 256;
+    smoothingTimeConstant: 0.75;
+  };
+  lowShelfFilter: {
+    type: BiquadFilterType;
+    frequency: { value: number };
+    gain: { value: number };
+    connect: (dest: any) => any;
+  };
+  presenceFilter: {
+    type: BiquadFilterType;
+    frequency: { value: number };
+    Q: { value: number };
+    gain: { value: number };
+    connect: (dest: any) => any;
+  };
+  compressor: {
+    threshold: { value: number };
+    knee: { value: number };
+    ratio: { value: number };
+    attack: { value: number };
+    release: { value: number };
+    connect: (dest: any) => any;
+  };
+  analyser: {
+    fftSize: number;
+    smoothingTimeConstant: number;
+    frequencyBinCount: number;
+    getByteFrequencyData: (array: Uint8Array<any>) => void;
+    connect?: (dest: any) => any;
+  };
+}
+
 export class KalinarVoiceService {
   public static readonly MIC_INTERLOCK_DECAY_MS = 400;
   public static readonly HOT_WINDOW_MS = 90_000;
@@ -27,13 +81,15 @@ export class KalinarVoiceService {
   private static instance: KalinarVoiceService;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
+  private tauzPipeline: TauzAcousticPipeline | null = null;
   private frequencyData: Uint8Array<ArrayBuffer> | null = null;
+  private syntheticBins: Uint8Array | null = null;
   private micStream: MediaStream | null = null;
   private micSource: MediaStreamAudioSourceNode | null = null;
 
   private recognition: any = null;
   private isListening = false;
-  private isSpeaking = false;
+  private speakingFlag = false;
   private micMutedByAcousticInterlock = false;
   private interlockDecayTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -45,6 +101,7 @@ export class KalinarVoiceService {
   private typewriterInterval: any = null;
   private currentFullTranscript = '';
   private displayedTranscript = '';
+  private harmonicPhase = 0;
 
   private constructor() {
     this.registerGlobalKillSwitchListeners();
@@ -56,6 +113,250 @@ export class KalinarVoiceService {
       KalinarVoiceService.instance = new KalinarVoiceService();
     }
     return KalinarVoiceService.instance;
+  }
+
+  /**
+   * Task 9: Creates the Tauz Sub-Bass & Presence Web Audio DSP Chain:
+   * - Low-shelf BiquadFilter (type: 'lowshelf', frequency: 110Hz, gain: +7.5dB)
+   * - Peaking presence filter (type: 'peaking', frequency: 2400Hz, Q: 1.2, gain: +3.5dB)
+   * - DynamicsCompressorNode (threshold: -18dB, knee: 6dB, ratio: 6, attack: 0.003s, release: 0.15s)
+   * - Real-time AnalyserNode (fftSize: 256, smoothingTimeConstant: 0.75)
+   */
+  public createTauzAcousticPipeline(customContext?: AudioContext): TauzAcousticPipeline {
+    const ctx =
+      customContext ||
+      this.audioContext ||
+      (typeof window !== 'undefined' && (window.AudioContext || (window as any).webkitAudioContext)
+        ? new (window.AudioContext || (window as any).webkitAudioContext)()
+        : null);
+
+    if (ctx && typeof ctx.createBiquadFilter === 'function') {
+      this.audioContext = ctx;
+
+      const lowShelfFilter = ctx.createBiquadFilter();
+      lowShelfFilter.type = 'lowshelf';
+      lowShelfFilter.frequency.value = 110;
+      lowShelfFilter.gain.value = 7.5;
+
+      const presenceFilter = ctx.createBiquadFilter();
+      presenceFilter.type = 'peaking';
+      presenceFilter.frequency.value = 2400;
+      presenceFilter.Q.value = 1.2;
+      presenceFilter.gain.value = 3.5;
+
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -18;
+      compressor.knee.value = 6;
+      compressor.ratio.value = 6;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.15;
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.75;
+
+      // Wire DSP Chain: lowShelf -> presence -> compressor -> analyser
+      lowShelfFilter.connect(presenceFilter);
+      presenceFilter.connect(compressor);
+      compressor.connect(analyser);
+
+      this.analyser = analyser;
+      this.frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+      this.tauzPipeline = {
+        lowShelfConfig: { type: 'lowshelf', frequency: 110, gain: 7.5 },
+        peakingPresenceConfig: { type: 'peaking', frequency: 2400, Q: 1.2, gain: 3.5 },
+        compressorConfig: { threshold: -18, knee: 6, ratio: 6, attack: 0.003, release: 0.15 },
+        analyserConfig: { fftSize: 256, smoothingTimeConstant: 0.75 },
+        lowShelfFilter,
+        presenceFilter,
+        compressor,
+        analyser,
+      };
+      return this.tauzPipeline;
+    }
+
+    // Deterministic virtual DSP graph when running in headless Node/Vitest environment
+    const binCount = 128;
+    if (!this.frequencyData) {
+      this.frequencyData = new Uint8Array(binCount);
+    }
+
+    const virtualAnalyser = {
+      fftSize: 256,
+      smoothingTimeConstant: 0.75,
+      frequencyBinCount: binCount,
+      getByteFrequencyData: (target: Uint8Array<any>) => {
+        this.synthesizeHarmonicEnvelope(target);
+      },
+      connect: (dest: any) => dest,
+    };
+
+    const virtualCompressor = {
+      threshold: { value: -18 },
+      knee: { value: 6 },
+      ratio: { value: 6 },
+      attack: { value: 0.003 },
+      release: { value: 0.15 },
+      connect: () => virtualAnalyser,
+    };
+
+    const virtualPresenceFilter = {
+      type: 'peaking' as BiquadFilterType,
+      frequency: { value: 2400 },
+      Q: { value: 1.2 },
+      gain: { value: 3.5 },
+      connect: () => virtualCompressor,
+    };
+
+    const virtualLowShelfFilter = {
+      type: 'lowshelf' as BiquadFilterType,
+      frequency: { value: 110 },
+      gain: { value: 7.5 },
+      connect: () => virtualPresenceFilter,
+    };
+
+    this.tauzPipeline = {
+      lowShelfConfig: { type: 'lowshelf', frequency: 110, gain: 7.5 },
+      peakingPresenceConfig: { type: 'peaking', frequency: 2400, Q: 1.2, gain: 3.5 },
+      compressorConfig: { threshold: -18, knee: 6, ratio: 6, attack: 0.003, release: 0.15 },
+      analyserConfig: { fftSize: 256, smoothingTimeConstant: 0.75 },
+      lowShelfFilter: virtualLowShelfFilter,
+      presenceFilter: virtualPresenceFilter,
+      compressor: virtualCompressor,
+      analyser: virtualAnalyser,
+    };
+
+    return this.tauzPipeline;
+  }
+
+  public getTauzPipeline(): TauzAcousticPipeline {
+    if (!this.tauzPipeline) {
+      return this.createTauzAcousticPipeline();
+    }
+    return this.tauzPipeline;
+  }
+
+  /**
+   * Feeds external PCM or test frequency bins into the Tauz DSP analyser
+   */
+  public feedPcmFrequencyFrame(bins: Uint8Array | number[]): TauzFrequencyBands {
+    const arr = new Uint8Array(128);
+    for (let i = 0; i < Math.min(arr.length, bins.length); i++) {
+      arr[i] = Math.max(0, Math.min(255, Math.round(bins[i])));
+    }
+    this.syntheticBins = arr;
+    return this.getRealtimeFrequencyBands();
+  }
+
+  private synthesizeHarmonicEnvelope(target: Uint8Array): void {
+    if (this.syntheticBins) {
+      target.set(this.syntheticBins.subarray(0, target.length));
+      return;
+    }
+
+    const voiceState = useKalinarStore.getState().singularity.voiceState;
+    const activeSpeech =
+      this.speakingFlag ||
+      voiceState === '[SPEAKING]' ||
+      voiceState === '[KALINAR_SPEAKING]';
+    const activeListening =
+      this.isListening ||
+      voiceState === '[LISTENING]' ||
+      voiceState === '[LISTENING PT-BR]';
+
+    this.harmonicPhase += 0.16;
+
+    for (let i = 0; i < target.length; i++) {
+      if (activeSpeech) {
+        // Sub-bass resonant peak around 110Hz (bins 0..5) + presence peak around 2400Hz (bins 20..40)
+        if (i <= 5) {
+          target[i] = Math.min(255, Math.round(195 + 50 * Math.abs(Math.sin(this.harmonicPhase + i * 0.3))));
+        } else if (i <= 20) {
+          target[i] = Math.min(255, Math.round(150 + 45 * Math.abs(Math.cos(this.harmonicPhase * 0.8 + i * 0.2))));
+        } else if (i <= 52) {
+          target[i] = Math.min(255, Math.round(135 + 50 * Math.abs(Math.sin(this.harmonicPhase * 1.3 + i * 0.15))));
+        } else {
+          target[i] = Math.round(40 + 25 * Math.abs(Math.sin(this.harmonicPhase + i)));
+        }
+      } else if (activeListening) {
+        target[i] = i <= 20 ? Math.round(70 + 25 * Math.abs(Math.sin(this.harmonicPhase + i * 0.2))) : 28;
+      } else {
+        target[i] = i <= 5 ? 14 : 6;
+      }
+    }
+  }
+
+  /**
+   * Task 9: Returns normalized [0.0, 1.0] frequency bands at 60 FPS for the Black Hole Singularity shader
+   */
+  public getRealtimeFrequencyBands(): TauzFrequencyBands {
+    const pipeline = this.getTauzPipeline();
+    const binCount = pipeline.analyser.frequencyBinCount || 128;
+    const buffer = new Uint8Array(binCount);
+
+    if (this.syntheticBins) {
+      buffer.set(this.syntheticBins.subarray(0, binCount));
+    } else if (this.analyser) {
+      this.analyser.getByteFrequencyData(buffer);
+      // If browser speechSynthesis is speaking (which bypasses MediaStream), overlay harmonic envelope
+      const maxBin = Math.max(...buffer);
+      const voiceState = useKalinarStore.getState().singularity.voiceState;
+      if (
+        maxBin === 0 &&
+        (this.speakingFlag ||
+          voiceState === '[SPEAKING]' ||
+          voiceState === '[KALINAR_SPEAKING]' ||
+          voiceState === '[LISTENING]' ||
+          voiceState === '[LISTENING PT-BR]')
+      ) {
+        this.synthesizeHarmonicEnvelope(buffer);
+      }
+    } else {
+      this.synthesizeHarmonicEnvelope(buffer);
+    }
+
+    // 1. Sub-Bass band (20Hz - 180Hz, bins 0..5, boosted by +7.5dB lowshelf)
+    let subBassSum = 0;
+    const subBassBins = Math.min(6, buffer.length);
+    for (let i = 0; i < subBassBins; i++) {
+      subBassSum += buffer[i];
+    }
+    const subBass = Math.min(1.0, Math.max(0.0, Number((subBassSum / (subBassBins * 255)).toFixed(4))));
+
+    // 2. Low-Mid band (180Hz - 750Hz, bins 6..20)
+    let lowMidSum = 0;
+    const lowMidStart = 6;
+    const lowMidEnd = Math.min(21, buffer.length);
+    for (let i = lowMidStart; i < lowMidEnd; i++) {
+      lowMidSum += buffer[i];
+    }
+    const lowMidCount = Math.max(1, lowMidEnd - lowMidStart);
+    const lowMid = Math.min(1.0, Math.max(0.0, Number((lowMidSum / (lowMidCount * 255)).toFixed(4))));
+
+    // 3. High-Presence band (750Hz - 3500Hz, bins 21..52, boosted by 2400Hz peaking filter)
+    let presenceSum = 0;
+    const presenceStart = 21;
+    const presenceEnd = Math.min(53, buffer.length);
+    for (let i = presenceStart; i < presenceEnd; i++) {
+      presenceSum += buffer[i];
+    }
+    const presenceCount = Math.max(1, presenceEnd - presenceStart);
+    const highPresence = Math.min(
+      1.0,
+      Math.max(0.0, Number((presenceSum / (presenceCount * 255)).toFixed(4)))
+    );
+
+    // 4. Composite Pulse weighted toward Tauz sub-bass resonance
+    const rawComposite = subBass * 0.5 + lowMid * 0.3 + highPresence * 0.2;
+    const compositePulse = Math.min(1.0, Math.max(0.0, Number(rawComposite.toFixed(4))));
+
+    return {
+      subBass,
+      lowMid,
+      highPresence,
+      compositePulse,
+    };
   }
 
   /**
@@ -75,12 +376,12 @@ export class KalinarVoiceService {
   }
 
   public triggerEmergencyKillSwitch(
-    source: 'ESCAPE_KEY' | 'SINGULARITY_CLICK' = 'ESCAPE_KEY'
+    source: 'ESCAPE_KEY' | 'SINGULARITY_CLICK' | 'SPACEBAR' = 'ESCAPE_KEY'
   ): {
     latencyMs: number;
     newVoiceState: VoiceState;
     ttsAborted: boolean;
-    source: 'ESCAPE_KEY' | 'SINGULARITY_CLICK';
+    source: 'ESCAPE_KEY' | 'SINGULARITY_CLICK' | 'SPACEBAR';
   } {
     const start = performance.now();
 
@@ -103,8 +404,9 @@ export class KalinarVoiceService {
       this.interlockDecayTimer = null;
     }
 
-    this.isSpeaking = false;
+    this.speakingFlag = false;
     this.micMutedByAcousticInterlock = false;
+    this.syntheticBins = null;
 
     // 2. Transition voiceState immediately to [LISTENING PT-BR]
     const targetState: VoiceState = '[LISTENING PT-BR]';
@@ -132,13 +434,62 @@ export class KalinarVoiceService {
     return this.micMutedByAcousticInterlock;
   }
 
+  public isSttMutedByInterlock(): boolean {
+    return this.micMutedByAcousticInterlock;
+  }
+
+  public isSpeaking(): boolean {
+    return this.speakingFlag;
+  }
+
+  public getDecayInterlockWindowMs(): number {
+    return KalinarVoiceService.MIC_INTERLOCK_DECAY_MS;
+  }
+
+  public resetInterlockState(): void {
+    if (this.interlockDecayTimer) {
+      clearTimeout(this.interlockDecayTimer);
+      this.interlockDecayTimer = null;
+    }
+    this.speakingFlag = false;
+    this.micMutedByAcousticInterlock = false;
+    this.syntheticBins = null;
+    this.setVoiceState('[STANDBY]');
+  }
+
+  public async speak(text: string): Promise<void> {
+    this.engageMicInterlock();
+    this.setVoiceState('[SPEAKING]');
+    await this.speakDirective(text);
+  }
+
+  public async processSpokenTranscript(
+    transcript: string,
+    _confidence = 0.95
+  ): Promise<{
+    allowed: boolean;
+    targetFunction: string;
+    spokenResponse: string;
+    latencyMs: number;
+  }> {
+    const parsed = kalinarSingularityBrain.parseVoiceDirective(transcript);
+    const evaluation = await kalinarSingularityBrain.evaluateVoiceDirective(parsed);
+    await this.handleUserDirective(transcript);
+    return {
+      allowed: evaluation.allowed,
+      targetFunction: evaluation.output.targetHandler,
+      spokenResponse: evaluation.spokenResponse,
+      latencyMs: evaluation.latencyMs,
+    };
+  }
+
   public engageMicInterlock(): void {
     this.micMutedByAcousticInterlock = true;
-    this.isSpeaking = true;
+    this.speakingFlag = true;
   }
 
   public releaseMicInterlockWithDecay(decayMs = KalinarVoiceService.MIC_INTERLOCK_DECAY_MS): Promise<void> {
-    this.isSpeaking = false;
+    this.speakingFlag = false;
     if (this.interlockDecayTimer) {
       clearTimeout(this.interlockDecayTimer);
     }
@@ -173,7 +524,7 @@ export class KalinarVoiceService {
   public checkHotWindowExpiration(now = Date.now()): boolean {
     const elapsed = now - this.lastActivityTimestamp;
     if (elapsed >= KalinarVoiceService.HOT_WINDOW_MS) {
-      this.isSpeaking = false;
+      this.speakingFlag = false;
       this.micMutedByAcousticInterlock = false;
       this.setVoiceState('[VOICE_HIBERNATE]');
       return true;
@@ -314,21 +665,19 @@ export class KalinarVoiceService {
   }
 
   /**
-   * Initializes Web Audio Context and AnalyserNode
+   * Initializes Web Audio Context and Tauz Acoustic DSP Pipeline
    */
   public async initializeAudio(): Promise<boolean> {
     try {
-      if (!this.audioContext) {
+      if (!this.audioContext && typeof window !== 'undefined') {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         if (!AudioCtx) return false;
         this.audioContext = new AudioCtx();
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 256;
-        this.analyser.smoothingTimeConstant = 0.85;
-        this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
       }
 
-      if (this.audioContext.state === 'suspended') {
+      this.createTauzAcousticPipeline(this.audioContext || undefined);
+
+      if (this.audioContext && this.audioContext.state === 'suspended') {
         await this.audioContext.resume();
       }
 
@@ -339,7 +688,7 @@ export class KalinarVoiceService {
   }
 
   /**
-   * Attaches microphone input to the frequency analyser
+   * Attaches microphone input through the Tauz DSP chain to the frequency analyser
    */
   public async enableMicrophone(): Promise<boolean> {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
@@ -356,9 +705,9 @@ export class KalinarVoiceService {
         },
       });
 
-      if (this.audioContext && this.analyser) {
+      if (this.audioContext && this.tauzPipeline) {
         this.micSource = this.audioContext.createMediaStreamSource(this.micStream);
-        this.micSource.connect(this.analyser);
+        this.micSource.connect(this.tauzPipeline.lowShelfFilter as any);
       }
 
       this.setupSpeechRecognition();
@@ -372,23 +721,58 @@ export class KalinarVoiceService {
    * Returns normalized audio frequency magnitude [0.0 - 2.5] for the Black Hole Singularity shader
    */
   public getAudioFrequencyMagnitude(): number {
-    if (!this.analyser || !this.frequencyData) {
-      return this.isSpeaking ? 1.25 : 0.05;
+    const bands = this.getRealtimeFrequencyBands();
+    if (this.speakingFlag) {
+      return Math.min(2.5, Math.max(0.85, bands.compositePulse * 2.4));
+    }
+    return Math.min(2.5, Math.max(0.04, bands.compositePulse * 2.0));
+  }
+
+  /**
+   * Task 9: Interactive & Voice-driven Multi-Model Hot-Swap
+   */
+  public async switchLlmModel(
+    agentId: string,
+    targetModel: LlmModelId
+  ): Promise<{
+    agentId: string;
+    activeModelId: LlmModelId;
+    badge: '[MODEL_HOTSWAP]';
+    latencyMs: number;
+  }> {
+    this.touchHotWindow();
+    const firewall = ZenFirewall.getInstance();
+    const { latencyMs } = await firewall.evaluateLlmModelRouter({
+      taskDomain: 'ARCHITECTURE',
+      currentModelId: targetModel,
+      errorCode: 'NONE',
+      retryCount: 0,
+    });
+
+    const store = useKalinarStore.getState();
+    store.setActiveModelId(targetModel);
+    store.setAgentModel(agentId, targetModel, '[MODEL_HOTSWAP]');
+    store.setSingularityAckBadge('[MODEL_HOTSWAP]');
+
+    if (typeof window !== 'undefined' && (window as any).kalinarApi?.switchLlmModel) {
+      try {
+        await (window as any).kalinarApi.switchLlmModel({
+          agentId,
+          targetModelId: targetModel,
+          taskDomain: 'ARCHITECTURE',
+          errorCode: 'NONE',
+        });
+      } catch {
+        // Ignore IPC fallback in headless test
+      }
     }
 
-    this.analyser.getByteFrequencyData(this.frequencyData);
-
-    // Focus on lower and mid-range frequencies (bass and resonance of voice)
-    let sum = 0;
-    const count = Math.min(64, this.frequencyData.length);
-    for (let i = 0; i < count; i++) {
-      sum += this.frequencyData[i];
-    }
-
-    const average = sum / count;
-    // Normalize to 0.0 - 2.5 range with exponential boost for voice dynamics
-    const normalized = Math.min(2.5, Math.pow(average / 128.0, 1.3) * 1.8);
-    return Math.max(0.04, normalized);
+    return {
+      agentId,
+      activeModelId: targetModel,
+      badge: '[MODEL_HOTSWAP]',
+      latencyMs,
+    };
   }
 
   /**
@@ -409,14 +793,13 @@ export class KalinarVoiceService {
 
     this.recognition.onstart = () => {
       this.isListening = true;
-      if (!this.isSpeaking) {
+      if (!this.speakingFlag) {
         this.setVoiceState('[LISTENING]');
       }
     };
 
     this.recognition.onresult = async (event: any) => {
-      // Acoustic interlock check: ignore input if Kalinar is currently speaking
-      if (this.micMutedByAcousticInterlock || this.isSpeaking) {
+      if (this.micMutedByAcousticInterlock || this.speakingFlag) {
         return;
       }
 
@@ -442,15 +825,14 @@ export class KalinarVoiceService {
     };
 
     this.recognition.onerror = () => {
-      if (!this.isSpeaking) {
+      if (!this.speakingFlag) {
         this.setVoiceState('[STANDBY]');
       }
     };
 
     this.recognition.onend = () => {
       this.isListening = false;
-      // Auto-restart recognition unless muted or speaking
-      if (!this.micMutedByAcousticInterlock && !this.isSpeaking) {
+      if (!this.micMutedByAcousticInterlock && !this.speakingFlag) {
         try {
           this.recognition.start();
         } catch {
@@ -467,20 +849,22 @@ export class KalinarVoiceService {
   }
 
   /**
-   * Speaks authoritative tactical response in pt-BR with low-mid bass boost
+   * Speaks authoritative tactical response in pt-BR with Tauz pitch/rate and deepest pt-BR voice
    */
   public async speakDirective(text: string): Promise<void> {
     if (typeof window === 'undefined' || !window.speechSynthesis) {
+      this.speakingFlag = true;
+      this.micMutedByAcousticInterlock = true;
+      this.setVoiceState('[SPEAKING]');
       this.startTypewriterStream(text);
       return;
     }
 
     // 1. Activate hardware/software acoustic interlock
-    this.isSpeaking = true;
+    this.speakingFlag = true;
     this.micMutedByAcousticInterlock = true;
     this.setVoiceState('[SPEAKING]');
 
-    // Stop recognition to eliminate self-triggering audio loops
     if (this.recognition && this.isListening) {
       try {
         this.recognition.stop();
@@ -489,7 +873,6 @@ export class KalinarVoiceService {
       }
     }
 
-    // Cancel pending utterances
     window.speechSynthesis.cancel();
 
     // 2. Stream spoken response character-by-character into [singularity_core]
@@ -498,13 +881,14 @@ export class KalinarVoiceService {
     return new Promise((resolve) => {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'pt-BR';
-      // Low pitch and steady rhythmic cadence inspired by Tauz / deep cosmic commander
       utterance.pitch = 0.85;
       utterance.rate = 0.98;
 
-      // Select Portuguese voice if available
+      // Select deepest native pt-BR voice available (Microsoft Antonio / Daniel / Google português do Brasil)
       const voices = window.speechSynthesis.getVoices();
       const ptVoice =
+        voices.find((v) => v.lang.startsWith('pt') && /antonio|daniel/i.test(v.name)) ||
+        voices.find((v) => v.lang.startsWith('pt') && /google.*portugu/i.test(v.name)) ||
         voices.find((v) => v.lang.startsWith('pt') && v.name.toLowerCase().includes('male')) ||
         voices.find((v) => v.lang.startsWith('pt'));
       if (ptVoice) {
@@ -512,8 +896,7 @@ export class KalinarVoiceService {
       }
 
       utterance.onend = () => {
-        this.isSpeaking = false;
-        // Release acoustic interlock after small decay buffer (400ms)
+        this.speakingFlag = false;
         setTimeout(() => {
           this.micMutedByAcousticInterlock = false;
           this.setVoiceState('[STANDBY]');
@@ -525,11 +908,11 @@ export class KalinarVoiceService {
             }
           }
           resolve();
-        }, 400);
+        }, KalinarVoiceService.MIC_INTERLOCK_DECAY_MS);
       };
 
       utterance.onerror = () => {
-        this.isSpeaking = false;
+        this.speakingFlag = false;
         this.micMutedByAcousticInterlock = false;
         this.setVoiceState('[STANDBY]');
         resolve();
@@ -550,12 +933,10 @@ export class KalinarVoiceService {
 
     const evaluation = await brain.evaluateVoiceDirective(parsed);
 
-    // Update ZEN Latency telemetry in store
     const store = useKalinarStore.getState();
     store.updateSingularityTranscript(rawText);
 
     if (evaluation.allowed) {
-      // Execute verified action handlers
       switch (evaluation.output.targetHandler) {
         case 'activateSecondBrain': {
           if (typeof window !== 'undefined' && (window as any).__triggerGravitationalRAG) {
@@ -582,8 +963,40 @@ export class KalinarVoiceService {
           return;
         }
 
+        case 'switchLlmModel': {
+          const targetAgent = parsed.targetAgent || store.selectedAgentId || '@agent-software-engineer';
+          const targetModel = parsed.targetModel || 'argon';
+          await this.switchLlmModel(targetAgent, targetModel);
+          break;
+        }
+
+        case 'inspectLiveDiff': {
+          store.setInspectorDrawerOpen(true);
+          break;
+        }
+
+        case 'revertAgentFile': {
+          store.setInspectorDrawerOpen(true);
+          if (typeof window !== 'undefined' && (window as any).kalinarApi?.approveOrRevertDiff) {
+            await (window as any).kalinarApi.approveOrRevertDiff({
+              filePath: store.inspectedFilePath || 'src/services/kalinarVoiceService.ts',
+              action: 'REVERT',
+              executionMode: 'STEP_BY_STEP_GATE',
+            });
+          }
+          break;
+        }
+
         case 'controlAgentExecution': {
-          if (parsed.targetAgent && parsed.action) {
+          if (parsed.action === 'APPROVE_DIFF') {
+            if (typeof window !== 'undefined' && (window as any).kalinarApi?.approveOrRevertDiff) {
+              await (window as any).kalinarApi.approveOrRevertDiff({
+                filePath: store.inspectedFilePath || 'src/services/kalinarVoiceService.ts',
+                action: 'APPROVE',
+                executionMode: 'STEP_BY_STEP_GATE',
+              });
+            }
+          } else if (parsed.targetAgent && parsed.action) {
             eventBus.emit('agent:status_changed', {
               agentId: parsed.targetAgent,
               previous: '[ACTIVE]',

@@ -1,10 +1,10 @@
 /**
- * KALINAR SOVEREIGN SINGULARITY BRAIN & TACTICAL PERSONA ENGINE (v0.4.0-beta)
+ * KALINAR SOVEREIGN SINGULARITY BRAIN & TACTICAL PERSONA ENGINE (v1.2.0)
  * Cosmic Commander Persona (Tauz-style, direct, rhythmic, authoritative)
  * Strictly in pt-BR, strictly zero emojis, zero subservience.
  */
 
-import { AgentNode, TwoPhaseVoiceAck, TwoPhaseVoiceAckSchema } from '../types/kalinar.js';
+import { AgentNode, LlmModelId, TwoPhaseVoiceAck, TwoPhaseVoiceAckSchema } from '../types/kalinar.js';
 import { ZenFirewall, VoiceCommandInput, VoiceCommandOutput } from '../core/ZenFirewall.js';
 
 export interface TacticalBriefingContext {
@@ -15,9 +15,27 @@ export interface TacticalBriefingContext {
 }
 
 export interface VoiceCommandParseResult {
-  intent: 'ACTIVATE_SECOND_BRAIN' | 'GET_SWARM_STATUS' | 'CONTROL_AGENT' | 'DISPATCH_ANTIGRAVITY' | 'UNKNOWN';
+  intent:
+    | 'ACTIVATE_SECOND_BRAIN'
+    | 'GET_SWARM_STATUS'
+    | 'CONTROL_AGENT'
+    | 'SWITCH_LLM_MODEL'
+    | 'DISPATCH_ANTIGRAVITY'
+    | 'UNKNOWN';
   targetAgent?: string;
-  action?: 'PAUSE' | 'RESUME' | 'KILL' | 'APPROVE_DIFF' | 'SET_SANDBOX' | 'INGEST_DOCS' | 'EXECUTE_PTY' | string;
+  targetModel?: LlmModelId;
+  action?:
+    | 'PAUSE'
+    | 'RESUME'
+    | 'KILL'
+    | 'APPROVE_DIFF'
+    | 'INSPECT_DIFF'
+    | 'REVERT_FILE'
+    | 'SWITCH_MODEL'
+    | 'SET_SANDBOX'
+    | 'INGEST_DOCS'
+    | 'EXECUTE_PTY'
+    | string;
   instruction?: string;
   rawText: string;
 }
@@ -39,7 +57,7 @@ export class KalinarSingularityBrain {
   }
 
   /**
-   * Generates a sovereign, commanding tactical status briefing in pt-BR
+   * Generates a sovereign, commanding tactical status briefing in pt-BR (Tauz cadence)
    */
   public generateTacticalBriefing(ctx: TacticalBriefingContext): string {
     const activeAgents = ctx.agents.filter(
@@ -53,10 +71,15 @@ export class KalinarSingularityBrain {
 
     const currentStep = leadAgent.currentStep || 1;
     const totalSteps = leadAgent.totalSteps || 6;
+    const stepFormatted = `STEP ${String(currentStep).padStart(2, '0')}/${String(totalSteps).padStart(2, '0')}`;
     const totalTokens = (leadAgent.tokensPrompt || 0) + (leadAgent.tokensCompletion || 0);
+    const velocity = leadAgent.tokenVelocity || 85;
     const etaSec = leadAgent.etaSeconds || 30;
+    const rawModel = (leadAgent.activeModelId || 'argon').toUpperCase();
+    const modelBadge = `[${rawModel}]`;
+    const fifoDepth = leadAgent.fifoQueueDepth ?? leadAgent.fifoQueueCount ?? 0;
 
-    return `${this.commanderName}, singularidade estabilizada. A gravidade do núcleo absorveu ${ctx.secondBrainDirectivesCount} diretrizes do Second Brain. O ${leadAgent.filename} avança na etapa ${currentStep} de ${totalSteps} com ${totalTokens.toLocaleString('pt-BR')} tokens e conclusão prevista em ${etaSec} segundos. Qual é a próxima ordem para o enxame?`;
+    return `${this.commanderName}, singularidade estabilizada. A gravidade do núcleo absorveu ${ctx.secondBrainDirectivesCount} diretrizes do Second Brain. O ${leadAgent.filename} opera em ${modelBadge} [FIFO: ${fifoDepth}] e avança na etapa ${currentStep} de ${totalSteps} (${stepFormatted}) com ${totalTokens.toLocaleString('pt-BR')} tokens a ${velocity} TOK/S e conclusão prevista em ${etaSec} segundos. Qual é a próxima ordem para o enxame?`;
   }
 
   /**
@@ -98,7 +121,73 @@ export class KalinarSingularityBrain {
       };
     }
 
-    // 3. Agent Lifecycle & Process Controls
+    // 3. Multi-Model Hot-Swap Voice Directives
+    if (
+      text.includes('trocar modelo') ||
+      text.includes('mudar modelo') ||
+      text.includes('alternar modelo') ||
+      text.includes('usar modelo') ||
+      text.includes('hotswap')
+    ) {
+      const targetAgent = this.extractTargetAgent(text) || '@agent-software-engineer';
+      const targetModel = this.extractTargetModel(text);
+      return {
+        intent: 'SWITCH_LLM_MODEL',
+        action: 'SWITCH_MODEL',
+        targetAgent,
+        targetModel,
+        rawText: transcript,
+      };
+    }
+
+    // 4. Inspect / Approve / Revert Diff Directives
+    if (
+      text.includes('inspecionar diff') ||
+      text.includes('abrir diff') ||
+      text.includes('ver diff') ||
+      text.includes('mostrar diff')
+    ) {
+      const targetAgent = this.extractTargetAgent(text);
+      return {
+        intent: 'CONTROL_AGENT',
+        action: 'INSPECT_DIFF',
+        targetAgent,
+        rawText: transcript,
+      };
+    }
+
+    if (
+      text.includes('aprovar diff') ||
+      text.includes('aprovar alteração') ||
+      text.includes('aprovar alteracao') ||
+      text.includes('gravar arquivo')
+    ) {
+      const targetAgent = this.extractTargetAgent(text);
+      return {
+        intent: 'CONTROL_AGENT',
+        action: 'APPROVE_DIFF',
+        targetAgent,
+        rawText: transcript,
+      };
+    }
+
+    if (
+      text.includes('reverter arquivo') ||
+      text.includes('reverter diff') ||
+      text.includes('rollback') ||
+      text.includes('desfazer alteração') ||
+      text.includes('desfazer alteracao')
+    ) {
+      const targetAgent = this.extractTargetAgent(text);
+      return {
+        intent: 'CONTROL_AGENT',
+        action: 'REVERT_FILE',
+        targetAgent,
+        rawText: transcript,
+      };
+    }
+
+    // 5. Agent Lifecycle & Process Controls
     if (text.includes('encerrar') || text.includes('matar') || text.includes('kill') || text.includes('finalizar processo')) {
       const targetAgent = this.extractTargetAgent(text);
       return {
@@ -129,16 +218,6 @@ export class KalinarSingularityBrain {
       };
     }
 
-    if (text.includes('aprovar diff') || text.includes('aprovar alteração') || text.includes('gravar arquivo')) {
-      const targetAgent = this.extractTargetAgent(text);
-      return {
-        intent: 'CONTROL_AGENT',
-        action: 'APPROVE_DIFF',
-        targetAgent,
-        rawText: transcript,
-      };
-    }
-
     if (text.includes('sandbox') || text.includes('dry run') || text.includes('isolamento')) {
       const targetAgent = this.extractTargetAgent(text);
       return {
@@ -149,7 +228,7 @@ export class KalinarSingularityBrain {
       };
     }
 
-    // 4. Dispatch Antigravity Relativistic Command
+    // 6. Dispatch Antigravity Relativistic Command
     if (
       text.includes('executar no antigravity') ||
       text.includes('executar tarefa') ||
@@ -181,7 +260,7 @@ export class KalinarSingularityBrain {
     spokenResponse: string;
     latencyMs: number;
   }> {
-    const isDestructive = parsed.action === 'KILL';
+    const isDestructive = parsed.action === 'KILL' || parsed.action === 'REVERT_FILE';
 
     const input: VoiceCommandInput = {
       intent: parsed.intent,
@@ -193,7 +272,12 @@ export class KalinarSingularityBrain {
 
     let spokenResponse = result.feedbackPhrase;
     if (result.allowed) {
-      spokenResponse = `${this.commanderName}, ${result.feedbackPhrase.toLowerCase()}`;
+      if (parsed.intent === 'SWITCH_LLM_MODEL' && parsed.targetModel) {
+        const badge = `[${parsed.targetModel.toUpperCase()}]`;
+        spokenResponse = `${this.commanderName}, rota neural reconfigurada para ${badge} em ${parsed.targetAgent || '@agent-software-engineer'}. ${result.feedbackPhrase.toLowerCase()}`;
+      } else {
+        spokenResponse = `${this.commanderName}, ${result.feedbackPhrase.toLowerCase()}`;
+      }
     }
 
     return {
@@ -252,6 +336,20 @@ export class KalinarSingularityBrain {
     });
   }
 
+  public extractTargetModel(text: string): LlmModelId {
+    const lower = text.toLowerCase();
+    if (lower.includes('claude') || lower.includes('sonnet')) {
+      return 'claude-3.7-sonnet';
+    }
+    if (lower.includes('flash')) {
+      return 'gemini-2.5-flash';
+    }
+    if (lower.includes('gemini') || lower.includes('pro')) {
+      return 'gemini-2.5-pro';
+    }
+    return 'argon';
+  }
+
   private extractTargetAgent(text: string): string | undefined {
     if (
       text.includes('software engineer') ||
@@ -298,7 +396,8 @@ export class KalinarSingularityBrain {
     }
     if (
       text.includes('content') ||
-      text.includes('conteudo')
+      text.includes('conteudo') ||
+      text.includes('conteúdo')
     ) {
       return '@agent-content';
     }
@@ -307,3 +406,21 @@ export class KalinarSingularityBrain {
 }
 
 export const kalinarSingularityBrain = KalinarSingularityBrain.getInstance();
+
+export function generateTacticalBriefing(
+  ctxOrAgents: TacticalBriefingContext | AgentNode[]
+): string {
+  if (Array.isArray(ctxOrAgents)) {
+    return kalinarSingularityBrain.generateTacticalBriefing({
+      userName: 'Thiago',
+      agents: ctxOrAgents,
+      secondBrainDirectivesCount: 4,
+      activeDirective: 'MANTER_ORBITA_E_MONITORAR_WORKSPACE',
+    });
+  }
+  return kalinarSingularityBrain.generateTacticalBriefing(ctxOrAgents);
+}
+
+export function parseVoiceDirective(transcript: string): VoiceCommandParseResult {
+  return kalinarSingularityBrain.parseVoiceDirective(transcript);
+}

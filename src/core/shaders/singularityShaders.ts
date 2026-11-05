@@ -20,6 +20,8 @@ export const photonRingShader = {
   fragmentShader: `
     uniform float uTime;
     uniform float uVoicePulse;
+    uniform float uSubBass;
+    uniform float uCompositePulse;
     uniform vec3 uColorInner;
     uniform vec3 uColorOuter;
     
@@ -32,8 +34,9 @@ export const photonRingShader = {
       float fresnel = 1.0 - abs(dot(viewDir, vNormal));
       fresnel = pow(fresnel, 2.5);
 
-      // Radial pulse synchronized with Kalinar voice
-      float pulse = 0.85 + 0.3 * sin(uTime * 3.0 + fresnel * 6.0) * uVoicePulse;
+      // Radial pulse synchronized with Kalinar Tauz voice sub-bass and composite pulse
+      float acousticDrive = uVoicePulse + uSubBass * 0.65 + uCompositePulse * 0.45;
+      float pulse = 0.85 + 0.3 * sin(uTime * 3.0 + fresnel * 6.0) * acousticDrive;
       vec3 color = mix(uColorInner, uColorOuter, fresnel * pulse);
 
       float alpha = smoothstep(0.1, 0.9, fresnel) * pulse;
@@ -46,6 +49,8 @@ export const accretionDiskShader = {
   vertexShader: `
     uniform float uTime;
     uniform float uVoicePulse;
+    uniform float uSubBass;
+    uniform float uCompositePulse;
     uniform sampler2D uFluidVelocity;
     uniform float uReducedMotion;
 
@@ -122,7 +127,8 @@ export const accretionDiskShader = {
 
     void main() {
       float motionMultiplier = uReducedMotion > 0.5 ? 0.0 : 1.0;
-      float speed = (0.25 + aRandom.y * 0.75) * (1.0 + uVoicePulse * 0.4) * motionMultiplier;
+      float radialSpiralBoost = 1.0 + uVoicePulse * 0.4 + uSubBass * 0.85 + uCompositePulse * 0.55;
+      float speed = (0.25 + aRandom.y * 0.75) * radialSpiralBoost * motionMultiplier;
       float currentAngle = aInitialAngle + uTime * speed * (140.0 / aOrbitRadius);
 
       // Toroidal orbital base coordinates
@@ -133,9 +139,9 @@ export const accretionDiskShader = {
         sin(currentAngle) * radius
       );
 
-      // Apply Bridson curl turbulence
+      // Apply Bridson curl turbulence modulated by Tauz subBass and compositePulse
       vec3 curl = curlNoise(pos * 0.008 + vec3(0.0, uTime * 0.15 * motionMultiplier, 0.0));
-      pos += curl * (12.0 * (1.0 + uVoicePulse * 0.5));
+      pos += curl * (12.0 * (1.0 + uVoicePulse * 0.5 + uSubBass * 0.9 + uCompositePulse * 0.6));
 
       // Sample 2D Navier-Stokes fluid velocity field
       vec2 fluidUv = (pos.xz / 800.0) + 0.5;
@@ -149,14 +155,14 @@ export const accretionDiskShader = {
 
       // Particle size based on distance and seed
       float baseSize = aRandom.z * 16.0 + 8.0;
-      gl_PointSize = (baseSize / -mvPosition.z) * (1.0 + uVoicePulse * 0.25);
+      gl_PointSize = (baseSize / -mvPosition.z) * (1.0 + uVoicePulse * 0.25 + uSubBass * 0.35);
 
       // Color mapping: #DDDDDD starlight silver with #AA88FF lavender sparkles
       float sparkle = pow(aRandom.z, 60.0);
       vec3 starlightSilver = vec3(0.867, 0.867, 0.867); // #DDDDDD
       vec3 singularityLavender = vec3(0.667, 0.533, 1.0); // #AA88FF
       
-      vColor = mix(starlightSilver, singularityLavender, sparkle + uVoicePulse * 0.25);
+      vColor = mix(starlightSilver, singularityLavender, clamp(sparkle + uVoicePulse * 0.25 + uCompositePulse * 0.3, 0.0, 1.0));
       vSparkle = sparkle;
       vAlpha = smoothstep(54.0, 120.0, radius) * (0.55 + sparkle * 0.45);
     }

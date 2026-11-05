@@ -578,11 +578,39 @@ export class ZenFirewall {
           arbitrationVerdict: 'SPEAK_NOW',
         };
       }
+      if (input.action === 'INSPECT_DIFF') {
+        return {
+          allowed: true,
+          targetHandler: 'inspectLiveDiff',
+          feedbackPhrase: 'Abrindo gaveta de inspecao tatica de diff em tempo real.',
+          auditRisk: 'LOW',
+          arbitrationVerdict: 'SPEAK_NOW',
+        };
+      }
+      if (input.action === 'REVERT_FILE') {
+        return {
+          allowed: true,
+          targetHandler: 'revertAgentFile',
+          feedbackPhrase: 'Rollback atomico autorizado. Revertendo mutacoes do arquivo para o baseline Git.',
+          auditRisk: 'HIGH',
+          arbitrationVerdict: 'SPEAK_NOW',
+        };
+      }
       return {
         allowed: true,
         targetHandler: 'controlAgentExecution',
         feedbackPhrase: 'Diretriz de controle de agente acionada.',
         auditRisk: 'LOW',
+        arbitrationVerdict: 'SPEAK_NOW',
+      };
+    }
+
+    if (input.intent === 'SWITCH_LLM_MODEL') {
+      return {
+        allowed: true,
+        targetHandler: 'switchLlmModel',
+        feedbackPhrase: 'Hot-swap de modelo autorizado pelo nucleo. Reconfigurando rota neural com checkpoint Git.',
+        auditRisk: 'MEDIUM',
         arbitrationVerdict: 'SPEAK_NOW',
       };
     }

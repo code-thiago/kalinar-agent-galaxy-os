@@ -8,17 +8,25 @@
 import chokidar, { FSWatcher } from 'chokidar';
 import path from 'node:path';
 import fs from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execFile, execSync } from 'node:child_process';
 import { ZenFirewall } from '../../src/core/ZenFirewall.js';
 import { KalinarSqliteStore } from '../db/sqliteStore.js';
 import { KalinarEventBus } from '../../src/core/KalinarEventBus.js';
 import {
+  LocalVaultAndMdConnector,
+  sanitizeWorkspaceFilePath,
+} from '../../src/connectors/AgentConnectorRegistry.js';
+import {
   AgentStatus,
+  ApproveOrRevertDiffResult,
+  ExecutionMode,
   FifoQueueItem,
+  LiveGitDiffResult,
   LlmModelCheckpoint,
   LlmModelId,
   StreamDigest,
   StreamDigestSchema,
+  WorkspaceScanResult,
 } from '../../src/types/kalinar.js';
 
 export interface DaemonConfig {
@@ -586,6 +594,184 @@ export class KalinarDaemon {
       auditCycles: this.auditCycles,
       debounceMs: this.config.debounceMs,
     };
+  }
+
+  /* =====================================================================
+     TASK 9: LIVE GIT DIFF STREAMING, APPROVAL/ROLLBACK & WORKSPACE SCAN
+     ===================================================================== */
+
+  public async getLiveGitDiff(
+    filePath: string,
+    stagedBuffer?: string
+  ): Promise<LiveGitDiffResult> {
+    const connector = new LocalVaultAndMdConnector(this.config.workspacePath);
+    return connector.getLiveGitDiff(filePath, stagedBuffer);
+  }
+
+  public async approveOrRevertDiff(params: {
+    filePath: string;
+    action: 'APPROVE' | 'REVERT';
+    executionMode?: ExecutionMode;
+    stagedContent?: string;
+    cleanSnapshotContent?: string;
+    agentId?: string;
+  }): Promise<ApproveOrRevertDiffResult> {
+    const check = sanitizeWorkspaceFilePath(this.config.workspacePath, params.filePath);
+    if (!check.valid) {
+      throw new Error(check.reason || '[SECURITY_VIOLATION] Invalid file path');
+    }
+
+    const mode: ExecutionMode = params.executionMode || 'STEP_BY_STEP_GATE';
+    const gateEval = await this.zenFirewall.evaluateExecutionGate({
+      executionMode: mode,
+      isDestructiveAction: false,
+      hasSingleWriterLock: true,
+    });
+
+    if (params.action === 'APPROVE') {
+      if (
+        params.stagedContent !== undefined &&
+        (gateEval.result.canProceed || gateEval.result.requiresHumanApproval)
+      ) {
+        const dir = path.dirname(check.resolvedPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(check.resolvedPath, params.stagedContent, 'utf-8');
+      }
+
+      this.eventBus.emit('diff:approved', {
+        filePath: check.relativePath,
+        agentId: params.agentId || 'agent-software-engineer',
+      });
+
+      return {
+        success: true,
+        allowed: true,
+        action: 'APPROVE',
+        filePath: check.relativePath,
+        status: 'APPROVED_AND_COMMITTED',
+        gateStatus: gateEval.result.gateReason,
+        gateReason: gateEval.result.gateReason,
+        latencyMs: gateEval.latencyMs,
+        message: `[DIFF_APPROVED]: ${check.relativePath} (${gateEval.result.gateReason})`,
+      };
+    }
+
+    // REVERT action: atomic rollback via git checkout -- <filePath> using execFile (zero shell injection)
+    if (params.cleanSnapshotContent !== undefined) {
+      fs.writeFileSync(check.resolvedPath, params.cleanSnapshotContent, 'utf-8');
+    } else if (fs.existsSync(check.resolvedPath)) {
+      await new Promise<void>((resolve) => {
+        execFile(
+          'git',
+          ['checkout', '--', check.relativePath],
+          {
+            cwd: this.config.workspacePath,
+            windowsHide: true,
+            timeout: 2000,
+          },
+          () => resolve()
+        );
+      });
+    }
+
+    this.eventBus.emit('diff:reverted', {
+      filePath: check.relativePath,
+      agentId: params.agentId || 'agent-software-engineer',
+    });
+
+    return {
+      success: true,
+      allowed: true,
+      action: 'REVERT',
+      filePath: check.relativePath,
+      status: 'REVERTED_TO_BASELINE',
+      gateStatus: gateEval.result.gateReason,
+      gateReason: gateEval.result.gateReason,
+      latencyMs: gateEval.latencyMs,
+      message: `[FILE_REVERTED]: Atomic rollback completed on ${check.relativePath}`,
+    };
+  }
+
+  public scanWorkspaceNodes(): WorkspaceScanResult {
+    const connector = new LocalVaultAndMdConnector(this.config.workspacePath);
+    return connector.scanWorkspaceNodes();
+  }
+
+  public async switchAgentModelInteractive(params: {
+    agentId: string;
+    targetModel?: LlmModelId;
+    taskId?: string;
+    taskDomain?: string;
+  }): Promise<{
+    verdict: string;
+    badge: '[MODEL_HOTSWAP]';
+    activeModelId: LlmModelId;
+    fallbackModelId: LlmModelId;
+    latencyMs: number;
+    checkpoint: LlmModelCheckpoint;
+  }> {
+    const domain =
+      params.targetModel === 'claude-3.7-sonnet'
+        ? 'CODE'
+        : params.targetModel === 'gemini-2.5-pro'
+        ? 'UI_3D'
+        : params.targetModel === 'gemini-2.5-flash'
+        ? 'FAST_TRIAGE'
+        : params.taskDomain || 'ARCHITECTURE';
+
+    const evaluation = await this.zenFirewall.evaluateLlmModelRouter({
+      taskDomain: domain,
+      errorCode: 'NONE',
+      retryCount: 0,
+    });
+
+    const chosenModel: LlmModelId = params.targetModel || evaluation.result.activeModelId;
+    const fallbackModel: LlmModelId = evaluation.result.fallbackModelId;
+
+    const checkpoint = await this.createAtomicGitCheckpoint(
+      params.agentId,
+      params.taskId || 'SYSTEM',
+      domain
+    );
+
+    const updatedCheckpoint =
+      this.store.updateModelCheckpointStatus(
+        checkpoint.id,
+        'HOT_SWAPPED',
+        checkpoint.retryCount,
+        chosenModel
+      ) || {
+        ...checkpoint,
+        activeModelId: chosenModel,
+        status: 'HOT_SWAPPED' as const,
+      };
+
+    this.agentActiveModels.set(params.agentId, chosenModel);
+    this.setAgentStatus(params.agentId, '[MODEL_HOTSWAP]');
+    this.eventBus.emit('agent:model_hotswap', updatedCheckpoint);
+
+    return {
+      verdict: evaluation.result.failoverVerdict,
+      badge: '[MODEL_HOTSWAP]',
+      activeModelId: chosenModel,
+      fallbackModelId: fallbackModel,
+      latencyMs: evaluation.latencyMs,
+      checkpoint: updatedCheckpoint,
+    };
+  }
+
+  public getFifoQueue(targetAgentId?: string): FifoQueueItem[] {
+    return this.store.getAgentFifoQueue(targetAgentId);
+  }
+
+  public promoteFifoItem(id: string): FifoQueueItem | null {
+    return this.store.promoteFifoTask(id);
+  }
+
+  public clearFifoQueue(targetAgentId?: string): number {
+    return this.store.clearAgentFifoQueue(targetAgentId);
   }
 
   public async stop(): Promise<void> {

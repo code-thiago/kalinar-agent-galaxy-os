@@ -27,23 +27,67 @@ export function AgentLivePreviewCardRoot({
 
 export interface AgentLivePreviewCardLiveViewportProps extends React.HTMLAttributes<HTMLDivElement> {
   streamContent: string;
+  activeModelId?: string;
+  fifoCount?: number;
   onInspectDiff?: (e: React.MouseEvent) => void;
+}
+
+export function formatModelBadge(modelId?: string): '[ARGON]' | '[CLAUDE]' | '[GEMINI]' {
+  const normalized = (modelId || 'argon').toLowerCase();
+  if (normalized.includes('claude')) return '[CLAUDE]';
+  if (normalized.includes('gemini')) return '[GEMINI]';
+  return '[ARGON]';
 }
 
 export function AgentLivePreviewCardLiveViewport({
   streamContent,
+  activeModelId = 'argon',
+  fifoCount = 0,
   onInspectDiff,
   className = '',
   ...props
 }: AgentLivePreviewCardLiveViewportProps) {
+  const rawLines = (streamContent || '[STREAM_STANDBY: AGENT_ORBIT_READY]').split(/\r?\n/).slice(0, 6);
+  const modelBadge = formatModelBadge(activeModelId);
+
   return (
     <div
       data-slot="agent-card-viewport"
       className={`relative h-[var(--ds-agent-card-thumb-h,160px)] min-h-[160px] w-full bg-[#0a0a0a] rounded-[2px] border border-[var(--ds-border-subtle)] p-2.5 font-mono text-[10.5px] leading-tight text-[var(--ds-text-primary)] overflow-hidden flex flex-col justify-between group ${className}`}
       {...props}
     >
-      <div className="line-clamp-6 font-mono text-[10px] text-[var(--ds-primitive-white-500)] opacity-90 whitespace-pre-wrap">
-        {streamContent || '[STREAM_STANDBY: AGENT_ORBIT_READY]'}
+      {/* Top Badge Strip inside 160px Viewport */}
+      <div className="flex items-center justify-between text-[9px] font-mono border-b border-[#1a1a1a] pb-1 mb-1">
+        <span
+          data-slot="agent-viewport-model-badge"
+          className="text-[var(--ds-accent-singularity)] font-semibold tracking-wider"
+        >
+          {modelBadge}
+        </span>
+        <span
+          data-slot="agent-viewport-fifo-badge"
+          className="text-[var(--ds-text-secondary)] tabular-nums"
+        >
+          [FIFO: {fifoCount}]
+        </span>
+      </div>
+
+      {/* Colored Unified Diff Stream (+ Emerald #34D399, - Crimson #F87171) */}
+      <div className="flex-1 overflow-hidden flex flex-col gap-0.5 font-mono text-[10px]">
+        {rawLines.map((line, idx) => {
+          const isAdd = line.startsWith('+') && !line.startsWith('+++');
+          const isDel = line.startsWith('-') && !line.startsWith('---');
+          const lineColor = isAdd
+            ? 'text-[#34D399]'
+            : isDel
+            ? 'text-[#F87171]'
+            : 'text-[var(--ds-primitive-white-500)] opacity-85';
+          return (
+            <div key={idx} className={`truncate whitespace-pre ${lineColor}`}>
+              {line}
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center justify-between pt-1 border-t border-[#1a1a1a]">
@@ -100,8 +144,8 @@ export function AgentLivePreviewCardMetadataRow({
   const minutes = Math.floor(agent.etaSeconds / 60);
   const seconds = agent.etaSeconds % 60;
   const timeFormatted = `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
-  const modelLabel = (agent.activeModelId || 'argon').toUpperCase();
-  const fifoCount = agent.fifoQueueCount ?? 0;
+  const modelLabel = formatModelBadge(agent.activeModelId);
+  const fifoCount = agent.fifoQueueDepth ?? agent.fifoQueueCount ?? 0;
 
   return (
     <div
@@ -112,7 +156,7 @@ export function AgentLivePreviewCardMetadataRow({
       {/* Left Column (#FFFFFF) */}
       <div className="flex flex-col text-[#FFFFFF] truncate pr-1">
         <span className="font-semibold truncate">
-          {agent.filename} · [{modelLabel}]
+          {agent.filename} · {modelLabel}
         </span>
         <span className="text-[9.5px] text-[var(--ds-primitive-white-500)] truncate opacity-85">
           {agent.stepDescription || 'Compiling IPC Bridge'}
@@ -126,7 +170,7 @@ export function AgentLivePreviewCardMetadataRow({
           <span>{stepFormatted}</span>
         </div>
         <div className="text-[9.5px]">
-          {totalTokens} TOK · FIFO:{fifoCount} · {timeFormatted}
+          {totalTokens} TOK · [FIFO: {fifoCount}] · {timeFormatted}
         </div>
       </div>
     </div>

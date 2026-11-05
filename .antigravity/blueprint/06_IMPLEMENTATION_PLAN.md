@@ -1,9 +1,9 @@
-# 06_IMPLEMENTATION_PLAN.md — KALINAR SINGULARITY IMPLEMENTATION PLAN & TRACEABILITY (v1.1.0 LOCK)
+# 06_IMPLEMENTATION_PLAN.md — KALINAR SINGULARITY IMPLEMENTATION PLAN & TRACEABILITY (v1.2.0 LOCK)
 
-> **Document ID:** `DOC-06-IMPLEMENTATION-PLAN-KALINAR-v1.1.0`  
+> **Document ID:** `DOC-06-IMPLEMENTATION-PLAN-KALINAR-v1.2.0`  
 > **Lead Agents:** `@agent-orchestrator` + `@agent-software-engineer` + `@agent-qa`  
 > **Co-Authors:** `@human-developer`, `@agent-design`, `@agent-cybersecurity`, `@agent-data`, `@agent-content`  
-> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_1_0`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_2_0`  
 > **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
@@ -80,6 +80,9 @@ flowchart LR
   5. **Law 5 (Speech Arbitration Rule B):** Queues standard `STATUS_VERIFIED` speech in `PendingVoiceQueue` while `voiceState === '[LISTENING PT-BR]'`, preempting exclusively on `[HALTED]` or `HARD_BLOCK`.
   6. **Law 6 (Busy Agent FIFO Queue):** Enqueues directives into `agent_task_fifo_queue` and `WAR_ROOM.md` (`[FIFO_QUEUED]`) when target `@agent-*` holds `.kalinar-lock`, auto-dispatching upon lock release.
   7. **Law 7 (Multi-Model Router & Atomic Git Rollback):** Evaluates `llm-model-router.jdm.json` across **Argon**, **Claude**, and **Gemini**, creates pre-edit Atomic Git Checkpoints (`llm_model_checkpoints`), rolls back dirty partial files on `HTTP_429`/`TIMEOUT`, and hot-swaps to the fallback model.
+
+### 2.8 `tests/task-9-tauz-dsp-live-connectors.test.ts`
+* **Scope:** Verifies Task 9 (`v1.2.0`) Tauz Acoustic Web Audio DSP pipeline (`lowshelf` `110Hz` `+7.5dB`, `peaking` `2400Hz` `Q: 1.2` `+3.5dB`, `DynamicsCompressorNode`, `AnalyserNode` `fftSize: 256` -> `getRealtimeFrequencyBands()` normalized in `[0.0, 1.0]`), 60 FPS `uSubBass` and `uCompositePulse` modulation on the `262,144` GPGPU accretion disk, real Git/file diff streaming (`kalinar:get_live_git_diff`, `kalinar:approve_or_revert_diff`, `kalinar:scan_workspace_nodes`) with `../` traversal sanitization, colored `+` `#34D399` / `-` `#F87171` 160px card viewports, and interactive Multi-Model Hot-Swap (`[ ARGON ]`, `[ CLAUDE-3.7-SONNET ]`, `[ GEMINI-2.5-PRO ]`, `[ GEMINI-2.5-FLASH ]`) + FIFO queue promotion/clearing in `NodeInspectorDrawer` and `AntigravityCliTab`.
 
 ---
 

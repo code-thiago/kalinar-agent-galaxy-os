@@ -5,7 +5,31 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { AgentNode, AgentStatus, LlmModelId, SingularityCoreState } from '../src/types/kalinar.js';
+import {
+  AgentNode,
+  ApproveOrRevertDiffResult,
+  ExecutionMode,
+  LiveGitDiffResult,
+  LlmModelId,
+  SingularityCoreState,
+  WorkspaceScanResult,
+} from '../src/types/kalinar.js';
+
+export const ELECTRON_IPC_CHANNELS = [
+  'kalinar:get_singularity_state',
+  'kalinar:get_active_agents',
+  'kalinar:invoke_task_action',
+  'kalinar:get_historical_telemetry',
+  'kalinar:get_evolution_summary',
+  'kalinar:execute_shell_command',
+  'kalinar:enqueue_agent_fifo',
+  'kalinar:manage_fifo_queue',
+  'kalinar:switch_llm_model',
+  'kalinar:evaluate_zen_rule',
+  'kalinar:get_live_git_diff',
+  'kalinar:approve_or_revert_diff',
+  'kalinar:scan_workspace_nodes',
+] as const;
 
 export interface ShellResult {
   allowed: boolean;
@@ -26,13 +50,29 @@ export interface KalinarApiBridge {
     instruction: string;
     modelId?: LlmModelId;
   }) => Promise<any>;
+  manageFifoQueue: (payload: {
+    action: 'LIST' | 'PROMOTE' | 'CLEAR';
+    targetAgentId?: string;
+    itemId?: string;
+  }) => Promise<any>;
   switchLlmModel: (payload: {
     agentId: string;
+    targetModel?: LlmModelId;
     taskId?: string;
     taskDomain?: string;
     checkpointId?: string;
     errorCode?: 429 | 'TIMEOUT' | 'HTTP_429' | 'NONE';
   }) => Promise<any>;
+  getLiveGitDiff: (payload: { filePath: string; stagedBuffer?: string }) => Promise<LiveGitDiffResult>;
+  approveOrRevertDiff: (payload: {
+    filePath: string;
+    action: 'APPROVE' | 'REVERT';
+    executionMode?: ExecutionMode;
+    stagedContent?: string;
+    cleanSnapshotContent?: string;
+    agentId?: string;
+  }) => Promise<ApproveOrRevertDiffResult>;
+  scanWorkspaceNodes: () => Promise<WorkspaceScanResult>;
   evaluateZenRule: (graph: string, input: any) => Promise<any>;
   onTelemetryStream: (callback: (data: any) => void) => () => void;
   onVoiceStateChange: (callback: (state: any) => void) => () => void;
@@ -52,8 +92,16 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:execute_shell_command', { cmd, cwd }),
   enqueueAgentFifo: (payload) =>
     ipcRenderer.invoke('kalinar:enqueue_agent_fifo', payload),
+  manageFifoQueue: (payload) =>
+    ipcRenderer.invoke('kalinar:manage_fifo_queue', payload),
   switchLlmModel: (payload) =>
     ipcRenderer.invoke('kalinar:switch_llm_model', payload),
+  getLiveGitDiff: (payload) =>
+    ipcRenderer.invoke('kalinar:get_live_git_diff', payload),
+  approveOrRevertDiff: (payload) =>
+    ipcRenderer.invoke('kalinar:approve_or_revert_diff', payload),
+  scanWorkspaceNodes: () =>
+    ipcRenderer.invoke('kalinar:scan_workspace_nodes'),
   evaluateZenRule: (graph, input) =>
     ipcRenderer.invoke('kalinar:evaluate_zen_rule', { graph, input }),
   onTelemetryStream: (callback: (data: any) => void) => {
@@ -79,4 +127,6 @@ const api: KalinarApiBridge = {
   },
 };
 
-contextBridge.exposeInMainWorld('kalinarApi', api);
+if (contextBridge && typeof contextBridge.exposeInMainWorld === 'function') {
+  contextBridge.exposeInMainWorld('kalinarApi', api);
+}

@@ -1,11 +1,13 @@
 /**
- * KALINAR ZUSTAND REACTIVE STORE (v1.1.0)
+ * KALINAR ZUSTAND REACTIVE STORE (v1.2.0)
  * Strict Zero Emojis
  */
 
 import { create } from 'zustand';
 import {
   AgentNode,
+  AgentStatus,
+  FifoQueueItem,
   LlmModelId,
   SingularityCoreState,
   VoiceState,
@@ -15,15 +17,19 @@ import {
 interface KalinarStoreState {
   singularity: SingularityCoreState;
   agents: AgentNode[];
+  fifoQueueItems: FifoQueueItem[];
   activeFilter: string;
   isBottomDockExpanded: boolean;
   isInspectorDrawerOpen: boolean;
   selectedAgentId: string | null;
+  inspectedFilePath: string;
 
   setFilter: (filter: string) => void;
   toggleBottomDock: () => void;
   setBottomDockExpanded: (expanded: boolean) => void;
   toggleInspectorDrawer: () => void;
+  setInspectorDrawerOpen: (open: boolean) => void;
+  setInspectedFilePath: (filePath: string) => void;
   selectAgent: (id: string | null) => void;
   updateSingularityTranscript: (transcript: string) => void;
   setVoiceState: (voiceState: VoiceState) => void;
@@ -37,7 +43,16 @@ interface KalinarStoreState {
     modelId: LlmModelId,
     badge?: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]'
   ) => void;
+  updateAgentModel: (
+    agentId: string,
+    modelId: LlmModelId,
+    badge?: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]'
+  ) => void;
+  updateAgentStatus: (agentId: string, status: AgentStatus) => void;
   setAgentFifoCount: (agentId: string, count: number) => void;
+  setFifoQueueItems: (items: FifoQueueItem[]) => void;
+  promoteFifoItemInStore: (itemId: string) => void;
+  clearFifoQueueInStore: (agentId?: string) => void;
   updateAgentStep: (agentId: string, step: number, preview: string) => void;
   addAgent: (agent: AgentNode) => void;
 }
@@ -71,10 +86,14 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       tokenVelocity: 82,
       etaSeconds: 14,
       position3D: [0, 120, 0],
-      livePreviewStream:
-        '[TASK_EXECUTION: @agent-orchestrator]\n- Verificando regras no cofre Obsidian\n- Sincronizando TASK_LOCK.json\n- Status: Operacao nominal',
+      livePreviewStream: [
+        '@@ -14,3 +14,4 @@ .antigravity/comms/WAR_ROOM.md',
+        '- [LOCK_STATE]: PENDING_VERIFICATION',
+        '+ [LOCK_STATE]: UNLOCKED_ZERO_TRUST',
+        '+ [MODEL_ROUTER]: ARGON -> CLAUDE_SONNET',
+      ].join('\n'),
       activeModelId: 'argon',
-      fifoQueueCount: 0,
+      fifoQueueCount: 1,
       lastAckBadge: '[ACK_DISPATCHED]',
     },
     {
@@ -92,23 +111,48 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       tokenVelocity: 94,
       etaSeconds: 22,
       position3D: [120, 80, 0],
-      livePreviewStream:
-        '[BUILD_OUTPUT: @agent-software-engineer]\n> tsc --noEmit: zero erros\n> WAL pragma: ativo\n> Watcher: 300ms debounce',
+      livePreviewStream: [
+        '@@ -42,2 +42,4 @@ src/services/kalinarVoiceService.ts',
+        '- const gain = 0.0;',
+        '+ lowShelf.frequency.value = 110;',
+        '+ lowShelf.gain.value = 7.5;',
+      ].join('\n'),
       activeModelId: 'claude-sonnet',
-      fifoQueueCount: 0,
+      fifoQueueCount: 1,
       lastAckBadge: '[ACK_VERIFIED]',
+    },
+  ],
+  fifoQueueItems: [
+    {
+      id: 'fifo-init-01',
+      targetAgentId: '@agent-orchestrator',
+      instruction: 'Sincronizar rastreabilidade Task 9 no WAR_ROOM.md',
+      modelId: 'argon',
+      status: 'FIFO_QUEUED',
+      createdAt: Date.now() - 12000,
+    },
+    {
+      id: 'fifo-init-02',
+      targetAgentId: '@agent-software-engineer',
+      instruction: 'Auditar pipeline DSP Tauz 110Hz e 2400Hz com Vitest',
+      modelId: 'claude-sonnet',
+      status: 'FIFO_QUEUED',
+      createdAt: Date.now() - 6000,
     },
   ],
   activeFilter: 'ALL',
   isBottomDockExpanded: false,
   isInspectorDrawerOpen: false,
   selectedAgentId: 'agent-orchestrator-01',
+  inspectedFilePath: 'src/services/kalinarVoiceService.ts',
 
   setFilter: (activeFilter) => set({ activeFilter }),
   toggleBottomDock: () => set((state) => ({ isBottomDockExpanded: !state.isBottomDockExpanded })),
   setBottomDockExpanded: (isBottomDockExpanded) => set({ isBottomDockExpanded }),
   toggleInspectorDrawer: () =>
     set((state) => ({ isInspectorDrawerOpen: !state.isInspectorDrawerOpen })),
+  setInspectorDrawerOpen: (isInspectorDrawerOpen) => set({ isInspectorDrawerOpen }),
+  setInspectedFilePath: (inspectedFilePath) => set({ inspectedFilePath }),
   selectAgent: (selectedAgentId) => set({ selectedAgentId }),
   updateSingularityTranscript: (liveTranscript) =>
     set((state) => ({ singularity: { ...state.singularity, liveTranscript } })),
@@ -124,8 +168,22 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
     set((state) => ({
       agents: state.agents.map((a) =>
         a.id === agentId || a.filename === agentId
-          ? { ...a, activeModelId, lastAckBadge: lastAckBadge || a.lastAckBadge }
+          ? { ...a, activeModelId, lastAckBadge: lastAckBadge || '[MODEL_HOTSWAP]' }
           : a
+      ),
+    })),
+  updateAgentModel: (agentId, activeModelId, lastAckBadge) =>
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        a.id === agentId || a.filename === agentId
+          ? { ...a, activeModelId, lastAckBadge: lastAckBadge || '[MODEL_HOTSWAP]' }
+          : a
+      ),
+    })),
+  updateAgentStatus: (agentId, status) =>
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        a.id === agentId || a.filename === agentId ? { ...a, status } : a
       ),
     })),
   setAgentFifoCount: (agentId, fifoQueueCount) =>
@@ -134,10 +192,35 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
         a.id === agentId || a.filename === agentId ? { ...a, fifoQueueCount } : a
       ),
     })),
+  setFifoQueueItems: (fifoQueueItems) => set({ fifoQueueItems }),
+  promoteFifoItemInStore: (itemId) =>
+    set((state) => {
+      const target = state.fifoQueueItems.find((i) => i.id === itemId);
+      if (!target) return state;
+      const others = state.fifoQueueItems.filter((i) => i.id !== itemId);
+      const promoted: FifoQueueItem = { ...target, status: 'DISPATCHED', createdAt: 0 };
+      return { fifoQueueItems: [promoted, ...others] };
+    }),
+  clearFifoQueueInStore: (agentId) =>
+    set((state) => {
+      const remaining = agentId
+        ? state.fifoQueueItems.filter(
+            (i) => i.targetAgentId !== agentId && !agentId.includes(i.targetAgentId)
+          )
+        : [];
+      return {
+        fifoQueueItems: remaining,
+        agents: state.agents.map((a) =>
+          !agentId || a.id === agentId || a.filename === agentId ? { ...a, fifoQueueCount: 0 } : a
+        ),
+      };
+    }),
   updateAgentStep: (agentId, step, preview) =>
     set((state) => ({
       agents: state.agents.map((a) =>
-        a.id === agentId ? { ...a, currentStep: step, livePreviewStream: preview } : a
+        a.id === agentId || a.filename === agentId
+          ? { ...a, currentStep: step, livePreviewStream: preview }
+          : a
       ),
     })),
   addAgent: (agent) => set((state) => ({ agents: [...state.agents, agent] })),

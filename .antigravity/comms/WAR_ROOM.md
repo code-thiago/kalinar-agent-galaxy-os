@@ -2,8 +2,8 @@
 
 > Document ID: `WAR-ROOM-KALINAR-MASTER`  
 > Security Classification: `RESTRICTED - ZERO TRUST SWARM`  
-> System Horizon: `v1.1.0 PRODUCTION RELEASE COMPLETED`  
-> Active Release: `v1.1.0`  
+> System Horizon: `v1.2.0 PRODUCTION RELEASE COMPLETED`  
+> Active Release: `v1.2.0`  
 > Visual Policy: `STRICT ZERO-EMOJI ENFORCEMENT - TYPOGRAPHICAL & ASCII ONLY`
 
 ---
@@ -21,6 +21,7 @@
 | `TASK-06` | Second Brain Cortex, Native CLI, Packaging & E2E Audit | `@agent-orchestrator` | `COMPLETED` | `TASK-05` 100% Pass Rate | `UNLOCKED` |
 | `TASK-07` | Surgical Remediation v1.0.1 (262k GPGPU, 160px, IPC Shell) | `@agent-software-engineer` | `COMPLETED` | `TASK-06` Release Audit | `UNLOCKED` |
 | `TASK-08` | 7 Laws of Voice & Multi-Model Router (Argon/Claude/Gemini) | `@agent-orchestrator` | `COMPLETED` | `TASK-07` Baseline Lock | `UNLOCKED` |
+| `TASK-09` | Tauz Acoustic DSP Pipeline, Live Git Diff & Model Hot-Swap | `@agent-software-engineer` | `COMPLETED` | `TASK-08` v1.1.1 Lock | `UNLOCKED` |
 
 ---
 
@@ -48,3 +49,4 @@
 
 ## 4. Handoff & FIFO Queue Ledger
 - `[FROM: @agent-orchestrator] -> [TO: @agent-software-engineer] | Required Domain: multi-model-router | Max Wikilinks (<=2): [[00_INDEX]], [[zen-engine]] | Action: Lock v1.1.0 7 Laws of Voice and Argon/Claude/Gemini Router`
+- `[FROM: @agent-software-engineer] -> [TO: @agent-qa] | Required Domain: tauz-dsp-connectors | Max Wikilinks (<=2): [[00_INDEX]], [[PADRAO-Qualidade-TDD-Vitest-Playwright-Surgical]] | Action: Audit Task 9 Tauz DSP, Live Git Diff IPC, and Interactive Multi-Model Hot-Swap v1.2.0`

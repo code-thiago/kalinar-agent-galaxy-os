@@ -16,7 +16,29 @@ import { KalinarSqliteStore } from './db/sqliteStore.js';
 import { KalinarDaemon } from './daemon/KalinarDaemon.js';
 import { eventBus } from '../src/core/KalinarEventBus.js';
 import { ZenFirewall } from '../src/core/ZenFirewall.js';
-import { SingularityCoreState, AgentNode, SCHEMA_VERSION, LlmModelId } from '../src/types/kalinar.js';
+import {
+  SingularityCoreState,
+  AgentNode,
+  SCHEMA_VERSION,
+  LlmModelId,
+  ExecutionMode,
+} from '../src/types/kalinar.js';
+
+export const ELECTRON_IPC_CHANNELS = [
+  'kalinar:get_singularity_state',
+  'kalinar:get_active_agents',
+  'kalinar:invoke_task_action',
+  'kalinar:get_historical_telemetry',
+  'kalinar:get_evolution_summary',
+  'kalinar:execute_shell_command',
+  'kalinar:enqueue_agent_fifo',
+  'kalinar:manage_fifo_queue',
+  'kalinar:switch_llm_model',
+  'kalinar:evaluate_zen_rule',
+  'kalinar:get_live_git_diff',
+  'kalinar:approve_or_revert_diff',
+  'kalinar:scan_workspace_nodes',
+] as const;
 
 let mainWindow: BrowserWindow | null = null;
 let sqliteStore: KalinarSqliteStore | null = null;
@@ -239,13 +261,17 @@ function setupIpcHandlers(): void {
       _event,
       payload: {
         agentId: string;
+        targetModel?: LlmModelId;
         taskId?: string;
         taskDomain?: string;
         checkpointId?: string;
         errorCode?: 429 | 'TIMEOUT' | 'HTTP_429' | 'NONE';
       }
     ) => {
-      const firewall = ZenFirewall.getInstance();
+      if (!daemon && sqliteStore) {
+        daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+      }
+
       if (daemon && payload.checkpointId && payload.errorCode && payload.errorCode !== 'NONE') {
         return await daemon.handleModelFailureAndHotSwap({
           checkpointId: payload.checkpointId,
@@ -254,34 +280,114 @@ function setupIpcHandlers(): void {
         });
       }
 
+      if (daemon) {
+        return await daemon.switchAgentModelInteractive({
+          agentId: payload.agentId,
+          targetModel: payload.targetModel,
+          taskId: payload.taskId,
+          taskDomain: payload.taskDomain,
+        });
+      }
+
+      const firewall = ZenFirewall.getInstance();
       const evaluation = await firewall.evaluateLlmModelRouter({
         taskDomain: payload.taskDomain || 'ARCHITECTURE',
         errorCode: payload.errorCode || 'NONE',
         retryCount: 0,
       });
 
-      if (daemon) {
-        const checkpoint = await daemon.createAtomicGitCheckpoint(
-          payload.agentId,
-          payload.taskId || 'SYSTEM',
-          payload.taskDomain || 'ARCHITECTURE'
-        );
-        return {
-          verdict: evaluation.result.failoverVerdict,
-          badge: '[MODEL_HOTSWAP]' as const,
-          activeModelId: evaluation.result.activeModelId,
-          fallbackModelId: evaluation.result.fallbackModelId,
-          latencyMs: evaluation.latencyMs,
-          checkpoint,
-        };
-      }
-
       return {
         verdict: evaluation.result.failoverVerdict,
         badge: '[MODEL_HOTSWAP]' as const,
-        activeModelId: evaluation.result.activeModelId,
+        activeModelId: payload.targetModel || evaluation.result.activeModelId,
         fallbackModelId: evaluation.result.fallbackModelId,
         latencyMs: evaluation.latencyMs,
+      };
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:get_live_git_diff',
+    async (_event, payload: { filePath: string; stagedBuffer?: string }) => {
+      if (!daemon && sqliteStore) {
+        daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+      }
+      if (!daemon) {
+        daemon = new KalinarDaemon();
+      }
+      return await daemon.getLiveGitDiff(payload.filePath, payload.stagedBuffer);
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:approve_or_revert_diff',
+    async (
+      _event,
+      payload: {
+        filePath: string;
+        action: 'APPROVE' | 'REVERT';
+        executionMode?: ExecutionMode;
+        stagedContent?: string;
+        cleanSnapshotContent?: string;
+        agentId?: string;
+      }
+    ) => {
+      if (!daemon && sqliteStore) {
+        daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+      }
+      if (!daemon) {
+        daemon = new KalinarDaemon();
+      }
+      return await daemon.approveOrRevertDiff(payload);
+    }
+  );
+
+  ipcMain.handle('kalinar:scan_workspace_nodes', async () => {
+    if (!daemon && sqliteStore) {
+      daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+    }
+    if (!daemon) {
+      daemon = new KalinarDaemon();
+    }
+    return daemon.scanWorkspaceNodes();
+  });
+
+  ipcMain.handle(
+    'kalinar:manage_fifo_queue',
+    async (
+      _event,
+      payload: {
+        action: 'LIST' | 'PROMOTE' | 'CLEAR';
+        targetAgentId?: string;
+        itemId?: string;
+      }
+    ) => {
+      if (!daemon && sqliteStore) {
+        daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+      }
+      if (!daemon) {
+        return { items: [], promoted: null, clearedCount: 0 };
+      }
+      if (payload.action === 'PROMOTE' && payload.itemId) {
+        const promoted = daemon.promoteFifoItem(payload.itemId);
+        return {
+          items: daemon.getFifoQueue(payload.targetAgentId),
+          promoted,
+          clearedCount: 0,
+        };
+      }
+      if (payload.action === 'CLEAR') {
+        const clearedCount = daemon.clearFifoQueue(payload.targetAgentId);
+        return {
+          items: daemon.getFifoQueue(payload.targetAgentId),
+          promoted: null,
+          clearedCount,
+        };
+      }
+      return {
+        items: daemon.getFifoQueue(payload.targetAgentId),
+        promoted: null,
+        clearedCount: 0,
       };
     }
   );

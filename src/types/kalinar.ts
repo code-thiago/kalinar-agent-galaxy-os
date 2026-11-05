@@ -8,9 +8,24 @@ import { z } from 'zod';
 
 export const SCHEMA_VERSION = 1 as const;
 
-export type LlmModelId = 'argon' | 'claude-sonnet' | 'gemini-pro' | 'gemini-flash';
+export type LlmModelId =
+  | 'argon'
+  | 'claude-sonnet'
+  | 'claude-3.7-sonnet'
+  | 'gemini-pro'
+  | 'gemini-2.5-pro'
+  | 'gemini-flash'
+  | 'gemini-2.5-flash';
 
-export const LlmModelIdSchema = z.enum(['argon', 'claude-sonnet', 'gemini-pro', 'gemini-flash']);
+export const LlmModelIdSchema = z.enum([
+  'argon',
+  'claude-sonnet',
+  'claude-3.7-sonnet',
+  'gemini-pro',
+  'gemini-2.5-pro',
+  'gemini-flash',
+  'gemini-2.5-flash',
+]);
 
 export type VoiceState =
   | '[STANDBY]'
@@ -141,6 +156,7 @@ export interface AgentNode {
   livePreviewStream: string;
   activeModelId?: LlmModelId;
   fifoQueueCount?: number;
+  fifoQueueDepth?: number;
   lastAckBadge?: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]';
 }
 
@@ -200,4 +216,66 @@ export type KalinarEventMap = {
   'zen:rule_evaluated': { ruleKey: string; latencyMs: number; allowed: boolean; details: Record<string, unknown> };
   'circuit_breaker:state_changed': { state: 'CLOSED' | 'OPEN' | 'HALF_OPEN'; reason: string };
   'canvas:sync_requested': { canvasFile: string; nodesCount: number };
+  'diff:approved': { filePath: string; agentId: string };
+  'diff:reverted': { filePath: string; agentId: string };
 };
+
+/* =====================================================================
+   TASK 9: TAUZ ACOUSTIC DSP & LIVE GIT DIFF CONTRACTS (v1.2.0)
+   ===================================================================== */
+
+export interface TauzFrequencyBands {
+  subBass: number;
+  lowMid: number;
+  highPresence: number;
+  compositePulse: number;
+}
+
+export interface StructuredDiffLine {
+  type: '+' | '-' | 'add' | 'remove' | 'context' | 'header';
+  content: string;
+  lineNumber?: number;
+}
+
+export interface LiveGitDiffResult {
+  allowed?: boolean;
+  filePath: string;
+  rawDiff: string;
+  lines: StructuredDiffLine[];
+  additions?: number;
+  deletions?: number;
+  latencyMs: number;
+  error?: string;
+}
+
+export interface ApproveOrRevertDiffResult {
+  success?: boolean;
+  allowed?: boolean;
+  filePath: string;
+  action: 'APPROVE' | 'REVERT' | 'UNLOCK_WRITER';
+  status?: 'APPROVED_AND_COMMITTED' | 'REVERTED_TO_BASELINE' | 'SINGLE_WRITER_LOCK_RELEASED' | 'GATE_BLOCKED';
+  gateStatus?: string;
+  gateReason?: string;
+  message?: string;
+  latencyMs: number;
+  error?: string;
+}
+
+export interface WorkspaceScanResult {
+  agents: AgentNode[];
+  secondBrainNodes: SecondBrainNode[];
+  artifactSatellites: ArtifactSatelliteNode[];
+  warRoomPointers: Array<
+    | string
+    | {
+        id: string;
+        timestamp: string;
+        from: string;
+        to: string;
+        domain: string;
+        wikilinks: string[];
+        action: string;
+      }
+  >;
+}
+

@@ -411,6 +411,55 @@ export class KalinarSqliteStore {
     }));
   }
 
+  public promoteFifoTask(id: string): FifoQueueItem | null {
+    const minRow = this.db
+      .prepare(`SELECT MIN(created_at) as min_created FROM agent_task_fifo_queue WHERE status = 'FIFO_QUEUED'`)
+      .get() as { min_created: number | null } | undefined;
+    const promotedTimestamp = (minRow?.min_created ?? Date.now()) - 1000;
+
+    this.db
+      .prepare(`UPDATE agent_task_fifo_queue SET created_at = ?, status = 'FIFO_QUEUED' WHERE id = ?`)
+      .run(promotedTimestamp, id);
+
+    const row = this.db
+      .prepare(`
+        SELECT id, target_agent_id, instruction, model_id, status, created_at
+        FROM agent_task_fifo_queue
+        WHERE id = ?
+      `)
+      .get(id) as
+      | {
+          id: string;
+          target_agent_id: string;
+          instruction: string;
+          model_id: LlmModelId;
+          status: FifoQueueItem['status'];
+          created_at: number;
+        }
+      | undefined;
+
+    if (!row) return null;
+    return {
+      id: row.id,
+      targetAgentId: row.target_agent_id,
+      instruction: row.instruction,
+      modelId: row.model_id,
+      status: row.status,
+      createdAt: row.created_at,
+    };
+  }
+
+  public clearAgentFifoQueue(targetAgentId?: string): number {
+    if (targetAgentId) {
+      const res = this.db
+        .prepare(`DELETE FROM agent_task_fifo_queue WHERE target_agent_id = ?`)
+        .run(targetAgentId);
+      return Number(res.changes || 0);
+    }
+    const res = this.db.prepare(`DELETE FROM agent_task_fifo_queue`).run();
+    return Number(res.changes || 0);
+  }
+
   public recordModelCheckpoint(checkpoint: LlmModelCheckpoint): LlmModelCheckpoint {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO llm_model_checkpoints (

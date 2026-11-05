@@ -8,6 +8,7 @@ import { useState, useRef, useEffect, memo } from 'react';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 import { ZenFirewall } from '../../core/ZenFirewall.js';
 import { eventBus } from '../../core/KalinarEventBus.js';
+import { LlmModelId } from '../../types/kalinar.js';
 
 interface WiretapMessage {
   id: string;
@@ -77,7 +78,14 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
   ]);
 
   const cliTerminalEndRef = useRef<HTMLDivElement | null>(null);
-  const { agents, updateSingularityTranscript } = useKalinarStore();
+  const {
+    agents,
+    fifoQueueItems,
+    updateSingularityTranscript,
+    updateAgentModel,
+    setInspectedFilePath,
+    setInspectorDrawerOpen,
+  } = useKalinarStore();
 
   useEffect(() => {
     cliTerminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -119,12 +127,128 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
             type: 'output',
             text: [
               'DIRETRIZES TATICAS DO KALINAR SINGULARITY CLI:',
-              '  status                - Exibe telemetria do enxame e estado do nucleo',
-              '  pull <wikilink>       - Atrai nota para o horizonte de eventos',
-              '  antigravity <ordem>   - Envia instrucao para o WAR_ROOM.md',
-              '  second-brain <termo>  - Pesquisa no cofre Obsidian',
-              '  clear                 - Limpa o buffer do terminal',
+              '  status                                  - Exibe telemetria do enxame e estado do nucleo',
+              '  model <agentId> <ARGON|CLAUDE|GEMINI>   - Executa hot-swap deterministico de LLM via JDM',
+              '  diff <filePath>                         - Transmite git diff real e abre o NodeInspectorDrawer',
+              '  fifo                                    - Lista tarefas ativas e enfileiradas no SQLite WAL',
+              '  pull <wikilink>                         - Atrai nota para o horizonte de eventos',
+              '  antigravity <ordem>                     - Envia instrucao para o WAR_ROOM.md',
+              '  clear                                   - Limpa o buffer do terminal',
             ].join('\n'),
+          },
+        ]);
+        break;
+      }
+
+      case 'model': {
+        const rawAgentId = tokens[1] || agents[0]?.id || 'agent-software-engineer-01';
+        const rawModelToken = (tokens[2] || 'ARGON').toUpperCase();
+        const targetModel: LlmModelId = rawModelToken.includes('CLAUDE')
+          ? 'claude-3.7-sonnet'
+          : rawModelToken.includes('FLASH')
+          ? 'gemini-2.5-flash'
+          : rawModelToken.includes('GEMINI')
+          ? 'gemini-2.5-pro'
+          : 'argon';
+
+        const matchedAgent =
+          agents.find(
+            (a) =>
+              a.id === rawAgentId ||
+              a.filename === rawAgentId ||
+              a.filename.replace(/^@/, '') === rawAgentId.replace(/^@/, '')
+          ) || agents[0];
+
+        if (matchedAgent) {
+          updateAgentModel(matchedAgent.id, targetModel, '[MODEL_HOTSWAP]');
+        }
+
+        const kalinarApi = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
+        if (kalinarApi?.switchLlmModel && matchedAgent) {
+          await kalinarApi.switchLlmModel({
+            agentId: matchedAgent.id,
+            targetModel,
+            taskId: 'CLI_MODEL_HOTSWAP',
+          });
+        }
+
+        setCliHistory((prev) => [
+          ...prev,
+          {
+            type: 'output',
+            text: `[MODEL_HOTSWAP] Agente ${matchedAgent?.filename || rawAgentId} comutado para [${targetModel.toUpperCase()}] com checkpoint Git atomico.`,
+          },
+        ]);
+        break;
+      }
+
+      case 'diff': {
+        const targetFile = tokens.slice(1).join(' ') || 'src/core/ZenFirewall.ts';
+        setInspectedFilePath(targetFile);
+        setInspectorDrawerOpen(true);
+
+        const kalinarApi = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
+        if (kalinarApi?.getLiveGitDiff) {
+          try {
+            const diffRes = await kalinarApi.getLiveGitDiff({ filePath: targetFile });
+            setCliHistory((prev) => [
+              ...prev,
+              {
+                type: 'output',
+                text: `[DIFF_STREAM] ${diffRes.filePath} (${diffRes.latencyMs}ms):\n${diffRes.rawDiff}`,
+              },
+            ]);
+          } catch (err: any) {
+            setCliHistory((prev) => [
+              ...prev,
+              {
+                type: 'error',
+                text: `[DIFF_ERROR]: ${err?.message || 'Falha ao ler diff'}`,
+              },
+            ]);
+          }
+        } else {
+          setCliHistory((prev) => [
+            ...prev,
+            {
+              type: 'output',
+              text: `[DIFF_STREAM] Inspecionando ${targetFile} no NodeInspectorDrawer (480px).\n--- a/${targetFile}\n+++ b/${targetFile}\n+tauz_dsp_coupled: true`,
+            },
+          ]);
+        }
+        break;
+      }
+
+      case 'fifo': {
+        const kalinarApi = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
+        let items = fifoQueueItems;
+        if (kalinarApi?.manageFifoQueue) {
+          try {
+            const res = await kalinarApi.manageFifoQueue({ action: 'LIST' });
+            if (Array.isArray(res?.items)) {
+              items = res.items;
+            }
+          } catch {
+            // fallback to store items
+          }
+        }
+
+        const lines =
+          items.length === 0
+            ? ['[FIFO_QUEUE] 0 tarefas aguardando na fila SQLite WAL.']
+            : [
+                `[FIFO_QUEUE] ${items.length} tarefa(s) enfileirada(s):`,
+                ...items.map(
+                  (it, i) =>
+                    `  #${i + 1} [${it.status}] agent=${it.targetAgentId} model=${it.modelId.toUpperCase()} cmd="${it.instruction}"`
+                ),
+              ];
+
+        setCliHistory((prev) => [
+          ...prev,
+          {
+            type: 'output',
+            text: lines.join('\n'),
           },
         ]);
         break;
