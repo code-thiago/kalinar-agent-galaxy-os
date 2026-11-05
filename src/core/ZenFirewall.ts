@@ -126,6 +126,10 @@ export class ZenFirewall {
   }
 
   public async initialize(): Promise<void> {
+    if (typeof window !== 'undefined') {
+      // In browser / renderer process, GoRules ZenEngine runs exclusively in Electron Main
+      return;
+    }
     try {
       // Pre-load all JDM rule files into memory buffer cache to eliminate disk I/O latency
       const jdmFiles = [
@@ -187,6 +191,9 @@ export class ZenFirewall {
   }
 
   private async loadJdmContent(key: string): Promise<Buffer> {
+    if (typeof window !== 'undefined') {
+      return Buffer.from('');
+    }
     const filename = path.basename(key);
     if (this.jdmBufferCache.has(filename)) {
       return this.jdmBufferCache.get(filename)!;
@@ -208,6 +215,14 @@ export class ZenFirewall {
     latencyMs: number;
   }> {
     const start = performance.now();
+
+    if (typeof window !== 'undefined' && (window as any).kalinarApi?.evaluateZenRule) {
+      try {
+        return await (window as any).kalinarApi.evaluateZenRule('daemon-event-router', input);
+      } catch {
+        // Fall back to deterministic client evaluation
+      }
+    }
 
     if (this.zenEngineInstance) {
       try {
@@ -237,6 +252,14 @@ export class ZenFirewall {
   }> {
     const start = performance.now();
 
+    if (typeof window !== 'undefined' && (window as any).kalinarApi?.evaluateZenRule) {
+      try {
+        return await (window as any).kalinarApi.evaluateZenRule('os-execution-firewall', input);
+      } catch {
+        // Fall back to deterministic client evaluation
+      }
+    }
+
     if (this.zenEngineInstance) {
       try {
         const response = await this.zenEngineInstance.evaluate('os-execution-firewall.jdm.json', input);
@@ -265,6 +288,14 @@ export class ZenFirewall {
   }> {
     const start = performance.now();
 
+    if (typeof window !== 'undefined' && (window as any).kalinarApi?.evaluateZenRule) {
+      try {
+        return await (window as any).kalinarApi.evaluateZenRule('execution-gate', input);
+      } catch {
+        // Fall back to deterministic client evaluation
+      }
+    }
+
     if (this.zenEngineInstance) {
       try {
         const response = await this.zenEngineInstance.evaluate('execution-gate.jdm.json', input);
@@ -291,6 +322,14 @@ export class ZenFirewall {
     latencyMs: number;
   }> {
     const start = performance.now();
+
+    if (typeof window !== 'undefined' && (window as any).kalinarApi?.evaluateZenRule) {
+      try {
+        return await (window as any).kalinarApi.evaluateZenRule('voice-command-guard', input);
+      } catch {
+        // Fall back to deterministic client evaluation
+      }
+    }
 
     // Law 5 (Speech Arbitration Rule B) fast deterministic evaluation
     if (
@@ -337,6 +376,14 @@ export class ZenFirewall {
     latencyMs: number;
   }> {
     const start = performance.now();
+
+    if (typeof window !== 'undefined' && (window as any).kalinarApi?.evaluateZenRule) {
+      try {
+        return await (window as any).kalinarApi.evaluateZenRule('llm-model-router', input);
+      } catch {
+        // Fall back to deterministic client evaluation
+      }
+    }
 
     if (this.zenEngineInstance && !input.errorCode && (input.retryCount ?? 0) === 0) {
       try {

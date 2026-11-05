@@ -13,9 +13,18 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  esbuild: {
+    target: 'esnext',
+  },
+  optimizeDeps: {
+    exclude: ['@gorules/zen-engine', '@gorules/zen-engine-wasm32-wasip1'],
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     target: 'esnext',
+    rollupOptions: {
+      external: ['electron'],
+    },
   },
 });

@@ -6,6 +6,7 @@
 
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { KalinarSqliteStore } from './db/sqliteStore.js';
@@ -60,8 +61,9 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
-  const isDev = process.env.NODE_ENV !== 'production';
-  if (isDev) {
+  const isDev = process.env.NODE_ENV === 'development';
+  const hasDist = fs.existsSync(path.join(__dirname, '../dist/index.html'));
+  if (isDev || !hasDist) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -278,6 +280,27 @@ function setupIpcHandlers(): void {
         fallbackModelId: evaluation.result.fallbackModelId,
         latencyMs: evaluation.latencyMs,
       };
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:evaluate_zen_rule',
+    async (_event, { graph, input }: { graph: string; input: any }) => {
+      const firewall = ZenFirewall.getInstance();
+      switch (graph) {
+        case 'voice-command-guard':
+          return await firewall.evaluateVoiceCommand(input);
+        case 'execution-gate':
+          return await firewall.evaluateExecutionGate(input);
+        case 'os-execution-firewall':
+          return await firewall.evaluateOsFirewall(input);
+        case 'daemon-event-router':
+          return await firewall.evaluateEventRouter(input);
+        case 'llm-model-router':
+          return await firewall.evaluateLlmModelRouter(input);
+        default:
+          throw new Error(`[ZEN_FIREWALL_ERROR] Unknown ZEN graph: ${graph}`);
+      }
     }
   );
 }

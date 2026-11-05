@@ -33,6 +33,7 @@ export interface KalinarApiBridge {
     checkpointId?: string;
     errorCode?: 429 | 'TIMEOUT' | 'HTTP_429' | 'NONE';
   }) => Promise<any>;
+  evaluateZenRule: (graph: string, input: any) => Promise<any>;
   onTelemetryStream: (callback: (data: any) => void) => () => void;
   onVoiceStateChange: (callback: (state: any) => void) => () => void;
   onAgentUpdate: (callback: (agent: AgentNode) => void) => () => void;
@@ -53,6 +54,8 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:enqueue_agent_fifo', payload),
   switchLlmModel: (payload) =>
     ipcRenderer.invoke('kalinar:switch_llm_model', payload),
+  evaluateZenRule: (graph, input) =>
+    ipcRenderer.invoke('kalinar:evaluate_zen_rule', { graph, input }),
   onTelemetryStream: (callback: (data: any) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on('telemetry:stream', handler);
