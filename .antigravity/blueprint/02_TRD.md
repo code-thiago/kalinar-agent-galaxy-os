@@ -1,9 +1,9 @@
-# 02_TRD.md — KALINAR SINGULARITY TECHNICAL REQUIREMENTS & ARCHITECTURE (v1.1.0 LOCK)
+# 02_TRD.md — KALINAR SINGULARITY TECHNICAL REQUIREMENTS & ARCHITECTURE (v1.3.0 LOCK)
 
-> **Document ID:** `DOC-02-TRD-KALINAR-v1.1.0`  
+> **Document ID:** `DOC-02-TRD-KALINAR-v1.3.0`  
 > **Lead Agents:** `@agent-software-engineer` + `@agent-orchestrator`  
 > **Co-Authors:** `@human-developer`, `@agent-cybersecurity`, `@agent-design`, `@agent-data`, `@agent-qa`  
-> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_1_0`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_3_0`  
 > **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
@@ -12,13 +12,13 @@
 
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
-| `@human-developer` | Sovereign Principal Architect | Technical Strategy, 4-Layer Decoupling, Release v1.1.0 Lock | `APPROVED` | `2026-11-03T19:03:00Z` | `PO-APPROVAL-TRD-110` |
-| `@agent-software-engineer` | Full-Stack Architect & Author | Electron 35, Node 22/24 WAL, Multi-LLM Router, Git Checkpoint | `APPROVED` | `2026-11-03T19:03:10Z` | `SIG-ENGR-TRD-110` |
-| `@agent-orchestrator` | Swarm Facilitator & Technical Lead | 4-Layer Decoupling, FIFO Queue, Pipeline Latency Budgets | `APPROVED` | `2026-11-03T19:03:20Z` | `SIG-ORCH-TRD-110` |
-| `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | `ELECTRON_IPC_CHANNELS` Whitelist, `PID > 100` OS Gate | `APPROVED` | `2026-11-03T19:03:30Z` | `SIG-CSEC-TRD-110` |
-| `@agent-design` | UI/UX & Design System Architect | 262k GPGPU Ping-Pong Targets, 50k InstancedMesh, 60 FPS | `APPROVED` | `2026-11-03T19:03:40Z` | `SIG-DSGN-TRD-110` |
-| `@agent-data` | Decision Engine Specialist | 5 GoRules ZEN Graphs (`< 0.45ms`), Stream-to-Digest | `APPROVED` | `2026-11-03T19:03:50Z` | `SIG-DATA-TRD-110` |
-| `@agent-qa` | QA & Traceability Auditor | Deterministic Vitest Suite, Headless Electron E2E | `APPROVED` | `2026-11-03T19:04:00Z` | `SIG-QATE-TRD-110` |
+| `@human-developer` | Sovereign Principal Architect | Technical Strategy, 4-Layer Decoupling, Release v1.3.0 Lock | `APPROVED` | `2026-11-06T16:30:00Z` | `PO-APPROVAL-TRD-130` |
+| `@agent-software-engineer` | Full-Stack Architect & Author | Obsidian Canvas 1.0 Sync, Second Brain RAG, SQLite Generic Ref | `APPROVED` | `2026-11-06T16:30:10Z` | `SIG-ENGR-TRD-130` |
+| `@agent-orchestrator` | Swarm Facilitator & Technical Lead | 4-Layer Decoupling, Loop Suppression, Latency Budgets | `APPROVED` | `2026-11-06T16:30:20Z` | `SIG-ORCH-TRD-130` |
+| `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | Zero-Trust Path Traversal (../), ELECTRON_IPC_CHANNELS Whitelist | `APPROVED` | `2026-11-06T16:30:30Z` | `SIG-CSEC-TRD-130` |
+| `@agent-design` | UI/UX & Design System Architect | 262k GPGPU, Monospace DSP Acoustic Telemetry, WCAG AAA | `APPROVED` | `2026-11-06T16:30:40Z` | `SIG-DSGN-TRD-130` |
+| `@agent-data` | Decision Engine Specialist | 5 GoRules ZEN Graphs (< 0.45ms), Second Brain Cortex Evaluator | `APPROVED` | `2026-11-06T16:30:50Z` | `SIG-DATA-TRD-130` |
+| `@agent-qa` | QA & Traceability Auditor | 12 Vitest Suites Pass (100%), Headless Electron E2E Gate | `APPROVED` | `2026-11-06T16:31:00Z` | `SIG-QATE-TRD-130` |
 
 ---
 
@@ -35,6 +35,8 @@
 | **Workspace File Watcher** | `chokidar` | `chokidar ^4.0.3` (`300ms` debounce) | Sliding-window `300ms` debounce + `.kalinar-lock` single-writer token suppressing internal agent write loops. |
 | **Native OS Shell & Process Gate** | `node-pty` / `powershell.exe` | `powershell.exe -NoProfile` / `node-pty` | Real OS command execution via `kalinar:execute_shell_command` guarded by `os-execution-firewall.jdm.json` and `PID > 100` zero-trust check. |
 | **Multi-Model Heavy LLM Swarm** | Argon / Claude / Gemini Router | `llm-model-router.jdm.json` | Grants KALINAR full access to **Argon**, **Claude**, and **Gemini** (`Pro`/`Flash`) models with Atomic Git Checkpoints and automatic hot-swap failover. |
+| **Obsidian Canvas 1.0 Synchronization** | Obsidian JSON Canvas 1.0 Spec | `KALINAR_GALAXY.canvas` | Bidirectional topology sync: 3D [x,y,z] <-> 2D (x*4, z*4); AgentNode = "5" (Cyan), SecondBrainNode = "6" (Purple), Artifact = "3" (Amber); stored in SQLite `canvas_nodes` (generic reference, no FK constraint). |
+| **Live Second Brain Vault RAG & Ingest** | Markdown + Frontmatter Parser | `second_brain_notes` WAL | Zero-trust path traversal protection blocking `../`, frontmatter metadata extraction, max 2 `[[Wikilinks]]` per Graph Pointer, excerpts < 250 characters, and 3D logarithmic spiral galaxy spawning. |
 
 ---
 
@@ -127,6 +129,9 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:control_process_pid',      // Zero-Trust OS process gate (PID > 100: SIGSTOP / SIGTERM / taskkill)
   'kalinar:enqueue_agent_fifo',       // Enqueue directive into SQLite / WAR_ROOM.md FIFO queue when agent is busy
   'kalinar:switch_llm_model',         // Manual or JDM-triggered hot-swap across Argon, Claude, and Gemini models
+  'kalinar:sync_obsidian_canvas',     // Bidirectional Obsidian Canvas 1.0 JSON serialization & deserialization
+  'kalinar:query_second_brain_vault', // Vault RAG query with YAML frontmatter, max 2 wikilinks, excerpt < 250 chars
+  'kalinar:inject_second_brain_note', // Markdown note injection with disk/SQLite persistence & 3D entity spawning
 ] as const;
 
 export type AllowedKalinarIpcChannel = (typeof ELECTRON_IPC_CHANNELS)[number];
@@ -143,6 +148,9 @@ export type AllowedKalinarIpcChannel = (typeof ELECTRON_IPC_CHANNELS)[number];
 | `kalinar:control_process_pid` | `Renderer -> Main` | `validatePidSafety(pid)` (`PID > 100` integer check) | Pauses (`SIGSTOP`), resumes (`SIGCONT`), or kills (`SIGTERM`/`taskkill`) agent PID. |
 | `kalinar:enqueue_agent_fifo` | `Renderer -> Main` | Single-writer SQLite transaction + `execution-gate.jdm.json` | Enqueues task in FIFO order when target `@agent-*` is `[RUNNING]`. |
 | `kalinar:switch_llm_model` | `Renderer -> Main` | `llm-model-router.jdm.json` + Atomic Git Checkpoint check | Hot-swaps active LLM provider between **Argon**, **Claude**, and **Gemini**. |
+| `kalinar:sync_obsidian_canvas` | `Renderer <-> Main` | Obsidian Canvas 1.0 JSON format + loop suppression | Exports 3D topology to `KALINAR_GALAXY.canvas` or imports canvas changes to SQLite. |
+| `kalinar:query_second_brain_vault` | `Renderer -> Main` | Zero-trust path traversal (`sanitizeWorkspaceFilePath`) | Scans workspace/Second Brain `.md` files; extracts frontmatter, max 2 wikilinks, excerpt < 250 chars. |
+| `kalinar:inject_second_brain_note` | `Renderer -> Main` | Zero-trust path traversal + SQLite WAL transaction | Persists Markdown note to disk and `second_brain_notes` table; returns 3D logarithmic spiral coordinates. |
 
 ---
 
@@ -158,6 +166,8 @@ export type AllowedKalinarIpcChannel = (typeof ELECTRON_IPC_CHANNELS)[number];
 | **Post-TTS Acoustic Reverb Decay** | `400ms` exact | `450ms` | Mandatory mute hold timer after `utterance.onend` before `[LISTENING PT-BR]`. |
 | **Stream-to-Digest Payload Size** | `< 100 tokens` | `< 150 tokens` | 200-entry Ring Buffer + deterministic regex/AST truncation before Layer 1 handoff. |
 | **SQLite WAL Turn Commit** | `< 4ms` | `< 12ms` | Native `node:sqlite` `DatabaseSync` with `PRAGMA journal_mode = WAL; synchronous = NORMAL;`. |
+| **Obsidian Canvas 1.0 JSON Sync** | `< 15ms` | `< 30ms` | Direct streaming JSON serialization with coordinate transform [x*4, z*4]. |
+| **Second Brain Vault RAG Query** | `< 20ms` | `< 50ms` | In-memory frontmatter regex extraction with max 2 wikilinks cap and excerpt < 250 chars. |
 
 ---
 

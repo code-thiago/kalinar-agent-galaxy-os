@@ -1,6 +1,7 @@
 /**
- * KALINAR FULL-VIEWPORT WEBGL GALAXY CANVAS (v0.2.0-alpha)
+ * KALINAR FULL-VIEWPORT WEBGL GALAXY CANVAS (v1.3.0)
  * 50,000+ Node InstancedMesh + Black Hole Singularity + Navier-Stokes Fluid Cursor
+ * + SecondBrainNode 3D Visualization (#AA88FF / #8B5CF6) at position3D
  * Strictly Zero Emojis
  */
 
@@ -11,7 +12,70 @@ import { FluidSimulation } from '../../core/physics/FluidSimulation.js';
 import { GravitationalBeamsLayer } from './GravitationalBeamsLayer.js';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 import { kalinarVoiceService } from '../../services/kalinarVoiceService.js';
+import { SecondBrainNode } from '../../types/kalinar.js';
 
+const BASELINE_SECOND_BRAIN_NODES: SecondBrainNode[] = [
+  {
+    id: 'sb-00-index',
+    wikilink: '[[00_INDEX]]',
+    notePath: '00_INDEX.md',
+    tagList: ['#router', '#master', '#second-brain'],
+    domain: '01_PROJETOS',
+    connectionCount: 4,
+    summary: 'Master Router (00_INDEX)',
+    position3D: [-140, 60, -90],
+  },
+  {
+    id: 'sb-adr-001',
+    wikilink: '[[ADR-001]]',
+    notePath: '02_PADROES/ADR-001.md',
+    tagList: ['#auth', '#padrao'],
+    domain: '02_PADROES',
+    connectionCount: 3,
+    summary: 'Server-Side Session Auth',
+    position3D: [-80, 95, 120],
+  },
+  {
+    id: 'sb-adr-002',
+    wikilink: '[[ADR-002]]',
+    notePath: '02_PADROES/ADR-002.md',
+    tagList: ['#rate-limit', '#redis'],
+    domain: '02_PADROES',
+    connectionCount: 3,
+    summary: 'Rate Limiting Granular',
+    position3D: [90, 70, -110],
+  },
+  {
+    id: 'sb-adr-003',
+    wikilink: '[[ADR-003]]',
+    notePath: '02_PADROES/ADR-003.md',
+    tagList: ['#validacao'],
+    domain: '02_PADROES',
+    connectionCount: 2,
+    summary: 'Validacao Dupla Camada',
+    position3D: [130, 45, 90],
+  },
+  {
+    id: 'sb-design-system',
+    wikilink: '[[PADRAO-Design-System]]',
+    notePath: '02_PADROES/PADRAO-Design-System.md',
+    tagList: ['#wcag-aaa', '#design-system'],
+    domain: '02_PADROES',
+    connectionCount: 5,
+    summary: 'Design System Anti-Slop WCAG',
+    position3D: [0, 110, 140],
+  },
+  {
+    id: 'sb-stack',
+    wikilink: '[[Stack-Principal-Thiago]]',
+    notePath: '04_STACK/Stack-Principal-Thiago.md',
+    tagList: ['#stack', '#react19'],
+    domain: '04_STACK',
+    connectionCount: 4,
+    summary: 'Stack Principal',
+    position3D: [-160, 40, 60],
+  },
+];
 
 export function KalinarGalaxyCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -137,7 +201,6 @@ export function KalinarGalaxyCanvas() {
     const activeAgentMeshes: Map<string, THREE.Group> = new Map();
 
     const updateAgentSwarms = () => {
-      // Clear previous
       while (agentGroup.children.length > 0) {
         agentGroup.remove(agentGroup.children[0]);
       }
@@ -193,7 +256,130 @@ export function KalinarGalaxyCanvas() {
 
     updateAgentSwarms();
 
-    // 8. Interaction & Parallax Variables
+    // -------------------------------------------------------------
+    // 8. Second Brain Nodes 3D Visualization (Magenta #AA88FF / #8B5CF6)
+    // -------------------------------------------------------------
+    const secondBrainGroup = new THREE.Group();
+    scene.add(secondBrainGroup);
+
+    const secondBrainNodeMeshes: Map<string, THREE.Group> = new Map();
+    let currentSecondBrainNodes: SecondBrainNode[] = [...BASELINE_SECOND_BRAIN_NODES];
+
+    const clearSecondBrainMeshes = () => {
+      while (secondBrainGroup.children.length > 0) {
+        const obj = secondBrainGroup.children[0];
+        secondBrainGroup.remove(obj);
+        obj.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.geometry?.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach((m) => m.dispose());
+            } else {
+              child.material?.dispose();
+            }
+          }
+        });
+      }
+      secondBrainNodeMeshes.clear();
+    };
+
+    const renderSecondBrainNodes = (nodes: SecondBrainNode[]) => {
+      clearSecondBrainMeshes();
+
+      nodes.forEach((node, idx) => {
+        const nodeGroup = new THREE.Group();
+        const pos = node.position3D || [
+          Math.cos((idx * Math.PI * 2) / Math.max(1, nodes.length)) * 170,
+          50 + (idx % 4) * 20,
+          Math.sin((idx * Math.PI * 2) / Math.max(1, nodes.length)) * 170,
+        ];
+        nodeGroup.position.set(pos[0], pos[1], pos[2]);
+
+        // Outer Wireframe Polyhedron (#AA88FF)
+        const outerGeom = new THREE.IcosahedronGeometry(4.2, 1);
+        const outerMat = new THREE.MeshBasicMaterial({
+          color: 0xaa88ff,
+          wireframe: true,
+          transparent: true,
+          opacity: 0.85,
+        });
+        const outerMesh = new THREE.Mesh(outerGeom, outerMat);
+        nodeGroup.add(outerMesh);
+
+        // Inner Solid Core (#8B5CF6)
+        const innerGeom = new THREE.SphereGeometry(2.4, 12, 12);
+        const innerMat = new THREE.MeshBasicMaterial({
+          color: 0x8b5cf6,
+        });
+        const innerMesh = new THREE.Mesh(innerGeom, innerMat);
+        nodeGroup.add(innerMesh);
+
+        // Orbital Halo Ring (#AA88FF)
+        const ringGeom = new THREE.RingGeometry(6.2, 7.0, 24);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: 0xaa88ff,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.75,
+          blending: THREE.AdditiveBlending,
+        });
+        const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+        ringMesh.rotation.x = Math.PI / 3;
+        nodeGroup.add(ringMesh);
+
+        secondBrainGroup.add(nodeGroup);
+        secondBrainNodeMeshes.set(node.id, nodeGroup);
+      });
+    };
+
+    // Render initial baseline nodes immediately
+    renderSecondBrainNodes(currentSecondBrainNodes);
+    (window as any).__kalinarSecondBrainNodes = currentSecondBrainNodes;
+
+    // Dynamic scanning from workspace if running in Electron
+    if (typeof window !== 'undefined' && (window as any).kalinarApi?.scanWorkspaceNodes) {
+      (window as any).kalinarApi
+        .scanWorkspaceNodes()
+        .then((scanRes: any) => {
+          if (
+            scanRes &&
+            Array.isArray(scanRes.secondBrainNodes) &&
+            scanRes.secondBrainNodes.length > 0
+          ) {
+            currentSecondBrainNodes = scanRes.secondBrainNodes;
+            (window as any).__kalinarSecondBrainNodes = currentSecondBrainNodes;
+            renderSecondBrainNodes(currentSecondBrainNodes);
+          }
+        })
+        .catch(() => {
+          // Keep baseline nodes on error
+        });
+    }
+
+    // Dynamic listener for new injected nodes
+    const handleAddSecondBrainNode = (node: SecondBrainNode) => {
+      if (!node) return;
+      const existingIdx = currentSecondBrainNodes.findIndex((n) => n.id === node.id);
+      if (existingIdx >= 0) {
+        currentSecondBrainNodes[existingIdx] = node;
+      } else {
+        currentSecondBrainNodes.push(node);
+      }
+      (window as any).__kalinarSecondBrainNodes = currentSecondBrainNodes;
+      renderSecondBrainNodes(currentSecondBrainNodes);
+    };
+
+    (window as any).__addSecondBrainNode = handleAddSecondBrainNode;
+
+    const onNodeSpawned = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        handleAddSecondBrainNode(detail);
+      }
+    };
+    window.addEventListener('kalinar:second_brain_node_spawned', onNodeSpawned);
+
+    // 9. Interaction & Parallax Variables
     const mouseNdc = new THREE.Vector2(0, 0);
     const mousePrevNdc = new THREE.Vector2(0, 0);
     let isReducedMotion = false;
@@ -232,7 +418,7 @@ export function KalinarGalaxyCanvas() {
     window.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('resize', onResize);
 
-    // 9. Main Render Loop
+    // 10. Main Render Loop
     let animationFrameId: number;
     let clock = new THREE.Clock();
 
@@ -276,6 +462,14 @@ export function KalinarGalaxyCanvas() {
         }
       });
 
+      // Rotate Second Brain 3D nodes (Magenta #AA88FF / #8B5CF6)
+      secondBrainNodeMeshes.forEach((mesh, idx) => {
+        if (!isReducedMotion) {
+          mesh.rotation.y = elapsedTime * (0.35 + (idx.length % 3) * 0.1);
+          mesh.rotation.x = elapsedTime * 0.18;
+        }
+      });
+
       // Update Gravitational Beams & Ingestion
       beamsLayer.update(elapsedTime, dt);
 
@@ -315,15 +509,19 @@ export function KalinarGalaxyCanvas() {
       beamsLayer.triggerGravitationalRAG(targetPos);
     };
 
-    // 10. Cleanup & Resource Disposal
+    // 11. Cleanup & Resource Disposal
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('kalinar:second_brain_node_spawned', onNodeSpawned);
 
       delete (window as any).__triggerGravitationalRAG;
+      delete (window as any).__addSecondBrainNode;
+      delete (window as any).__kalinarSecondBrainNodes;
 
+      clearSecondBrainMeshes();
       fluid.dispose();
       singularityCore.dispose();
       beamsLayer.dispose();

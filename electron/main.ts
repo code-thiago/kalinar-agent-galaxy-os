@@ -22,7 +22,14 @@ import {
   SCHEMA_VERSION,
   LlmModelId,
   ExecutionMode,
+  CanvasSyncRequest,
+  SecondBrainInjectPayload,
+  SecondBrainVaultQueryParams,
 } from '../src/types/kalinar.js';
+import {
+  LocalVaultAndMdConnector,
+  sanitizeWorkspaceFilePath,
+} from '../src/connectors/AgentConnectorRegistry.js';
 
 export const ELECTRON_IPC_CHANNELS = [
   'kalinar:get_singularity_state',
@@ -38,6 +45,9 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:get_live_git_diff',
   'kalinar:approve_or_revert_diff',
   'kalinar:scan_workspace_nodes',
+  'kalinar:sync_obsidian_canvas',
+  'kalinar:query_second_brain_vault',
+  'kalinar:inject_second_brain_note',
 ] as const;
 
 let mainWindow: BrowserWindow | null = null;
@@ -410,6 +420,88 @@ function setupIpcHandlers(): void {
         default:
           throw new Error(`[ZEN_FIREWALL_ERROR] Unknown ZEN graph: ${graph}`);
       }
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:sync_obsidian_canvas',
+    async (_event, payload?: CanvasSyncRequest) => {
+      const wsPath = process.cwd();
+      if (payload?.canvasPath) {
+        const check = sanitizeWorkspaceFilePath(wsPath, payload.canvasPath);
+        if (!check.valid) {
+          return {
+            success: false,
+            direction: payload?.direction || 'EXPORT_TO_CANVAS',
+            canvasPath: payload.canvasPath,
+            latencyMs: 0,
+            error: check.reason,
+          };
+        }
+      }
+      const connector = new LocalVaultAndMdConnector(wsPath);
+      if (!sqliteStore) {
+        sqliteStore = new KalinarSqliteStore();
+      }
+      return await connector.syncObsidianCanvas({
+        direction: payload?.direction,
+        canvasPath: payload?.canvasPath,
+        topology: payload?.topology,
+        store: sqliteStore,
+      });
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:query_second_brain_vault',
+    async (_event, params?: SecondBrainVaultQueryParams) => {
+      const wsPath = process.cwd();
+      if (params?.targetPath) {
+        const check = sanitizeWorkspaceFilePath(wsPath, params.targetPath);
+        if (!check.valid) {
+          return {
+            success: false,
+            notes: [],
+            total: 0,
+            searchLatencyMs: 0,
+            error: check.reason,
+          };
+        }
+      }
+      const connector = new LocalVaultAndMdConnector(wsPath);
+      return connector.querySecondBrainVault(params);
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:inject_second_brain_note',
+    async (_event, payload: SecondBrainInjectPayload) => {
+      const wsPath = process.cwd();
+      const targetPath =
+        payload.filePath ||
+        payload.notePath ||
+        path.join(
+          payload.domain || '01_PROJETOS',
+          `${(payload.title || 'untitled').toLowerCase().replace(/[^a-z0-9_-]/g, '-')}.md`
+        );
+      const check = sanitizeWorkspaceFilePath(wsPath, targetPath);
+      if (!check.valid) {
+        return {
+          success: false,
+          note: null,
+          spawned3DNode: null,
+          node3D: null,
+          persistedToDisk: false,
+          persistedToSqlite: false,
+          latencyMs: 0,
+          error: check.reason,
+        };
+      }
+      const connector = new LocalVaultAndMdConnector(wsPath);
+      if (!sqliteStore) {
+        sqliteStore = new KalinarSqliteStore();
+      }
+      return connector.injectSecondBrainNote(payload, sqliteStore);
     }
   );
 }

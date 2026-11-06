@@ -1,9 +1,9 @@
-# 06_IMPLEMENTATION_PLAN.md — KALINAR SINGULARITY IMPLEMENTATION PLAN & TRACEABILITY (v1.2.0 LOCK)
+# 06_IMPLEMENTATION_PLAN.md — KALINAR SINGULARITY IMPLEMENTATION PLAN & TRACEABILITY (v1.3.0 LOCK)
 
-> **Document ID:** `DOC-06-IMPLEMENTATION-PLAN-KALINAR-v1.2.0`  
+> **Document ID:** `DOC-06-IMPLEMENTATION-PLAN-KALINAR-v1.3.0`  
 > **Lead Agents:** `@agent-orchestrator` + `@agent-software-engineer` + `@agent-qa`  
 > **Co-Authors:** `@human-developer`, `@agent-design`, `@agent-cybersecurity`, `@agent-data`, `@agent-content`  
-> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_2_0`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_3_0`  
 > **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
@@ -12,19 +12,19 @@
 
 | Participant | Domain Role | Review Focus | Status | Timestamp (UTC) | Cryptographic / Msg Ref |
 | :--- | :--- | :--- | :---: | :---: | :--- |
-| `@human-developer` | Sovereign Principal Architect | `TRACE-01`..`TRACE-07`, 9 Test Suites, Release v1.1.0 Lock | `APPROVED` | `2026-11-03T19:11:00Z` | `PO-APPROVAL-PLN-110` |
-| `@agent-orchestrator` | Swarm Facilitator & Product Lead | End-to-End Traceability (`US-001`..`US-010`), FIFO Gates | `APPROVED` | `2026-11-03T19:11:10Z` | `SIG-ORCH-PLN-110` |
-| `@agent-software-engineer` | Full-Stack & TDD Architect | Electron 35, Multi-Model Router, Atomic Git Rollback | `APPROVED` | `2026-11-03T19:11:20Z` | `SIG-ENGR-PLN-110` |
-| `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | `PID > 100` OS Gate, JDM Firewall `< 0.45ms`, Zero-Trust IPC | `APPROVED` | `2026-11-03T19:11:30Z` | `SIG-CSEC-PLN-110` |
-| `@agent-design` | UI/UX & Design System Architect | 262k GPGPU Singularity, 160px Cards, WCAG 2.2 AAA | `APPROVED` | `2026-11-03T19:11:40Z` | `SIG-DSGN-PLN-110` |
-| `@agent-data` | Decision Engine Specialist | 5 GoRules ZEN Graphs, `< 150 token` Stream-to-Digest | `APPROVED` | `2026-11-03T19:11:50Z` | `SIG-DATA-PLN-110` |
-| `@agent-qa` | QA & Traceability Auditor | `vitest run` 100% Pass Invariant, `task-8` 7 Laws Audit | `APPROVED` | `2026-11-03T19:12:00Z` | `SIG-QATE-PLN-110` |
+| `@human-developer` | Sovereign Principal Architect | `TRACE-01`..`TRACE-08`, 12 Test Suites, Release v1.3.0 Lock | `APPROVED` | `2026-11-06T16:35:00Z` | `PO-APPROVAL-PLN-130` |
+| `@agent-orchestrator` | Swarm Facilitator & Product Lead | End-to-End Traceability (`US-001`..`US-011`), Task 10 Deliverables | `APPROVED` | `2026-11-06T16:35:10Z` | `SIG-ORCH-PLN-130` |
+| `@agent-software-engineer` | Full-Stack & TDD Architect | Obsidian Canvas 1.0 JSON Sync, Second Brain RAG, SQLite Generic Ref | `APPROVED` | `2026-11-06T16:35:20Z` | `SIG-ENGR-PLN-130` |
+| `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | Path Traversal Sanitization (../), Whitelist IPC, Loop Suppression | `APPROVED` | `2026-11-06T16:35:30Z` | `SIG-CSEC-PLN-130` |
+| `@agent-design` | UI/UX & Design System Architect | Monospace DSP Tabular-Nums Readout, WCAG AAA, 3D Node Spawning | `APPROVED` | `2026-11-06T16:35:40Z` | `SIG-DSGN-PLN-130` |
+| `@agent-data` | Decision Engine Specialist | 5 GoRules ZEN Graphs (< 0.45ms), Cortex Evaluator, Wikilink Cap | `APPROVED` | `2026-11-06T16:35:50Z` | `SIG-DATA-PLN-130` |
+| `@agent-qa` | QA & Traceability Auditor | `vitest run` 100% Pass Invariant (12 Suites), Anti-Emoji Invariant | `APPROVED` | `2026-11-06T16:36:00Z` | `SIG-QATE-PLN-130` |
 
 ---
 
-## 1. End-to-End Traceability Matrix (`TRACE-01` to `TRACE-07`)
+## 1. End-to-End Traceability Matrix (`TRACE-01` to `TRACE-08`)
 
-> **Traceability Invariant:** Every user requirement in `01_PRD.md` (`US-001` through `US-010`) is mapped with zero orphans across `02_TRD.md`, `03_APP_FLOW.md`, `04_BRIEFING_AND_DESIGN_SYSTEM.md`, `05_BACKEND_SCHEMA.md`, and verified by deterministic Vitest suites.
+> **Traceability Invariant:** Every user requirement in `01_PRD.md` (`US-001` through `US-011`) is mapped with zero orphans across `02_TRD.md`, `03_APP_FLOW.md`, `04_BRIEFING_AND_DESIGN_SYSTEM.md`, `05_BACKEND_SCHEMA.md`, and verified by deterministic Vitest suites.
 
 | Trace ID | PRD User Story (`01_PRD.md`) | TRD Architecture Module (`02_TRD.md`) | App Flow State Machine (`03_APP_FLOW.md`) | Design System Slot / Token (`04_DESIGN_SYSTEM.md`) | Backend Table / JDM Graph (`05_BACKEND_SCHEMA.md`) | Automated Vitest Gate (`tests/*.test.ts`) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -35,6 +35,7 @@
 | `TRACE-05` | `US-007` (Sovereign Voice Lifecycle: `EngageMicInterlock`, `400ms` Decay, `< 10ms` `Esc` Kill-Switch & 90s Hot Window) | `kalinarSingularityBrain.ts`, `kalinarVoiceService.ts`, `ZenFirewall.ts` (`Layer 1` & `Layer 2`) | `FLOW-VOICE-KALINAR-01` (`EngageMicInterlock` -> `PostTtsDecay400ms` -> `HotWindow90s` -> `VoiceAutoHibernate`) | `[SINGULARITY: STANDBY]`, `[LISTENING PT-BR]`, `[KALINAR_SPEAKING]`, `[VOICE_HIBERNATE]`, `data-slot="singularity-voice-transcript"` | `voice-command-guard.jdm.json` (`< 0.45ms`), `telemetry_logs` (`VOICE_CMD`) | `tests/task-4-voice-core.test.ts`, `tests/task-8-voice-multimodel-laws.test.ts` |
 | `TRACE-06` | `US-008` (2-Stage `Stream-to-Digest` `< 150 tokens`) & `US-009` (Two-Phase Voice Ack, Speech Arbitration Rule B & Busy Agent FIFO Queue) | `KalinarDaemon.ts` (200-entry Ring Buffer + Regex/AST Extractor), `kalinar:enqueue_agent_fifo` (`Layer 3`) | `FLOW-WATCHER-01` (`StreamToDigestExtractor` -> `Phase2VoiceVerifiedAck`), `FLOW-AGENT-FIFO-01` (`EnqueueAgentFifo`) | `[ACK_DISPATCHED]`, `[ACK_VERIFIED]`, `[FIFO_QUEUED]`, `[STREAM]` | `daemon-event-router.jdm.json`, `agent_task_fifo_queue`, `StreamDigestSchema`, `TwoPhaseVoiceAckSchema`, `FifoQueueItemSchema` | `tests/task-8-voice-multimodel-laws.test.ts` |
 | `TRACE-07` | `US-010` (Multi-Model LLM Router across **Argon**, **Claude**, **Gemini** + Atomic Git Checkpoint & Dirty-File Rollback) | `ZenFirewall.ts` (`evaluateLlmModelRouter`), `kalinar:switch_llm_model` (`Layer 4`) | `FLOW-LLM-FAILOVER-01` (`CreateGitCheckpoint` -> `AtomicGitRollback` -> `ZenModelHotSwap` -> `ResumeTurnOnFallbackModel`) | `[MODEL_HOTSWAP]`, `[WARN]`, `[ERROR]` | `llm-model-router.jdm.json`, `llm_model_checkpoints`, `LlmModelRouteSchema` | `tests/task-8-voice-multimodel-laws.test.ts` |
+| `TRACE-08` | `US-011` (Bidirectional Obsidian Canvas 1.0 JSON Sync, Live Second Brain Vault RAG & Cortex 5-Graph Evaluator) | `AgentConnectorRegistry.ts`, `sqliteStore.ts`, `SecondBrainCortexTab.tsx`, `kalinarSingularityBrain.ts` | `FLOW-CANVAS-SYNC-01` (`CanvasSync` <-> `VaultRAGQuery` <-> `CortexJDMEval` <-> `TauzVoiceDirectives`) | `data-slot="singularity-acoustic-telemetry"`, `tabular-nums`, `color tokens 5, 6, 3` | `canvas_nodes`, `second_brain_notes`, `daemon-event-router.jdm.json`, `voice-command-guard.jdm.json` | `tests/task-10-canvas-sync-live-cortex.test.ts` |
 
 ---
 
@@ -83,6 +84,9 @@ flowchart LR
 
 ### 2.8 `tests/task-9-tauz-dsp-live-connectors.test.ts`
 * **Scope:** Verifies Task 9 (`v1.2.0`) Tauz Acoustic Web Audio DSP pipeline (`lowshelf` `110Hz` `+7.5dB`, `peaking` `2400Hz` `Q: 1.2` `+3.5dB`, `DynamicsCompressorNode`, `AnalyserNode` `fftSize: 256` -> `getRealtimeFrequencyBands()` normalized in `[0.0, 1.0]`), 60 FPS `uSubBass` and `uCompositePulse` modulation on the `262,144` GPGPU accretion disk, real Git/file diff streaming (`kalinar:get_live_git_diff`, `kalinar:approve_or_revert_diff`, `kalinar:scan_workspace_nodes`) with `../` traversal sanitization, colored `+` `#34D399` / `-` `#F87171` 160px card viewports, and interactive Multi-Model Hot-Swap (`[ ARGON ]`, `[ CLAUDE-3.7-SONNET ]`, `[ GEMINI-2.5-PRO ]`, `[ GEMINI-2.5-FLASH ]`) + FIFO queue promotion/clearing in `NodeInspectorDrawer` and `AntigravityCliTab`.
+
+### 2.9 `tests/task-10-canvas-sync-live-cortex.test.ts`
+* **Scope:** Verifies Task 10 (`v1.3.0`) Obsidian Canvas 1.0 JSON format serialization/deserialization, 3D [x, y, z] to 2D (x*4, z*4) coordinate transformation, node colors ("5" Cyan, "6" Purple, "3" Amber), loop suppression via `.kalinar-lock` and `WATCH_VISUAL_ONLY` in `daemon-event-router.jdm.json`, SQLite `canvas_nodes` generic reference without FK constraint to `tasks(id)`, `second_brain_notes` table CRUD operations, zero-trust path-traversal sanitization (`../`), frontmatter extraction, max 2 `[[Wikilinks]]` cap, excerpt < 250 characters, sub-millisecond evaluation (< 1ms, < 0.45ms benchmark) of all 5 production JDM graphs, monospace tabular-nums DSP acoustic telemetry strip (SUB-110HZ, PRES-2.4KHZ, PULSE) from `kalinarVoiceService.getRealtimeFrequencyBands()`, sovereign pt-BR voice directives with tactical Tauz confirmations, strictly 0 emojis across all files, and 0 occurrences of prohibited terms ("J.A.R.V.I.S.", "corner orb").
 
 ---
 

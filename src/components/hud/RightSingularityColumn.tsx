@@ -1,12 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 import { SingularityHudColumn } from '../ui/SingularityHudColumn.js';
 import { kalinarVoiceService } from '../../services/kalinarVoiceService.js';
 import { kalinarSingularityBrain } from '../../services/kalinarSingularityBrain.js';
+import { TauzFrequencyBands } from '../../types/kalinar.js';
 
 export function RightSingularityColumn() {
   const { singularity, agents, isInspectorDrawerOpen } = useKalinarStore();
   const [isMicActive, setIsMicActive] = useState(false);
+  const [bands, setBands] = useState<TauzFrequencyBands>({
+    subBass: 0,
+    lowMid: 0,
+    highPresence: 0,
+    compositePulse: 0,
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBands(kalinarVoiceService.getRealtimeFrequencyBands());
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleMicToggle = async () => {
     if (!isMicActive) {
@@ -42,6 +56,7 @@ export function RightSingularityColumn() {
           onMicToggle={handleMicToggle}
           onBriefingRequest={handleBriefingRequest}
           isMicActive={isMicActive}
+          frequencyBands={bands}
         />
 
 

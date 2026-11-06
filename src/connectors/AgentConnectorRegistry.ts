@@ -12,10 +12,20 @@ import {
   AgentNode,
   AgentStatus,
   ArtifactSatelliteNode,
+  CanvasEdge,
+  CanvasNode,
+  CanvasSyncRequest,
+  CanvasSyncResult,
   IKalinarAgentConnector,
   LiveGitDiffResult,
+  ObsidianCanvasDocument,
   SCHEMA_VERSION,
+  SecondBrainInjectPayload,
+  SecondBrainInjectResult,
   SecondBrainNode,
+  SecondBrainQueryResult,
+  SecondBrainVaultNote,
+  SecondBrainVaultQueryParams,
   StructuredDiffLine,
   WorkspaceScanResult,
 } from '../types/kalinar.js';
@@ -25,7 +35,7 @@ export function sanitizeWorkspaceFilePath(
   workspaceRoot: string,
   candidatePath: string
 ): { valid: boolean; resolvedPath: string; relativePath: string; reason?: string } {
-  const cleanCandidate = (candidatePath || '').trim();
+  let cleanCandidate = (candidatePath || '').trim();
   if (!cleanCandidate || cleanCandidate.includes('\0')) {
     return {
       valid: false,
@@ -35,8 +45,18 @@ export function sanitizeWorkspaceFilePath(
     };
   }
 
-  // Strictly block traversal tokens and shell metacharacters
-  if (/(^|[/\\])\.\.([/\\]|$)/.test(cleanCandidate) || /[;&|`$<>]/.test(cleanCandidate)) {
+  // Detect and reject URL-encoded traversal characters (such as %2e, %2f, %5c, %25)
+  if (/%2[eEfF]|%5[cC]|%25|%00/i.test(cleanCandidate)) {
+    return {
+      valid: false,
+      resolvedPath: '',
+      relativePath: '',
+      reason: '[SECURITY_VIOLATION] URL-encoded traversal character rejected',
+    };
+  }
+
+  // Pre-decode check for traversal tokens or shell metacharacters
+  if (/(^|[/\\])\.\.([/\\]|$)/.test(cleanCandidate) || cleanCandidate.includes('..') || /[;&|`$<>]/.test(cleanCandidate)) {
     return {
       valid: false,
       resolvedPath: '',
@@ -45,11 +65,58 @@ export function sanitizeWorkspaceFilePath(
     };
   }
 
+  // URL-decode candidatePath using decodeURIComponent (wrapped in try/catch to reject malformed encodings)
+  try {
+    cleanCandidate = decodeURIComponent(cleanCandidate);
+  } catch {
+    return {
+      valid: false,
+      resolvedPath: '',
+      relativePath: '',
+      reason: '[SECURITY_VIOLATION] Malformed URL encoding rejected',
+    };
+  }
+
+  // Detect and reject decoded traversal characters, dots, null bytes, or shell metacharacters
+  if (
+    cleanCandidate.includes('\0') ||
+    /%2[eEfF]|%5[cC]|%25|%00/i.test(cleanCandidate) ||
+    cleanCandidate.includes('..') ||
+    /(^|[/\\])\.\.([/\\]|$)/.test(cleanCandidate) ||
+    /[;&|`$<>]/.test(cleanCandidate)
+  ) {
+    return {
+      valid: false,
+      resolvedPath: '',
+      relativePath: '',
+      reason: '[SECURITY_VIOLATION] Decoded path traversal (../) or shell metacharacter rejected',
+    };
+  }
+
   const rootResolved = path.resolve(workspaceRoot);
   const targetResolved = path.resolve(rootResolved, cleanCandidate);
   const rel = path.relative(rootResolved, targetResolved);
 
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+  if (
+    !rel ||
+    rel === '.' ||
+    rel.startsWith('..') ||
+    path.isAbsolute(rel) ||
+    rel.includes('..') ||
+    /(^|[/\\])\.\.([/\\]|$)/.test(rel)
+  ) {
+    return {
+      valid: false,
+      resolvedPath: '',
+      relativePath: '',
+      reason: '[SECURITY_VIOLATION] Resolved path escapes workspace root boundary',
+    };
+  }
+
+  // Ensure resolved path starts strictly within root boundary
+  const normalizedRoot = rootResolved.endsWith(path.sep) ? rootResolved : rootResolved + path.sep;
+  const normalizedTarget = targetResolved.endsWith(path.sep) ? targetResolved : targetResolved + path.sep;
+  if (targetResolved !== rootResolved && !normalizedTarget.startsWith(normalizedRoot)) {
     return {
       valid: false,
       resolvedPath: '',
@@ -62,6 +129,203 @@ export function sanitizeWorkspaceFilePath(
     valid: true,
     resolvedPath: targetResolved,
     relativePath: rel.replace(/\\/g, '/'),
+  };
+}
+
+/* =====================================================================
+   COORDINATE TRANSFORMATION: 3D GALAXY <-> 2D OBSIDIAN CANVAS 1.0
+   ===================================================================== */
+
+export function map3DToCanvasCoordinates(
+  position3D: [number, number, number]
+): { x: number; y: number } {
+  return {
+    x: Math.round(position3D[0] * 4),
+    y: Math.round(position3D[2] * 4),
+  };
+}
+
+export function mapCanvasTo3DCoordinates(
+  canvasX: number,
+  canvasY: number,
+  previousY = 0
+): [number, number, number] {
+  return [
+    Math.round(canvasX / 4),
+    previousY,
+    Math.round(canvasY / 4),
+  ];
+}
+
+/* =====================================================================
+   OBSIDIAN JSON CANVAS 1.0 SERIALIZATION & DESERIALIZATION
+   ===================================================================== */
+
+export function serializeWorkspaceToCanvas(
+  topology: WorkspaceScanResult,
+  canvasFilePath?: string
+): ObsidianCanvasDocument {
+  const nodes: CanvasNode[] = [];
+  const edges: CanvasEdge[] = [];
+
+  // 1. AgentNode: color "5" (Cyan), type 'text', 360x200
+  for (const agent of topology.agents || []) {
+    const coords = map3DToCanvasCoordinates(agent.position3D || [0, 0, 0]);
+    const text = `## ${agent.filename}\n**ID:** ${agent.id}\n**Status:** ${agent.status}\n**Objective:** ${agent.currentObjective}\n**Model:** ${agent.activeModelId || 'argon'}\n**Tokens:** ${agent.tokensPrompt + agent.tokensCompletion}`;
+
+    nodes.push({
+      id: agent.id,
+      type: 'text',
+      text,
+      x: coords.x,
+      y: coords.y,
+      width: 360,
+      height: 200,
+      color: '5',
+    });
+  }
+
+  // 2. SecondBrainNode: color "6" (Purple/Magenta), type 'file', 320x180
+  for (const sb of topology.secondBrainNodes || []) {
+    const coords = map3DToCanvasCoordinates(sb.position3D || [0, 0, 0]);
+    nodes.push({
+      id: sb.id,
+      type: 'file',
+      file: sb.notePath,
+      x: coords.x,
+      y: coords.y,
+      width: 320,
+      height: 180,
+      color: '6',
+    });
+  }
+
+  // 3. ArtifactSatelliteNode: color "3" (Amber), type 'file', 280x150
+  for (const sat of topology.artifactSatellites || []) {
+    const coords = map3DToCanvasCoordinates(sat.position3D || [0, 0, 0]);
+    nodes.push({
+      id: sat.id,
+      type: 'file',
+      file: sat.artifactPath,
+      x: coords.x,
+      y: coords.y,
+      width: 280,
+      height: 150,
+      color: '3',
+    });
+
+    if (sat.associatedAgentId) {
+      edges.push({
+        id: `edge-${sat.associatedAgentId}-${sat.id}`,
+        fromNode: sat.associatedAgentId,
+        fromSide: 'right',
+        fromEnd: 'none',
+        toNode: sat.id,
+        toSide: 'left',
+        toEnd: 'arrow',
+        color: '3',
+        label: 'artifact',
+      });
+    }
+  }
+
+  const doc: ObsidianCanvasDocument = {
+    nodes,
+    edges,
+  };
+
+  if (canvasFilePath) {
+    const dir = path.dirname(canvasFilePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(canvasFilePath, JSON.stringify(doc, null, 2), 'utf-8');
+  }
+
+  return doc;
+}
+
+export function deserializeCanvasToWorkspace(
+  canvasData: ObsidianCanvasDocument | string
+): WorkspaceScanResult {
+  const doc: ObsidianCanvasDocument =
+    typeof canvasData === 'string' ? JSON.parse(canvasData) : canvasData;
+
+  const agents: AgentNode[] = [];
+  const secondBrainNodes: SecondBrainNode[] = [];
+  const artifactSatellites: ArtifactSatelliteNode[] = [];
+  const warRoomPointers: string[] = [];
+
+  for (const node of doc.nodes || []) {
+    const pos3D = mapCanvasTo3DCoordinates(node.x || 0, node.y || 0, 0);
+
+    if (node.color === '5' || node.type === 'text') {
+      const textContent = (node as any).text || '';
+      const lines = textContent.split('\n');
+      const filenameMatch = lines[0]?.replace(/^##\s+/, '') || `@${node.id}`;
+      agents.push({
+        id: node.id,
+        filename: filenameMatch,
+        pid: 14200 + agents.length + 1,
+        status: '[ACTIVE]',
+        executionMode: 'STEP_BY_STEP_GATE',
+        currentObjective: `Imported from canvas card ${node.id}`,
+        totalSteps: 6,
+        currentStep: 1,
+        stepDescription: 'Imported topology node',
+        tokensPrompt: 3000,
+        tokensCompletion: 700,
+        tokenVelocity: 75,
+        etaSeconds: 20,
+        position3D: pos3D,
+        livePreviewStream: '',
+      });
+    } else if (node.color === '6') {
+      const file = (node as any).file || `${node.id}.md`;
+      secondBrainNodes.push({
+        id: node.id,
+        wikilink: `[[${path.basename(file, '.md')}]]`,
+        notePath: file,
+        tagList: ['#second-brain', '#canvas-import'],
+        domain: '01_PROJETOS',
+        connectionCount: 1,
+        summary: `Canvas node ${node.id}`,
+        position3D: pos3D,
+      });
+    } else if (node.color === '3') {
+      const file = (node as any).file || `${node.id}.artifact`;
+      const edge = (doc.edges || []).find((e) => e.toNode === node.id);
+      artifactSatellites.push({
+        id: node.id,
+        associatedAgentId: edge ? edge.fromNode : 'agent-software-engineer-01',
+        artifactPath: file,
+        fileHash: `canvas-${node.id}`,
+        title: path.basename(file),
+        status: 'VERIFIED',
+        byteSize: 1024,
+        lastModified: new Date().toISOString(),
+        position3D: pos3D,
+      });
+    } else {
+      const file = (node as any).file || `${node.id}.md`;
+      secondBrainNodes.push({
+        id: node.id,
+        wikilink: `[[${path.basename(file, '.md')}]]`,
+        notePath: file,
+        tagList: ['#second-brain'],
+        domain: '01_PROJETOS',
+        connectionCount: 1,
+        summary: `Canvas node ${node.id}`,
+        position3D: pos3D,
+      });
+    }
+  }
+
+  return {
+    agents,
+    secondBrainNodes,
+    artifactSatellites,
+    warRoomPointers,
   };
 }
 
@@ -298,6 +562,13 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
       const full = path.resolve(this.vaultRoot, item.rel);
       if (fs.existsSync(full)) {
         const stat = fs.statSync(full);
+        const sbArm = idx % 5;
+        const sbPos = this.computeLogarithmicSpiralPosition(idx, sbArm, 140, 0.13);
+        const associatedAgent = agents[idx % Math.max(1, agents.length)];
+        const satPos: [number, number, number] = associatedAgent
+          ? [associatedAgent.position3D[0] + 24, associatedAgent.position3D[1] + 8, associatedAgent.position3D[2]]
+          : [sbPos[0] + 24, sbPos[1] + 8, sbPos[2]];
+
         secondBrainNodes.push({
           id: `sb-node-${idx + 1}`,
           wikilink: `[[${path.basename(item.rel, '.md')}]]`,
@@ -306,17 +577,19 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
           domain: item.domain,
           connectionCount: 4 + idx,
           summary: `Canonical Second Brain node ${item.rel}`,
+          position3D: sbPos,
         });
 
         artifactSatellites.push({
           id: `sat-node-${idx + 1}`,
-          associatedAgentId: agents[idx % Math.max(1, agents.length)]?.id || 'agent-software-engineer-01',
+          associatedAgentId: associatedAgent?.id || 'agent-software-engineer-01',
           artifactPath: item.rel,
           fileHash: `sha256-${idx + 1}`,
           title: path.basename(item.rel),
           status: idx === 0 ? 'VERIFIED' : 'COMMITTED',
           byteSize: stat.size,
           lastModified: stat.mtime.toISOString(),
+          position3D: satPos,
         });
       }
     });
@@ -417,6 +690,531 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
       rawDiff: fallbackRaw,
       latencyMs: Number((performance.now() - start).toFixed(2)),
     };
+  }
+
+  /* =====================================================================
+     TASK 10: SECOND BRAIN VAULT RAG, NOTE INJECTION & OBSIDIAN CANVAS SYNC
+     ===================================================================== */
+
+  public querySecondBrainVault(params?: SecondBrainVaultQueryParams): SecondBrainQueryResult {
+    const start = performance.now();
+    let candidateFiles: string[] = [];
+
+    if (params?.targetPath) {
+      const check = sanitizeWorkspaceFilePath(this.vaultRoot, params.targetPath);
+      if (!check.valid) {
+        return {
+          success: false,
+          notes: [],
+          total: 0,
+          searchLatencyMs: performance.now() - start,
+          error: check.reason,
+        };
+      }
+      candidateFiles = [check.resolvedPath];
+    } else {
+      const collectMdFiles = (dir: string, depth = 0) => {
+        if (depth > 6 || !fs.existsSync(dir)) return;
+        try {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const name = entry.name;
+            if (name.startsWith('.') && name !== '.antigravity') {
+              continue;
+            }
+            if (
+              name === 'node_modules' ||
+              name === 'dist' ||
+              name === 'dist-electron' ||
+              name === '.next' ||
+              name === 'coverage'
+            ) {
+              continue;
+            }
+
+            const fullPath = path.join(dir, name);
+            if (entry.isDirectory()) {
+              collectMdFiles(fullPath, depth + 1);
+            } else if (entry.isFile() && name.toLowerCase().endsWith('.md')) {
+              candidateFiles.push(fullPath);
+            }
+          }
+        } catch {
+          // Skip unreadable directories
+        }
+      };
+
+      const scanDirs = [
+        this.vaultRoot,
+        path.join(this.vaultRoot, '01_PROJETOS'),
+        path.join(this.vaultRoot, '02_PADROES_E_DECISOES'),
+        path.join(this.vaultRoot, '02_PADROES'),
+        path.join(this.vaultRoot, '03_PREFERENCIAS'),
+        path.join(this.vaultRoot, '04_STACK_E_SKILLS'),
+        path.join(this.vaultRoot, '04_STACK'),
+        path.join(this.vaultRoot, '05_AGENTS'),
+        path.join(this.vaultRoot, '05_EXECUCOES'),
+        path.join(this.vaultRoot, '.antigravity', 'blueprint'),
+        path.join(this.vaultRoot, '.antigravity', 'comms'),
+      ];
+
+      const visitedDirs = new Set<string>();
+      for (const d of scanDirs) {
+        if (fs.existsSync(d) && !visitedDirs.has(d)) {
+          visitedDirs.add(d);
+          if (d === this.vaultRoot) {
+            try {
+              const rootEntries = fs.readdirSync(this.vaultRoot, { withFileTypes: true });
+              for (const re of rootEntries) {
+                if (re.isFile() && re.name.toLowerCase().endsWith('.md')) {
+                  candidateFiles.push(path.join(this.vaultRoot, re.name));
+                }
+              }
+            } catch {}
+          } else {
+            collectMdFiles(d, 0);
+          }
+        }
+      }
+    }
+
+    const uniqueFiles = Array.from(new Set(candidateFiles));
+    const notes: SecondBrainVaultNote[] = [];
+
+    const queryFilter = params?.query ? params.query.toLowerCase() : null;
+    const domainFilter = params?.domain ? params.domain.toLowerCase() : null;
+
+    for (const fullPath of uniqueFiles) {
+      try {
+        const raw = fs.readFileSync(fullPath, 'utf-8');
+        const relPath = path.relative(this.vaultRoot, fullPath).replace(/\\/g, '/');
+
+        // Extract YAML frontmatter
+        const frontmatter: Record<string, any> = {};
+        let body = raw;
+        const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (fmMatch) {
+          const fmText = fmMatch[1];
+          body = raw.slice(fmMatch[0].length);
+          for (const line of fmText.split(/\r?\n/)) {
+            const colonIdx = line.indexOf(':');
+            if (colonIdx > 0) {
+              const key = line.slice(0, colonIdx).trim();
+              let val: any = line.slice(colonIdx + 1).trim();
+              if (val.startsWith('[') && val.endsWith(']')) {
+                val = val
+                  .slice(1, -1)
+                  .split(',')
+                  .map((s: string) => s.trim().replace(/^['"]|['"]$/g, ''))
+                  .filter(Boolean);
+              } else if (val.startsWith('"') && val.endsWith('"')) {
+                val = val.slice(1, -1);
+              }
+              frontmatter[key] = val;
+            }
+          }
+        }
+
+        // Determine title
+        let title = frontmatter.title || '';
+        if (!title) {
+          const headingMatch = body.match(/^#\s+(.+)$/m);
+          if (headingMatch) {
+            title = headingMatch[1].trim();
+          } else {
+            title = path.basename(relPath, '.md');
+          }
+        }
+
+        // Determine domain
+        let domain = frontmatter.domain || '';
+        if (!domain) {
+          const parts = relPath.split('/');
+          if (parts.length > 1) {
+            domain = parts[0];
+          } else {
+            domain = '01_PROJETOS';
+          }
+        }
+
+        // Determine tags
+        let tags: string[] = [];
+        if (Array.isArray(frontmatter.tags)) {
+          tags = frontmatter.tags;
+        } else if (typeof frontmatter.tags === 'string') {
+          tags = frontmatter.tags
+            .split(',')
+            .map((t: string) => t.trim())
+            .filter(Boolean);
+        }
+        if (tags.length === 0) {
+          tags = ['#second-brain'];
+        }
+
+        // Extract wikilinks - STRICTLY CAPPED AT MAXIMUM 2 per Graph Pointer
+        const rawWikilinks: string[] = [];
+        const wikilinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+        let wMatch: RegExpExecArray | null;
+        while ((wMatch = wikilinkRegex.exec(raw)) !== null) {
+          const target = wMatch[1].trim();
+          if (target && !rawWikilinks.includes(target)) {
+            rawWikilinks.push(target);
+          }
+        }
+        const cappedWikilinks = rawWikilinks.slice(0, 2);
+
+        // Extract excerpt - STRICTLY UNDER 250 CHARACTERS
+        const cleanBody = body
+          .replace(/^#+\s+.*$/gm, '')
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+          .replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, '$1')
+          .replace(/[*_~`]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        let excerpt = cleanBody.slice(0, 240);
+        if (cleanBody.length > 240) {
+          excerpt = excerpt.slice(0, 237) + '...';
+        }
+        if (!excerpt) {
+          const fallback = `Second Brain note ${title}`;
+          excerpt = fallback.length > 240 ? fallback.slice(0, 237) + '...' : fallback;
+        }
+
+        // Filter checks
+        if (domainFilter && !domain.toLowerCase().includes(domainFilter)) {
+          continue;
+        }
+
+        if (queryFilter) {
+          const matchTitle = title.toLowerCase().includes(queryFilter);
+          const matchContent = raw.toLowerCase().includes(queryFilter);
+          const matchExcerpt = excerpt.toLowerCase().includes(queryFilter);
+          const matchTags = tags.some((t) => t.toLowerCase().includes(queryFilter));
+          if (!matchTitle && !matchContent && !matchExcerpt && !matchTags) {
+            continue;
+          }
+        }
+
+        const noteStat = fs.statSync(fullPath);
+
+        notes.push({
+          id: `sb-note-${notes.length + 1}`,
+          title,
+          filePath: relPath,
+          wikilink: `[[${title}]]`,
+          domain,
+          tags,
+          frontmatter,
+          wikilinks: cappedWikilinks,
+          excerpt,
+          content: raw,
+          createdAt: noteStat.birthtime
+            ? noteStat.birthtime.toISOString()
+            : noteStat.mtime.toISOString(),
+          updatedAt: noteStat.mtime.toISOString(),
+        });
+
+        if (params?.maxResults && notes.length >= params.maxResults) {
+          break;
+        }
+      } catch {
+        // Skip unreadable files
+      }
+    }
+
+    return {
+      success: true,
+      notes,
+      total: notes.length,
+      searchLatencyMs: Number((performance.now() - start).toFixed(2)),
+    };
+  }
+
+  public injectSecondBrainNote(
+    payload: SecondBrainInjectPayload,
+    store?: any
+  ): SecondBrainInjectResult {
+    const start = performance.now();
+
+    const candidateRel =
+      payload.filePath ||
+      payload.notePath ||
+      path.join(
+        payload.domain || '01_PROJETOS',
+        `${payload.title.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}.md`
+      );
+
+    const check = sanitizeWorkspaceFilePath(this.vaultRoot, candidateRel);
+    if (!check.valid) {
+      return {
+        success: false,
+        note: null,
+        spawned3DNode: null,
+        node3D: null,
+        persistedToDisk: false,
+        persistedToSqlite: false,
+        latencyMs: Number((performance.now() - start).toFixed(2)),
+        error: check.reason,
+      };
+    }
+
+    // Extract wikilinks from content - strictly capped at 2
+    const rawWikilinks: string[] = [];
+    const wikilinkRegex = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+    let wMatch: RegExpExecArray | null;
+    while ((wMatch = wikilinkRegex.exec(payload.content || '')) !== null) {
+      const target = wMatch[1].trim();
+      if (target && !rawWikilinks.includes(target)) {
+        rawWikilinks.push(target);
+      }
+    }
+    const cappedWikilinks = rawWikilinks.slice(0, 2);
+
+    // Compute excerpt strictly under 250 characters
+    let cleanExcerpt = (payload.content || '')
+      .replace(/^#+\s+.*$/gm, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleanExcerpt.length > 240) {
+      cleanExcerpt = cleanExcerpt.slice(0, 237) + '...';
+    }
+    if (!cleanExcerpt) {
+      const fallback = `Second Brain note ${payload.title}`;
+      cleanExcerpt = fallback.length > 240 ? fallback.slice(0, 237) + '...' : fallback;
+    }
+
+    const tags =
+      payload.tags && payload.tags.length > 0 ? payload.tags : ['#second-brain'];
+    const domain = payload.domain || '01_PROJETOS';
+    const nowIso = new Date().toISOString();
+
+    const formattedMarkdown = [
+      '---',
+      `title: "${payload.title}"`,
+      `domain: "${domain}"`,
+      `tags: [${tags.map((t) => `"${t}"`).join(', ')}]`,
+      `updated: "${nowIso}"`,
+      '---',
+      '',
+      `# ${payload.title}`,
+      '',
+      payload.content,
+    ].join('\n');
+
+    // 1. Write to disk
+    const targetDir = path.dirname(check.resolvedPath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    fs.writeFileSync(check.resolvedPath, formattedMarkdown, 'utf-8');
+
+    const noteId = `sb-note-${Date.now()}`;
+    const note: SecondBrainVaultNote = {
+      id: noteId,
+      title: payload.title,
+      filePath: check.relativePath,
+      wikilink: `[[${payload.title}]]`,
+      domain,
+      tags,
+      frontmatter: {
+        title: payload.title,
+        domain,
+        tags,
+        updated: nowIso,
+        ...(payload.frontmatter || {}),
+      },
+      wikilinks: cappedWikilinks,
+      excerpt: cleanExcerpt,
+      content: payload.content,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    // 2. Persist to SQLite second_brain_notes and telemetry_logs
+    let persistedToSqlite = false;
+    if (store && typeof store.insertSecondBrainNote === 'function') {
+      try {
+        store.insertSecondBrainNote({
+          id: note.id,
+          title: note.title,
+          file_path: note.filePath,
+          wikilink: note.wikilink,
+          domain: note.domain,
+          tags: JSON.stringify(note.tags),
+          frontmatter_json: JSON.stringify(note.frontmatter),
+          wikilinks_json: JSON.stringify(note.wikilinks),
+          excerpt: note.excerpt,
+          content: payload.content,
+          created_at: nowIso,
+          updated_at: nowIso,
+        });
+
+        if (typeof store.insertTelemetry === 'function') {
+          store.insertTelemetry({
+            task_id: 'SECOND_BRAIN_INJECT',
+            event_type: 'TURN_END',
+            agent_name: 'operator',
+            payload: JSON.stringify({
+              filePath: note.filePath,
+              title: note.title,
+              domain: note.domain,
+            }),
+            latency_ms: Math.round(performance.now() - start),
+          });
+        }
+        persistedToSqlite = true;
+      } catch {
+        persistedToSqlite = false;
+      }
+    }
+
+    // 3. Compute 3D coordinates on logarithmic spiral
+    const domainArmMap: Record<string, number> = {
+      '01_PROJETOS': 0,
+      '02_PADROES': 1,
+      '02_PADROES_E_DECISOES': 1,
+      '03_PREFERENCIAS': 2,
+      '04_STACK': 3,
+      '04_STACK_E_SKILLS': 3,
+      '05_AGENTS': 4,
+    };
+    const armIndex = domainArmMap[domain] !== undefined ? domainArmMap[domain] : 0;
+    const pos3D = this.computeLogarithmicSpiralPosition(
+      Date.now() % 40,
+      armIndex,
+      150,
+      0.12
+    );
+
+    const spawned3DNode: SecondBrainNode = {
+      id: note.id,
+      wikilink: note.wikilink,
+      notePath: note.filePath,
+      tagList: note.tags,
+      domain: note.domain,
+      connectionCount: note.wikilinks.length,
+      summary: note.excerpt,
+      position3D: pos3D,
+    };
+
+    return {
+      success: true,
+      note,
+      spawned3DNode,
+      node3D: spawned3DNode,
+      persistedToDisk: true,
+      persistedToSqlite,
+      latencyMs: Number((performance.now() - start).toFixed(2)),
+    };
+  }
+
+  public async syncObsidianCanvas(
+    options?: CanvasSyncRequest & {
+      store?: any;
+    }
+  ): Promise<CanvasSyncResult> {
+    const start = performance.now();
+    const rawPath = options?.canvasPath || 'KALINAR_GALAXY.canvas';
+    const check = sanitizeWorkspaceFilePath(this.vaultRoot, rawPath);
+    if (!check.valid) {
+      return {
+        success: false,
+        direction: options?.direction || 'EXPORT_TO_CANVAS',
+        canvasPath: rawPath,
+        latencyMs: Number((performance.now() - start).toFixed(2)),
+        error: check.reason,
+      };
+    }
+
+    const resolvedCanvasPath = check.resolvedPath;
+    const dir = options?.direction ? options.direction.toLowerCase() : 'export_to_canvas';
+
+    const lockPath = path.resolve(this.vaultRoot, '.kalinar-lock');
+
+    try {
+      if (dir === 'import_from_canvas') {
+        if (!fs.existsSync(resolvedCanvasPath)) {
+          return {
+            success: false,
+            direction: 'IMPORT_FROM_CANVAS',
+            canvasPath: check.relativePath,
+            latencyMs: Number((performance.now() - start).toFixed(2)),
+            error: `Canvas file does not exist: ${check.relativePath}`,
+          };
+        }
+
+        const raw = fs.readFileSync(resolvedCanvasPath, 'utf-8');
+        const doc = JSON.parse(raw) as ObsidianCanvasDocument;
+        const topology = deserializeCanvasToWorkspace(doc);
+
+        if (options?.store && typeof options.store.syncFromCanvas === 'function') {
+          options.store.syncFromCanvas(resolvedCanvasPath);
+        }
+
+        return {
+          success: true,
+          direction: 'IMPORT_FROM_CANVAS',
+          canvasPath: check.relativePath,
+          nodesCount: doc.nodes?.length || 0,
+          edgesCount: doc.edges?.length || 0,
+          nodesImported: doc.nodes?.length || 0,
+          topology,
+          document: doc,
+          latencyMs: Number((performance.now() - start).toFixed(2)),
+        };
+      }
+
+      // Default: export or bidirectional
+      // Set single-writer lock suppression
+      fs.writeFileSync(
+        lockPath,
+        JSON.stringify({ pid: process.pid, timestamp: Date.now() }),
+        'utf-8'
+      );
+
+      const topology = options?.topology || this.scanWorkspaceNodes();
+      const doc = serializeWorkspaceToCanvas(topology, resolvedCanvasPath);
+
+      if (options?.store && typeof options.store.syncToCanvas === 'function') {
+        options.store.syncToCanvas(resolvedCanvasPath, topology);
+      }
+
+      if (fs.existsSync(lockPath)) {
+        try {
+          fs.unlinkSync(lockPath);
+        } catch {}
+      }
+
+      return {
+        success: true,
+        direction: dir.toUpperCase(),
+        canvasPath: check.relativePath,
+        nodesCount: doc.nodes.length,
+        edgesCount: doc.edges.length,
+        nodesExported: doc.nodes.length,
+        topology,
+        document: doc,
+        latencyMs: Number((performance.now() - start).toFixed(2)),
+      };
+    } catch (err: any) {
+      if (fs.existsSync(lockPath)) {
+        try {
+          fs.unlinkSync(lockPath);
+        } catch {}
+      }
+      return {
+        success: false,
+        direction: dir.toUpperCase(),
+        canvasPath: check.relativePath,
+        latencyMs: Number((performance.now() - start).toFixed(2)),
+        error: err?.message || String(err),
+      };
+    }
   }
 
   public dispose(): void {

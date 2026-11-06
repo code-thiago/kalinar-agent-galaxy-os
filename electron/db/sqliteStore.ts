@@ -7,7 +7,13 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
-import { FifoQueueItem, LlmModelCheckpoint, LlmModelId } from '../../src/types/kalinar.js';
+import {
+  FifoQueueItem,
+  LlmModelCheckpoint,
+  LlmModelId,
+  ObsidianCanvasDocument,
+  WorkspaceScanResult,
+} from '../../src/types/kalinar.js';
 
 export interface TaskRecord {
   id: string;
@@ -43,6 +49,21 @@ export interface CanvasNodeRecord {
   color_token: string;
   canvas_file: string;
   last_synced_at?: string;
+}
+
+export interface SecondBrainNoteRecord {
+  id: string;
+  title: string;
+  file_path: string;
+  wikilink: string;
+  domain: string;
+  tags: string;
+  frontmatter_json: string;
+  wikilinks_json: string;
+  excerpt: string;
+  content: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export class KalinarSqliteStore {
@@ -169,19 +190,47 @@ export class KalinarSqliteStore {
       );
     `);
 
-    // 7. Canvas Nodes Table
+    // 7. Canvas Nodes Table (Zero Foreign Key Constraints - Generic Entity Ref)
+    try {
+      const tableInfo = this.db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'canvas_nodes'"
+      ).get() as { sql?: string } | undefined;
+      if (tableInfo?.sql && tableInfo.sql.includes('REFERENCES tasks')) {
+        this.db.exec(`
+          ALTER TABLE canvas_nodes RENAME TO canvas_nodes_old;
+          CREATE TABLE canvas_nodes (
+            id TEXT PRIMARY KEY NOT NULL,
+            task_id TEXT NOT NULL,
+            x REAL NOT NULL DEFAULT 0,
+            y REAL NOT NULL DEFAULT 0,
+            width REAL NOT NULL DEFAULT 320,
+            height REAL NOT NULL DEFAULT 160,
+            color_token TEXT NOT NULL DEFAULT '#00F0FF',
+            canvas_file TEXT NOT NULL,
+            last_synced_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+          );
+          INSERT INTO canvas_nodes (id, task_id, x, y, width, height, color_token, canvas_file, last_synced_at)
+          SELECT id, task_id, x, y, width, height, color_token, canvas_file, last_synced_at FROM canvas_nodes_old;
+          DROP TABLE canvas_nodes_old;
+        `);
+      }
+    } catch {
+      // Table might not exist yet, continue to create table
+    }
+
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS canvas_nodes (
         id TEXT PRIMARY KEY NOT NULL,
-        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-        x REAL NOT NULL,
-        y REAL NOT NULL,
+        task_id TEXT NOT NULL,
+        x REAL NOT NULL DEFAULT 0,
+        y REAL NOT NULL DEFAULT 0,
         width REAL NOT NULL DEFAULT 320,
         height REAL NOT NULL DEFAULT 160,
         color_token TEXT NOT NULL DEFAULT '#00F0FF',
         canvas_file TEXT NOT NULL,
         last_synced_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
       );
+      CREATE INDEX IF NOT EXISTS idx_canvas_nodes_file ON canvas_nodes(canvas_file);
     `);
 
     // 8. Busy Agent FIFO Queue Table (FLOW-AGENT-FIFO-01)
@@ -209,6 +258,26 @@ export class KalinarSqliteStore {
         status TEXT NOT NULL,
         updated_at INTEGER NOT NULL
       );
+    `);
+
+    // 10. Second Brain Notes Table (Vault Index & Note Injection Storage)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS second_brain_notes (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        wikilink TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        frontmatter_json TEXT NOT NULL,
+        wikilinks_json TEXT NOT NULL,
+        excerpt TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_second_brain_domain ON second_brain_notes(domain);
+      CREATE INDEX IF NOT EXISTS idx_second_brain_file_path ON second_brain_notes(file_path);
     `);
   }
 
@@ -532,57 +601,287 @@ export class KalinarSqliteStore {
   }
 
   /* =====================================================================
-     BIDIRECTIONAL CANVAS SYNCHRONIZATION
+     SECOND BRAIN NOTES STORAGE & QUERY
      ===================================================================== */
 
-  public syncToCanvas(canvasFilePath: string): void {
-    const stmt = this.db.prepare(`SELECT * FROM canvas_nodes WHERE canvas_file = ?`);
-    const nodes = stmt.all(canvasFilePath) as unknown as CanvasNodeRecord[];
-
-    const canvasData = {
-      nodes: nodes.map((n) => ({
-        id: n.id,
-        x: n.x,
-        y: n.y,
-        width: n.width,
-        height: n.height,
-        color: n.color_token,
-        type: 'text',
-        text: `[TASK: ${n.task_id}]\nStatus: Active Node`,
-      })),
-      edges: [],
-    };
-
-    fs.writeFileSync(canvasFilePath, JSON.stringify(canvasData, null, 2), 'utf-8');
+  public insertSecondBrainNote(note: SecondBrainNoteRecord): void {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO second_brain_notes (
+        id, title, file_path, wikilink, domain, tags,
+        frontmatter_json, wikilinks_json, excerpt, content, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const now = new Date().toISOString();
+    stmt.run(
+      note.id,
+      note.title,
+      note.file_path,
+      note.wikilink,
+      note.domain,
+      note.tags,
+      note.frontmatter_json,
+      note.wikilinks_json,
+      note.excerpt,
+      note.content,
+      note.created_at || now,
+      note.updated_at || now
+    );
   }
 
-  public syncFromCanvas(canvasFilePath: string): void {
+  public getSecondBrainNotes(filter?: {
+    domain?: string;
+    query?: string;
+    limit?: number;
+  }): SecondBrainNoteRecord[] {
+    let sql = `SELECT * FROM second_brain_notes WHERE 1=1`;
+    const params: (string | number)[] = [];
+
+    if (filter?.domain) {
+      sql += ` AND domain = ?`;
+      params.push(filter.domain);
+    }
+
+    if (filter?.query) {
+      sql += ` AND (title LIKE ? OR content LIKE ? OR excerpt LIKE ? OR tags LIKE ?)`;
+      const pattern = `%${filter.query}%`;
+      params.push(pattern, pattern, pattern, pattern);
+    }
+
+    sql += ` ORDER BY updated_at DESC`;
+
+    if (filter?.limit) {
+      sql += ` LIMIT ?`;
+      params.push(filter.limit);
+    }
+
+    const stmt = this.db.prepare(sql);
+    return stmt.all(...params) as unknown as SecondBrainNoteRecord[];
+  }
+
+  public getSecondBrainNoteById(id: string): SecondBrainNoteRecord | null {
+    const stmt = this.db.prepare(`SELECT * FROM second_brain_notes WHERE id = ?`);
+    const row = stmt.get(id);
+    return (row as unknown as SecondBrainNoteRecord) || null;
+  }
+
+  public getSecondBrainNoteByPath(filePath: string): SecondBrainNoteRecord | null {
+    const stmt = this.db.prepare(`SELECT * FROM second_brain_notes WHERE file_path = ?`);
+    const row = stmt.get(filePath);
+    return (row as unknown as SecondBrainNoteRecord) || null;
+  }
+
+  public deleteSecondBrainNote(id: string): void {
+    const stmt = this.db.prepare(`DELETE FROM second_brain_notes WHERE id = ?`);
+    stmt.run(id);
+  }
+
+  /* =====================================================================
+     CANVAS NODES CRUD & PERSISTENCE
+     ===================================================================== */
+
+  public upsertCanvasNode(node: CanvasNodeRecord): void {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO canvas_nodes (
+        id, task_id, x, y, width, height, color_token, canvas_file, last_synced_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const now = new Date().toISOString();
+    stmt.run(
+      node.id,
+      node.task_id,
+      node.x,
+      node.y,
+      node.width,
+      node.height,
+      node.color_token,
+      node.canvas_file,
+      node.last_synced_at || now
+    );
+  }
+
+  public getCanvasNodes(canvasFile?: string): CanvasNodeRecord[] {
+    if (canvasFile) {
+      const stmt = this.db.prepare(`SELECT * FROM canvas_nodes WHERE canvas_file = ?`);
+      return stmt.all(canvasFile) as unknown as CanvasNodeRecord[];
+    }
+    const stmt = this.db.prepare(`SELECT * FROM canvas_nodes`);
+    return stmt.all() as unknown as CanvasNodeRecord[];
+  }
+
+  public clearCanvasNodes(canvasFile?: string): void {
+    if (canvasFile) {
+      const stmt = this.db.prepare(`DELETE FROM canvas_nodes WHERE canvas_file = ?`);
+      stmt.run(canvasFile);
+    } else {
+      const stmt = this.db.prepare(`DELETE FROM canvas_nodes`);
+      stmt.run();
+    }
+  }
+
+  /* =====================================================================
+     BIDIRECTIONAL CANVAS SYNCHRONIZATION (OBSIDIAN JSON CANVAS 1.0)
+     ===================================================================== */
+
+  public syncToCanvas(
+    canvasFilePath: string,
+    topology?: WorkspaceScanResult
+  ): ObsidianCanvasDocument {
+    const nodes: any[] = [];
+    const edges: any[] = [];
+
+    if (topology) {
+      // 1. AgentNode: color "5" (Cyan), type: 'text', 360x200
+      for (const agent of topology.agents || []) {
+        const x = Math.round((agent.position3D ? agent.position3D[0] : 0) * 4);
+        const y = Math.round((agent.position3D ? agent.position3D[2] : 0) * 4);
+        const text = `## ${agent.filename}\n**ID:** ${agent.id}\n**Status:** ${agent.status}\n**Objective:** ${agent.currentObjective}\n**Model:** ${agent.activeModelId || 'argon'}\n**Tokens:** ${agent.tokensPrompt + agent.tokensCompletion}`;
+
+        nodes.push({
+          id: agent.id,
+          type: 'text',
+          text,
+          x,
+          y,
+          width: 360,
+          height: 200,
+          color: '5',
+        });
+
+        this.upsertCanvasNode({
+          id: agent.id,
+          task_id: agent.id,
+          x,
+          y,
+          width: 360,
+          height: 200,
+          color_token: '5',
+          canvas_file: canvasFilePath,
+        });
+      }
+
+      // 2. SecondBrainNode: color "6" (Purple/Magenta), type: 'file', 320x180
+      for (const sb of topology.secondBrainNodes || []) {
+        const x = Math.round((sb.position3D ? sb.position3D[0] : 0) * 4);
+        const y = Math.round((sb.position3D ? sb.position3D[2] : 0) * 4);
+
+        nodes.push({
+          id: sb.id,
+          type: 'file',
+          file: sb.notePath,
+          x,
+          y,
+          width: 320,
+          height: 180,
+          color: '6',
+        });
+
+        this.upsertCanvasNode({
+          id: sb.id,
+          task_id: sb.id,
+          x,
+          y,
+          width: 320,
+          height: 180,
+          color_token: '6',
+          canvas_file: canvasFilePath,
+        });
+      }
+
+      // 3. ArtifactSatelliteNode: color "3" (Amber), type: 'file', 280x150
+      for (const sat of topology.artifactSatellites || []) {
+        const x = Math.round((sat.position3D ? sat.position3D[0] : 0) * 4);
+        const y = Math.round((sat.position3D ? sat.position3D[2] : 0) * 4);
+
+        nodes.push({
+          id: sat.id,
+          type: 'file',
+          file: sat.artifactPath,
+          x,
+          y,
+          width: 280,
+          height: 150,
+          color: '3',
+        });
+
+        this.upsertCanvasNode({
+          id: sat.id,
+          task_id: sat.id,
+          x,
+          y,
+          width: 280,
+          height: 150,
+          color_token: '3',
+          canvas_file: canvasFilePath,
+        });
+
+        if (sat.associatedAgentId) {
+          edges.push({
+            id: `edge-${sat.associatedAgentId}-${sat.id}`,
+            fromNode: sat.associatedAgentId,
+            fromSide: 'right',
+            fromEnd: 'none',
+            toNode: sat.id,
+            toSide: 'left',
+            toEnd: 'arrow',
+            color: '3',
+            label: 'artifact',
+          });
+        }
+      }
+    } else {
+      // Export existing DB rows
+      const dbNodes = this.getCanvasNodes(canvasFilePath);
+      for (const n of dbNodes) {
+        nodes.push({
+          id: n.id,
+          type: 'text',
+          text: `[ENTITY: ${n.task_id}]\nStatus: Active Node`,
+          x: n.x,
+          y: n.y,
+          width: n.width,
+          height: n.height,
+          color: n.color_token,
+        });
+      }
+    }
+
+    const canvasDoc: ObsidianCanvasDocument = {
+      nodes,
+      edges,
+    };
+
+    const dir = path.dirname(canvasFilePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(canvasFilePath, JSON.stringify(canvasDoc, null, 2), 'utf-8');
+    return canvasDoc;
+  }
+
+  public syncFromCanvas(canvasFilePath: string): ObsidianCanvasDocument | null {
     if (!fs.existsSync(canvasFilePath)) {
-      return;
+      return null;
     }
     const raw = fs.readFileSync(canvasFilePath, 'utf-8');
     try {
-      const data = JSON.parse(raw);
+      const data = JSON.parse(raw) as ObsidianCanvasDocument;
       if (Array.isArray(data.nodes)) {
-        const stmt = this.db.prepare(`
-          INSERT OR REPLACE INTO canvas_nodes (id, task_id, x, y, width, height, color_token, canvas_file)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `);
         for (const n of data.nodes) {
-          stmt.run(
-            n.id,
-            n.id.replace('node-', ''),
-            n.x || 0,
-            n.y || 0,
-            n.width || 320,
-            n.height || 160,
-            n.color || '#00F0FF',
-            canvasFilePath
-          );
+          this.upsertCanvasNode({
+            id: n.id,
+            task_id: n.id.replace('node-', ''),
+            x: n.x || 0,
+            y: n.y || 0,
+            width: n.width || 320,
+            height: n.height || 160,
+            color_token: (n.color as string) || '#00F0FF',
+            canvas_file: canvasFilePath,
+          });
         }
       }
+      return data;
     } catch {
-      // Ignored if JSON parsing fails
+      return null;
     }
   }
 

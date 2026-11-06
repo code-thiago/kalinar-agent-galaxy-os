@@ -1,4 +1,5 @@
 import React from 'react';
+import { TauzFrequencyBands } from '../../types/kalinar.js';
 
 export interface SingularityHudColumnRootProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
@@ -58,6 +59,7 @@ export interface SingularityCoreBlockProps extends React.HTMLAttributes<HTMLDivE
   onMicToggle?: () => void;
   onBriefingRequest?: () => void;
   isMicActive?: boolean;
+  frequencyBands?: TauzFrequencyBands;
 }
 
 export function SingularityCoreBlock({
@@ -67,6 +69,7 @@ export function SingularityCoreBlock({
   onMicToggle,
   onBriefingRequest,
   isMicActive = false,
+  frequencyBands,
   className = '',
   ...props
 }: SingularityCoreBlockProps) {
@@ -95,6 +98,32 @@ export function SingularityCoreBlock({
       <div className="font-mono text-[13px] text-[var(--ds-accent-singularity)] leading-snug min-h-[44px] italic">
         {transcript || '"Aguardando diretriz tática. O núcleo gravitacional permanece ativo."'}
       </div>
+
+      {/* Monospace Tabular-Nums DSP Acoustic Telemetry Strip */}
+      <div
+        data-slot="singularity-acoustic-telemetry"
+        className="font-mono text-[10px] tabular-nums text-[var(--ds-accent-singularity)] flex justify-between items-center px-2 py-1 bg-[rgba(13,15,20,0.85)] border border-[rgba(170,136,255,0.25)] select-none"
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="text-[var(--ds-text-secondary)]">SUB-110HZ:</span>
+          <span className="text-[var(--ds-accent-singularity)] font-semibold">
+            {(frequencyBands?.subBass ?? 0).toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[var(--ds-text-secondary)]">PRES-2.4KHZ:</span>
+          <span className="text-[var(--ds-primitive-lavender-400)] font-semibold">
+            {(frequencyBands?.highPresence ?? 0).toFixed(2)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[var(--ds-text-secondary)]">PULSE:</span>
+          <span className="text-[var(--ds-status-active-fg)] font-semibold">
+            {(frequencyBands?.compositePulse ?? 0).toFixed(2)}
+          </span>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center text-[10px] text-[var(--ds-text-secondary)] font-mono tabular-nums pt-1.5 border-t border-[rgba(170,136,255,0.25)]">
         <div className="flex items-center gap-2">
           <span>SOVEREIGN PT-BR</span>

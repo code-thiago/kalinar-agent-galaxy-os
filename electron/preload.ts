@@ -8,9 +8,15 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
   AgentNode,
   ApproveOrRevertDiffResult,
+  CanvasSyncRequest,
+  CanvasSyncResult,
   ExecutionMode,
   LiveGitDiffResult,
   LlmModelId,
+  SecondBrainInjectPayload,
+  SecondBrainInjectResult,
+  SecondBrainQueryResult,
+  SecondBrainVaultQueryParams,
   SingularityCoreState,
   WorkspaceScanResult,
 } from '../src/types/kalinar.js';
@@ -29,6 +35,9 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:get_live_git_diff',
   'kalinar:approve_or_revert_diff',
   'kalinar:scan_workspace_nodes',
+  'kalinar:sync_obsidian_canvas',
+  'kalinar:query_second_brain_vault',
+  'kalinar:inject_second_brain_note',
 ] as const;
 
 export interface ShellResult {
@@ -74,6 +83,9 @@ export interface KalinarApiBridge {
   }) => Promise<ApproveOrRevertDiffResult>;
   scanWorkspaceNodes: () => Promise<WorkspaceScanResult>;
   evaluateZenRule: (graph: string, input: any) => Promise<any>;
+  syncObsidianCanvas: (payload?: CanvasSyncRequest) => Promise<CanvasSyncResult>;
+  querySecondBrainVault: (params?: SecondBrainVaultQueryParams) => Promise<SecondBrainQueryResult>;
+  injectSecondBrainNote: (payload: SecondBrainInjectPayload) => Promise<SecondBrainInjectResult>;
   onTelemetryStream: (callback: (data: any) => void) => () => void;
   onVoiceStateChange: (callback: (state: any) => void) => () => void;
   onAgentUpdate: (callback: (agent: AgentNode) => void) => () => void;
@@ -104,6 +116,12 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:scan_workspace_nodes'),
   evaluateZenRule: (graph, input) =>
     ipcRenderer.invoke('kalinar:evaluate_zen_rule', { graph, input }),
+  syncObsidianCanvas: (payload) =>
+    ipcRenderer.invoke('kalinar:sync_obsidian_canvas', payload),
+  querySecondBrainVault: (params) =>
+    ipcRenderer.invoke('kalinar:query_second_brain_vault', params),
+  injectSecondBrainNote: (payload) =>
+    ipcRenderer.invoke('kalinar:inject_second_brain_note', payload),
   onTelemetryStream: (callback: (data: any) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on('telemetry:stream', handler);

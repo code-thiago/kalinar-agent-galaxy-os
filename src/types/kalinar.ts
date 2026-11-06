@@ -169,6 +169,7 @@ export interface ArtifactSatelliteNode {
   status: 'GENERATING' | 'COMMITTED' | 'VERIFIED' | 'REJECTED';
   byteSize: number;
   lastModified: string;
+  position3D?: [number, number, number];
 }
 
 export interface SecondBrainNode {
@@ -179,6 +180,7 @@ export interface SecondBrainNode {
   domain: '01_PROJETOS' | '02_PADROES' | '03_PREFERENCIAS' | '04_STACK' | '05_EXECUCOES' | string;
   connectionCount: number;
   summary: string;
+  position3D?: [number, number, number];
 }
 
 export interface SynapticBeam {
@@ -277,5 +279,152 @@ export interface WorkspaceScanResult {
         action: string;
       }
   >;
+}
+
+/* =====================================================================
+   OBSIDIAN JSON CANVAS 1.0 CONTRACT SPECIFICATION
+   ===================================================================== */
+
+export type CanvasNodeColor = '1' | '2' | '3' | '4' | '5' | '6' | string;
+
+export interface CanvasTextNode {
+  id: string;
+  type: 'text';
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: CanvasNodeColor;
+}
+
+export interface CanvasFileNode {
+  id: string;
+  type: 'file';
+  file: string;
+  subpath?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: CanvasNodeColor;
+}
+
+export interface CanvasLinkNode {
+  id: string;
+  type: 'link';
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: CanvasNodeColor;
+}
+
+export interface CanvasGroupNode {
+  id: string;
+  type: 'group';
+  label?: string;
+  background?: string;
+  backgroundStyle?: 'cover' | 'ratio' | 'repeat';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: CanvasNodeColor;
+}
+
+export type CanvasNode = CanvasTextNode | CanvasFileNode | CanvasLinkNode | CanvasGroupNode;
+
+export interface CanvasEdge {
+  id: string;
+  fromNode: string;
+  fromSide?: 'top' | 'right' | 'bottom' | 'left';
+  fromEnd?: 'none' | 'arrow';
+  toNode: string;
+  toSide?: 'top' | 'right' | 'bottom' | 'left';
+  toEnd?: 'none' | 'arrow';
+  color?: CanvasNodeColor;
+  label?: string;
+}
+
+export interface ObsidianCanvasDocument {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+}
+
+export interface CanvasSyncRequest {
+  direction?: 'EXPORT_TO_CANVAS' | 'IMPORT_FROM_CANVAS' | 'BIDIRECTIONAL' | 'export_to_canvas' | 'import_from_canvas';
+  canvasPath?: string;
+  topology?: WorkspaceScanResult;
+}
+
+export interface CanvasSyncResult {
+  success: boolean;
+  direction?: string;
+  canvasPath?: string;
+  nodesCount?: number;
+  edgesCount?: number;
+  nodesExported?: number;
+  nodesImported?: number;
+  topology?: WorkspaceScanResult;
+  document?: ObsidianCanvasDocument;
+  latencyMs?: number;
+  error?: string;
+}
+
+/* =====================================================================
+   SECOND BRAIN VAULT RAG & NOTE INJECTION CONTRACTS
+   ===================================================================== */
+
+export interface SecondBrainVaultNote {
+  id: string;
+  title: string;
+  filePath: string;
+  wikilink: string;
+  domain: string;
+  tags: string[];
+  frontmatter: Record<string, any>;
+  wikilinks: string[]; // Strictly capped at maximum 2 per Graph Pointer
+  excerpt: string; // Strictly under 250 characters
+  content?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SecondBrainVaultQueryParams {
+  query?: string;
+  domain?: string;
+  targetPath?: string;
+  maxResults?: number;
+}
+
+export interface SecondBrainQueryResult {
+  success: boolean;
+  notes: SecondBrainVaultNote[];
+  total: number;
+  searchLatencyMs: number;
+  error?: string;
+}
+
+export interface SecondBrainInjectPayload {
+  title: string;
+  domain: string;
+  tags?: string[];
+  content: string;
+  filePath?: string;
+  notePath?: string;
+  frontmatter?: Record<string, any>;
+}
+
+export interface SecondBrainInjectResult {
+  success: boolean;
+  note: SecondBrainVaultNote | null;
+  spawned3DNode?: SecondBrainNode | null;
+  node3D?: SecondBrainNode | null;
+  persistedToDisk: boolean;
+  persistedToSqlite: boolean;
+  latencyMs: number;
+  error?: string;
 }
 
