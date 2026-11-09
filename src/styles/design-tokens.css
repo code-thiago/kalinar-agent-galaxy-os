@@ -62,26 +62,26 @@
   --ds-border-focus: var(--ds-accent-singularity);
 
   /* Typography Colors */
-  --ds-text-primary: var(--ds-primitive-white-500);
-  --ds-text-secondary: #9a9a9a; /* 7.45:1 contrast on #000000 (WCAG 2.2 AAA PASS) */
+  --ds-text-primary: #DDDDDD;
+  --ds-text-secondary: #9A9A9A; /* 7.45:1 contrast on #000000 (WCAG 2.2 AAA PASS) */
   --ds-text-muted: var(--ds-primitive-slate-500);
 
   /* Singularity & Knowledge Graph Semantic Tokens */
-  --ds-accent-singularity: #aa88ff; /* Event Horizon Lavender */
-  --ds-accent-agent: #00f0ff;       /* Arc Cyan for active agent.md stars */
-  --ds-accent-memory: #e879f9;      /* Neural Magenta for Second Brain nodes */
-  --ds-accent-synapse: #8b5cf6;     /* Quantum Violet for Graph Pointer beams */
+  --ds-accent-singularity: #AA88FF; /* Event Horizon Lavender */
+  --ds-accent-agent: #00F0FF;       /* Arc Cyan for active agent.md stars */
+  --ds-accent-memory: #E879F9;      /* Neural Magenta for Second Brain nodes */
+  --ds-accent-synapse: #8B5CF6;     /* Quantum Violet for Graph Pointer beams */
 
   /* Operational Status Semantics */
-  --ds-status-active-fg: #34d399;   /* Emerald */
+  --ds-status-active-fg: #34D399;   /* Emerald */
   --ds-status-active-bg: var(--ds-primitive-emerald-950);
   --ds-status-active-border: var(--ds-primitive-emerald-500);
 
-  --ds-status-warn-fg: #fbbf24;     /* Amber */
+  --ds-status-warn-fg: #FBBF24;     /* Amber */
   --ds-status-warn-bg: var(--ds-primitive-amber-950);
   --ds-status-warn-border: var(--ds-primitive-amber-500);
 
-  --ds-status-halt-fg: #f87171;     /* Crimson */
+  --ds-status-halt-fg: #F87171;     /* Crimson */
   --ds-status-halt-bg: var(--ds-primitive-crimson-950);
   --ds-status-halt-border: var(--ds-primitive-crimson-500);
 
@@ -143,18 +143,53 @@
   padding: 0;
 }
 
-body {
-  background-color: var(--ds-surface-singularity-void);
-  color: var(--ds-text-primary);
-  font-family: var(--ds-primitive-font-mono);
+html, body, #root {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000000;
+  font-family: 'Geist Mono', 'SF Mono', Consolas, monospace;
   font-size: 13px;
   line-height: 1.35;
   letter-spacing: 0.02em;
+  text-transform: uppercase;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
   user-select: none;
+}
+
+/* =====================================================================
+   STRICT 2-LAYER ARCHITECTURE
+   Layer 0: canvas#singularity-bg (pointer-events: auto)
+   Layer 1: .kalinar-hud (pointer-events: none, child panels: auto)
+   ===================================================================== */
+canvas#singularity-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: auto;
+}
+
+.kalinar-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: block;
+}
+
+.kalinar-hud > *,
+.kalinar-hud [data-slot="left-agent-cards-column"],
+.kalinar-hud [data-slot="right-singularity-column"],
+.kalinar-hud [data-slot="top-right-trigger"],
+.kalinar-hud [data-slot="node-inspector-drawer"],
+.kalinar-hud [data-slot="dock-root"],
+.kalinar-hud aside,
+.kalinar-hud button {
+  pointer-events: auto;
 }
 
 /* Structural Headers */

@@ -4,7 +4,7 @@
  * Strictly Zero Emojis
  */
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -65,14 +65,22 @@ const initialSingularityState: SingularityCoreState = {
 };
 
 function createWindow(): void {
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1024,
     minHeight: 700,
+    autoHideMenuBar: true,
     backgroundColor: '#000000',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#000000',
+      symbolColor: '#AA88FF',
+      height: 32,
+    },
     title: 'KALINAR OS | SINGULARITY TELEMETRY',
-    frame: true,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -507,6 +515,7 @@ function setupIpcHandlers(): void {
 }
 
 app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null);
   try {
     sqliteStore = new KalinarSqliteStore();
     daemon = new KalinarDaemon({}, sqliteStore, eventBus);

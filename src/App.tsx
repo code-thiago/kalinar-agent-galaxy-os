@@ -33,15 +33,15 @@ export function App() {
       <KalinarGalaxyCanvas />
 
       {/* LAYER 1: ASYMMETRIC SINGULARITY HUD */}
-      <div className="kalinar-hud relative inset-0 w-full h-full pointer-events-none z-10">
+      <div className="kalinar-hud">
         {/* Left Dynamic Column */}
         <LeftAgentCardsColumn />
 
-        {/* Top-Right Trigger */}
-        <TopRightTrigger />
-
         {/* Right Ethereal Column */}
         <RightSingularityColumn />
+
+        {/* Top-Right 44x44px Second Brain Trigger */}
+        <TopRightTrigger />
 
         {/* Second Brain Inspector Drawer */}
         <NodeInspectorDrawer />
