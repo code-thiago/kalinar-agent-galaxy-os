@@ -1,6 +1,6 @@
 /**
- * KALINAR CENTRAL BLACK HOLE SINGULARITY (v0.2.0-alpha)
- * Event Horizon Void + Pulsating Photon Ring + GPGPU Particle Accretion Disk
+ * KALINAR CENTRAL BLACK HOLE SINGULARITY (v1.1.0)
+ * Event Horizon Void + Pulsating Photon Ring + 262,144 GPGPU Particle Accretion Disk
  * Strictly Zero Emojis
  */
 
@@ -37,18 +37,19 @@ export class KalinarSingularityCore {
     const innerRadius = config?.innerDiskRadius || 72;
     const outerRadius = config?.outerDiskRadius || 360;
 
-    // 1. Central Event Horizon (Pitch-Black Spherical Void)
-    const sphereGeometry = new THREE.SphereGeometry(coreRadius, 32, 32);
+    // 1. Central Event Horizon (Pitch-Black Spherical Void centered at 0,0,0 with zero specular reflection)
+    const sphereGeometry = new THREE.SphereGeometry(coreRadius, 64, 64);
     const sphereMaterial = new THREE.MeshBasicMaterial({
       color: 0x000000,
       depthTest: true,
       depthWrite: true,
     });
     this.coreSphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    this.coreSphere.position.set(0, 0, 0);
     this.group.add(this.coreSphere);
 
-    // 2. Event Horizon Photon Ring
-    const ringGeometry = new THREE.SphereGeometry(coreRadius * 1.08, 32, 32);
+    // 2. Event Horizon Fresnel Photon Ring (Relativistic rim glow Lavender #AA88FF to White #FFFFFF)
+    const ringGeometry = new THREE.SphereGeometry(coreRadius * 1.08, 64, 64);
     this.photonRingMaterial = new THREE.ShaderMaterial({
       vertexShader: photonRingShader.vertexShader,
       fragmentShader: photonRingShader.fragmentShader,
@@ -58,7 +59,7 @@ export class KalinarSingularityCore {
         uSubBass: { value: 0 },
         uCompositePulse: { value: 0 },
         uColorInner: { value: new THREE.Color(0xaa88ff) },
-        uColorOuter: { value: new THREE.Color(0xdddddd) },
+        uColorOuter: { value: new THREE.Color(0xffffff) },
       },
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -66,9 +67,10 @@ export class KalinarSingularityCore {
       depthWrite: false,
     });
     this.photonRing = new THREE.Mesh(ringGeometry, this.photonRingMaterial);
+    this.photonRing.position.set(0, 0, 0);
     this.group.add(this.photonRing);
 
-    // 3. GPGPU Accretion Disk Particle Cloud (65,536 Particles)
+    // 3. GPGPU Accretion Disk Particle Cloud (262,144 Particles canonical desktop density)
     this.particleGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const randoms = new Float32Array(particleCount * 3);

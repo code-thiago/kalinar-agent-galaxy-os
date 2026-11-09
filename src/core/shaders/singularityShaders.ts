@@ -1,5 +1,5 @@
 /**
- * KALINAR SINGULARITY & ACCRETION DISK SHADERS (v0.2.0-alpha)
+ * KALINAR SINGULARITY & ACCRETION DISK SHADERS (v1.1.0)
  * Twisted Toroidal SDF + Analytic Curl Noise + Navier-Stokes Fluid Coupling
  * Strictly Zero Emojis
  */
@@ -32,15 +32,17 @@ export const photonRingShader = {
     void main() {
       vec3 viewDir = normalize(-vPosition);
       float fresnel = 1.0 - abs(dot(viewDir, vNormal));
-      fresnel = pow(fresnel, 2.5);
+      fresnel = pow(fresnel, 2.2);
 
-      // Radial pulse synchronized with Kalinar Tauz voice sub-bass and composite pulse
-      float acousticDrive = uVoicePulse + uSubBass * 0.65 + uCompositePulse * 0.45;
+      // Radial relativistic pulse synchronized with Tauz voice sub-bass and composite pulse at 60 FPS
+      float acousticDrive = 1.0 + uVoicePulse * 0.75 + uSubBass * 0.85 + uCompositePulse * 0.65;
       float pulse = 0.85 + 0.3 * sin(uTime * 3.0 + fresnel * 6.0) * acousticDrive;
-      vec3 color = mix(uColorInner, uColorOuter, fresnel * pulse);
 
-      float alpha = smoothstep(0.1, 0.9, fresnel) * pulse;
-      gl_FragColor = vec4(color, alpha);
+      // Event Horizon Lavender (#AA88FF) to Starlight White (#FFFFFF) relativistic rim glow
+      vec3 color = mix(uColorInner, uColorOuter, clamp(pow(fresnel, 1.6) * pulse, 0.0, 1.0));
+
+      float alpha = smoothstep(0.08, 0.88, fresnel) * pulse;
+      gl_FragColor = vec4(color * (1.0 + fresnel * 0.5), alpha);
     }
   `,
 };
@@ -129,7 +131,10 @@ export const accretionDiskShader = {
       float motionMultiplier = uReducedMotion > 0.5 ? 0.0 : 1.0;
       float radialSpiralBoost = 1.0 + uVoicePulse * 0.4 + uSubBass * 0.85 + uCompositePulse * 0.55;
       float speed = (0.25 + aRandom.y * 0.75) * radialSpiralBoost * motionMultiplier;
-      float currentAngle = aInitialAngle + uTime * speed * (140.0 / aOrbitRadius);
+      
+      // Differential Keplerian orbital velocity (inner particles orbit significantly faster than outer disk)
+      float keplerianOmega = pow(140.0 / max(aOrbitRadius, 1.0), 1.5);
+      float currentAngle = aInitialAngle + uTime * speed * keplerianOmega;
 
       // Toroidal orbital base coordinates
       float radius = aOrbitRadius;
@@ -139,16 +144,29 @@ export const accretionDiskShader = {
         sin(currentAngle) * radius
       );
 
-      // Apply Bridson curl turbulence modulated by Tauz subBass and compositePulse
-      vec3 curl = curlNoise(pos * 0.008 + vec3(0.0, uTime * 0.15 * motionMultiplier, 0.0));
-      pos += curl * (12.0 * (1.0 + uVoicePulse * 0.5 + uSubBass * 0.9 + uCompositePulse * 0.6));
+      // Tilted relativistic accretion vortex (~20 degrees relativistic tilt around X/Z axis)
+      float cosTilt = 0.9396926; // cos(20 deg)
+      float sinTilt = 0.3420201; // sin(20 deg)
+      pos = vec3(
+        pos.x,
+        pos.y * cosTilt - pos.z * sinTilt,
+        pos.y * sinTilt + pos.z * cosTilt
+      );
 
       // Sample 2D Navier-Stokes fluid velocity field
       vec2 fluidUv = (pos.xz / 800.0) + 0.5;
+      vec2 fluidVel = vec2(0.0);
       if (fluidUv.x >= 0.0 && fluidUv.x <= 1.0 && fluidUv.y >= 0.0 && fluidUv.y <= 1.0) {
-        vec2 fluidVel = texture2D(uFluidVelocity, fluidUv).xy;
-        pos.xz += fluidVel * 35.0 * motionMultiplier;
+        fluidVel = texture2D(uFluidVelocity, fluidUv).xy;
       }
+
+      // Organic curl-noise turbulence stirred by cursor fluid perturbation and modulated by Tauz audio
+      float fluidSpeed = length(fluidVel);
+      vec3 curlSamplePos = pos * 0.008 + vec3(fluidVel.x * 0.02, uTime * 0.15 * motionMultiplier, fluidVel.y * 0.02);
+      vec3 curl = curlNoise(curlSamplePos);
+      float curlAmp = (12.0 + fluidSpeed * 24.0) * (1.0 + uVoicePulse * 0.5 + uSubBass * 0.9 + uCompositePulse * 0.6);
+      pos += curl * curlAmp;
+      pos.xz += fluidVel * 35.0 * motionMultiplier;
 
       vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
       gl_Position = projectionMatrix * mvPosition;
@@ -177,6 +195,7 @@ export const accretionDiskShader = {
       float dist = length(coord);
       if (dist > 0.5) discard;
 
+      // Soft circular particle falloff (eliminates square boxy pixels)
       float core = smoothstep(0.5, 0.0, dist);
       float glow = pow(core, 2.0);
 
