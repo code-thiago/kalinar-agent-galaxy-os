@@ -359,7 +359,7 @@ export class KalinarSqliteStore {
 
     return {
       totalEvents: countRow?.count || 0,
-      avgLatencyMs: Math.round(countRow?.avg_latency || 0),
+      avgLatencyMs: Number((countRow?.avg_latency || 0).toFixed(2)),
       agentDistribution,
     };
   }

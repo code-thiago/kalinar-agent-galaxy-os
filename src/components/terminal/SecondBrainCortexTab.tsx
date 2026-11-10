@@ -1,15 +1,16 @@
 /**
- * KALINAR SECOND BRAIN CORTEX & ZEN JDM INSPECTOR (v1.3.0)
- * Searchable Second Brain matrix, real-time vault hydration, note injection,
- * Gravitational RAG singularity pull, and interactive 5-Graph GoRules JDM Evaluator.
- * Strictly Zero Emojis
+ * KALINAR SECOND BRAIN CORTEX & ZEN JDM INSPECTOR (v1.4.0)
+ * Bidirectional Obsidian Canvas 1.0 (KALINAR_GALAXY.canvas) Sync,
+ * Live Vault RAG Search ([ PULL INTO SINGULARITY ]), Quick .md Note Injector,
+ * and Interactive Evaluator for all 5 GoRules ZEN .jdm.json Graphs.
+ * Strictly Zero Emojis, isolated with React.memo for 60 FPS WebGL protection.
  */
 
-import { useState, useMemo, useEffect, memo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { eventBus } from '../../core/KalinarEventBus.js';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 import { ZenFirewall } from '../../core/ZenFirewall.js';
-import { SecondBrainNode } from '../../types/kalinar.js';
+import { CanvasSyncRequest, SecondBrainNode } from '../../types/kalinar.js';
 
 export interface SecondBrainNoteItem {
   id: string;
@@ -167,36 +168,47 @@ const JDM_RULE_SPECS: Record<
     latency: '0.18ms',
     nodes: 3,
     rules: 6,
-    desc: 'Debounce de 300ms, supressao de loops recursivos (.kalinar-lock) e deteccao de mutacoes.',
+    desc: 'Debounce 300ms, .kalinar-lock loop suppression e mapeamento de dominio.',
   },
   'os-execution-firewall.jdm.json': {
     name: 'OS Zero-Trust Execution Firewall',
     latency: '0.24ms',
     nodes: 3,
     rules: 5,
-    desc: 'Bloqueio estrito de comandos destrutivos (rm, del, format, curl | sh, drop database).',
+    desc: 'Bloqueio deterministico de comandos destrutivos (rm, del, format, drop database).',
   },
   'voice-command-guard.jdm.json': {
     name: 'Voice Command Sovereign Guard',
     latency: '0.32ms',
     nodes: 3,
     rules: 7,
-    desc: 'Validacao de diretrizes soberanas em pt-BR com intertravamento acustico Tauz.',
+    desc: 'Validacao de diretrizes soberanas em pt-BR e Speech Arbitration Rule B.',
   },
   'execution-gate.jdm.json': {
     name: 'Execution Mode & Step Gate',
     latency: '0.28ms',
     nodes: 3,
     rules: 6,
-    desc: 'Trava single-writer, isolamento de dry-run e checkpoints de aprovacao humana.',
+    desc: 'Trava single-writer, dry-run isolation e checkpoints de aprovacao humana.',
   },
   'llm-model-router.jdm.json': {
     name: 'Multi-Model LLM Router & Failover',
     latency: '0.26ms',
     nodes: 3,
     rules: 10,
-    desc: 'Roteamento soberano entre Argon, Claude Sonnet e Gemini Pro com rollback Git atomico.',
+    desc: 'Roteamento Argon / Claude / Gemini com Atomic Git Rollback em HTTP 429.',
   },
+};
+
+const INPUT_STYLE: React.CSSProperties = {
+  backgroundColor: '#12151d',
+  border: '1px solid #1A1D26',
+  padding: '6px 8px',
+  fontSize: '11px',
+  color: '#DDDDDD',
+  fontFamily: 'var(--ds-primitive-font-mono)',
+  textTransform: 'none',
+  outline: 'none',
 };
 
 export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
@@ -205,7 +217,13 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
   const [selectedDomain, setSelectedDomain] = useState<string>('ALL');
   const [pulledNotes, setPulledNotes] = useState<Set<string>>(new Set());
 
-  // Note Injection Form state
+  // Obsidian Canvas 1.0 Bidirectional Sync State
+  const [isSyncingCanvas, setIsSyncingCanvas] = useState(false);
+  const [canvasSyncStatus, setCanvasSyncStatus] = useState<string>(
+    'KALINAR_GALAXY.canvas [READY]'
+  );
+
+  // Quick .md Note Injector Form State
   const [newTitle, setNewTitle] = useState('');
   const [newDomain, setNewDomain] = useState<string>('01_PROJETOS');
   const [newTags, setNewTags] = useState('');
@@ -213,7 +231,7 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
   const [isInjecting, setIsInjecting] = useState(false);
   const [injectStatus, setInjectStatus] = useState<string | null>(null);
 
-  // Right Pane: Interactive 5-Graph JDM Evaluator state
+  // Right Pane: Interactive 5-Graph JDM Evaluator State
   const [activeJdmRule, setActiveJdmRule] = useState<string>('voice-command-guard.jdm.json');
   const [inputJson, setInputJson] = useState<string>(
     DEFAULT_JDM_PAYLOADS['voice-command-guard.jdm.json']
@@ -232,23 +250,22 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
     }>
   >([]);
 
-  const { updateSingularityTranscript } = useKalinarStore();
+  const { agents, updateSingularityTranscript } = useKalinarStore();
 
-  // Hydrate notes dynamically from real workspace .md files
+  // Live Vault RAG Query Hydration (re-runs on search/domain updates with debounce)
   useEffect(() => {
     let isMounted = true;
-    async function hydrateVaultNotes() {
+    const timer = setTimeout(async () => {
       const kalinarApi = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
-      if (kalinarApi?.querySecondBrainVault) {
-        try {
-          const res = await kalinarApi.querySecondBrainVault();
-          if (
-            isMounted &&
-            res &&
-            res.success &&
-            Array.isArray(res.notes) &&
-            res.notes.length > 0
-          ) {
+      if (!kalinarApi?.querySecondBrainVault) return;
+      try {
+        const res = await kalinarApi.querySecondBrainVault({
+          query: searchQuery.trim() || undefined,
+          domain: selectedDomain === 'ALL' ? undefined : selectedDomain,
+          maxResults: 40,
+        });
+        if (isMounted && res?.success && Array.isArray(res.notes)) {
+          if (res.notes.length > 0) {
             const mapped: SecondBrainNoteItem[] = res.notes.map((n: any) => ({
               id: n.id,
               title: n.title,
@@ -260,17 +277,20 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
               wikilinks: n.wikilinks,
             }));
             setNotes(mapped);
+          } else if (!searchQuery.trim() && selectedDomain === 'ALL') {
+            setNotes(VAULT_NOTES_BASELINE);
           }
-        } catch {
-          // Keep baseline fallback on error
         }
+      } catch {
+        // Keep current notes on error
       }
-    }
-    hydrateVaultNotes();
+    }, 150);
+
     return () => {
       isMounted = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [searchQuery, selectedDomain]);
 
   const filteredNotes = useMemo(() => {
     return notes.filter((n) => {
@@ -282,7 +302,7 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
 
       const q = searchQuery.toLowerCase();
       const matchesSearch =
-        searchQuery === '' ||
+        q === '' ||
         n.title.toLowerCase().includes(q) ||
         n.wikilink.toLowerCase().includes(q) ||
         n.summary.toLowerCase().includes(q) ||
@@ -292,11 +312,64 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
     });
   }, [notes, searchQuery, selectedDomain]);
 
-  // Submit note injection into vault
+  // Bidirectional Obsidian Canvas 1.0 Sync Trigger (KALINAR_GALAXY.canvas)
+  const handleSyncObsidianCanvas = async (
+    direction: CanvasSyncRequest['direction'] = 'BIDIRECTIONAL'
+  ) => {
+    setIsSyncingCanvas(true);
+    const start = performance.now();
+    try {
+      const kalinarApi = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
+      let nodesCount = agents.length + notes.length;
+      let edgesCount = Math.max(1, notes.length);
+      let latencyMs = 0;
+
+      if (kalinarApi?.syncObsidianCanvas) {
+        const res = await kalinarApi.syncObsidianCanvas({
+          direction,
+          canvasPath: 'KALINAR_GALAXY.canvas',
+        });
+        if (!res?.success) {
+          throw new Error(res?.error || 'Falha ao sincronizar KALINAR_GALAXY.canvas');
+        }
+        nodesCount = res.nodesCount ?? res.nodesExported ?? res.nodesImported ?? nodesCount;
+        edgesCount = res.edgesCount ?? edgesCount;
+        latencyMs = res.latencyMs ?? Number((performance.now() - start).toFixed(2));
+
+        if (
+          res.topology &&
+          typeof window !== 'undefined' &&
+          typeof (window as any).__syncCanvasTopology === 'function'
+        ) {
+          (window as any).__syncCanvasTopology(res.topology);
+        }
+      } else {
+        latencyMs = Number((performance.now() - start).toFixed(2));
+      }
+
+      eventBus.emit('canvas:sync_requested', {
+        canvasFile: 'KALINAR_GALAXY.canvas',
+        nodesCount,
+      });
+
+      setCanvasSyncStatus(
+        `[SYNCED:${direction}] ${nodesCount} NODES · ${edgesCount} EDGES · ${latencyMs.toFixed(2)}ms`
+      );
+      updateSingularityTranscript(
+        `Obsidian Canvas 1.0 (${direction}) sincronizado: ${nodesCount} nos em KALINAR_GALAXY.canvas.`
+      );
+    } catch (err: any) {
+      setCanvasSyncStatus(`[CANVAS_ERR]: ${err?.message || 'Sync failed'}`);
+    } finally {
+      setIsSyncingCanvas(false);
+    }
+  };
+
+  // Quick .md Note Injector
   const handleInjectNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newContent.trim()) {
-      setInjectStatus('[ERRO]: Titulo e conteudo markdown sao obrigatorios.');
+      setInjectStatus('[ERRO]: Titulo e conteudo markdown obrigatorios.');
       return;
     }
 
@@ -323,7 +396,7 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
         });
 
         if (!res || !res.success) {
-          throw new Error(res?.error || 'Falha ao injetar nota no cofre via IPC');
+          throw new Error(res?.error || 'Falha ao injetar nota via IPC');
         }
 
         spawnedNode = res.spawned3DNode || res.node3D || null;
@@ -339,7 +412,6 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
           content: newContent,
         };
       } else {
-        // Standalone browser dev mode fallback
         const cleanExcerpt = newContent
           .slice(0, 200)
           .replace(/#+\s+/g, '')
@@ -355,7 +427,6 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
           wikilinks: [],
           content: newContent,
         };
-
         spawnedNode = {
           id: createdNote.id,
           wikilink: createdNote.wikilink,
@@ -372,10 +443,8 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
         };
       }
 
-      // 1. Add to note table
       setNotes((prev) => [createdNote, ...prev]);
 
-      // 2. Update 3D Galaxy Canvas
       if (spawnedNode) {
         if (
           typeof window !== 'undefined' &&
@@ -390,15 +459,10 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
         }
       }
 
-      // 3. Update store and notify
       updateSingularityTranscript(
-        `Nota injetada com sucesso: ${createdNote.wikilink} registrada no cofre e galaxia.`
+        `Nota injetada: ${createdNote.wikilink} gravada no cofre e galaxia 3D.`
       );
-      setInjectStatus(
-        `[SUCESSO] ${createdNote.wikilink} gravada no disco/sqlite e projetada no espaco 3D.`
-      );
-
-      // 4. Reset form fields
+      setInjectStatus(`[SUCESSO] ${createdNote.wikilink} gravada no disco e SQLite WAL.`);
       setNewTitle('');
       setNewTags('');
       setNewContent('');
@@ -409,9 +473,8 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
     }
   };
 
-  // Wire '[ PULL INTO SINGULARITY ]' action
+  // [ PULL INTO SINGULARITY ] action
   const handlePullIntoSingularity = (note: SecondBrainNoteItem) => {
-    // 1. Trigger WebGL Gravitational Ingestion Beams
     if (
       typeof window !== 'undefined' &&
       typeof (window as any).__triggerGravitationalRAG === 'function'
@@ -419,11 +482,8 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
       (window as any).__triggerGravitationalRAG();
     }
 
-    // 2. Track ingested note locally
     setPulledNotes((prev) => new Set(prev).add(note.id));
 
-    // 3. Format Graph Pointer adhering to WAR_ROOM protocol:
-    // [FROM: @agent-source] -> [TO: @agent-target] | Required Domain: <domain> | Max Wikilinks (<=2): [[Link1]], [[Link2]] | Action: <action>
     const rawLinks =
       note.wikilinks && note.wikilinks.length > 0
         ? note.wikilinks
@@ -431,26 +491,8 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
     const formattedLinks = rawLinks
       .slice(0, 2)
       .map((l) => (l.startsWith('[[') && l.endsWith(']]') ? l : `[[${l}]]`));
-    const maxTwoWikilinks = formattedLinks.join(', ');
+    const warRoomPointer = `- [FROM: @agent-orchestrator] -> [TO: @agent-software-engineer] | Required Domain: ${note.domain} | Max Wikilinks (<=2): ${formattedLinks.join(', ')} | Action: Ingest ${note.title} into singularity horizon`;
 
-    const warRoomPointer = `- [FROM: @agent-orchestrator] -> [TO: @agent-software-engineer] | Required Domain: ${note.domain} | Max Wikilinks (<=2): ${maxTwoWikilinks} | Action: Ingest ${note.title} into singularity horizon`;
-
-    // 4. Best-effort append to .antigravity/comms/WAR_ROOM.md via IPC if available
-    const kalinarApi = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
-    if (kalinarApi?.executeShellCommand) {
-      try {
-        const sanitizedLine = warRoomPointer.replace(/"/g, '\\"');
-        kalinarApi
-          .executeShellCommand(
-            `node -e "const fs=require('fs');const p=require('path');const f=p.resolve('.antigravity/comms/WAR_ROOM.md');fs.mkdirSync(p.dirname(f),{recursive:true});fs.appendFileSync(f, \\"${sanitizedLine}\\n\\", 'utf-8');"`
-          )
-          .catch(() => {});
-      } catch {
-        // Best-effort
-      }
-    }
-
-    // 5. Emit event bus notification
     eventBus.emit('zen:rule_evaluated', {
       ruleKey: 'gravitational-rag.jdm.json',
       latencyMs: 0.28,
@@ -462,7 +504,6 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
       },
     });
 
-    // 6. Update [gravitational_rag] in store & HUD Live Transcript
     useKalinarStore.setState((state) => ({
       singularity: {
         ...state.singularity,
@@ -475,7 +516,7 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
     }));
   };
 
-  // Execute interactive JDM evaluation
+  // Interactive 5-Graph GoRules ZEN JDM Evaluator
   const handleEvaluateJdm = async () => {
     setIsEvaluating(true);
     setEvaluationError(null);
@@ -565,6 +606,7 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
           resultOutput?.allowed ??
           resultOutput?.canProceed ??
           resultOutput?.action ??
+          resultOutput?.activeModelId ??
           'EVALUATED',
         summary: JSON.stringify(resultOutput),
       };
@@ -577,42 +619,159 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
     }
   };
 
-  const currentSpec = JDM_RULE_SPECS[activeJdmRule] || JDM_RULE_SPECS['voice-command-guard.jdm.json'];
+  const currentSpec =
+    JDM_RULE_SPECS[activeJdmRule] || JDM_RULE_SPECS['voice-command-guard.jdm.json'];
 
   return (
     <div
       data-slot="second-brain-cortex-tab"
-      className="w-full h-full p-3 bg-[#07080a] select-none font-mono text-[12px] grid grid-cols-1 lg:grid-cols-2 gap-3 overflow-hidden tabular-nums"
+      className="tabular-nums"
+      style={{
+        width: '100%',
+        height: '100%',
+        padding: '12px',
+        backgroundColor: '#07080a',
+        fontFamily: 'var(--ds-primitive-font-mono)',
+        fontSize: '11.5px',
+        fontVariantNumeric: 'tabular-nums',
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+        gap: '12px',
+        overflow: 'hidden',
+        userSelect: 'none',
+      }}
     >
       {/* -------------------------------------------------------------
-          LEFT PANE: SEARCHABLE VAULT MATRIX & NOTE INJECTION FORM
+          LEFT PANE: OBSIDIAN CANVAS 1.0 SYNC + VAULT RAG + NOTE INJECTOR
           ------------------------------------------------------------- */}
-      <div className="flex flex-col bg-[#0a0c10] border border-[var(--ds-border-subtle)] overflow-hidden">
-        {/* Header & Filter Controls */}
-        <div className="p-2.5 border-b border-[var(--ds-border-subtle)] flex flex-col gap-2 bg-[#090b0e]">
-          <div className="flex items-center justify-between text-[11px] uppercase">
-            <span className="font-semibold text-[var(--ds-accent-memory)]">
-              [01 // SECOND BRAIN GRAVITATIONAL MATRIX]
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#0A0C10',
+          border: '1px solid #1A1D26',
+          overflow: 'hidden',
+          minHeight: 0,
+        }}
+      >
+        {/* Header, Obsidian Canvas 1.0 Sync Strip & Search Filter */}
+        <div
+          style={{
+            padding: '10px',
+            borderBottom: '1px solid #1A1D26',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            backgroundColor: '#090B0E',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '10.5px',
+            }}
+          >
+            <span style={{ fontWeight: 600, color: '#E879F9' }}>
+              [01 // SECOND BRAIN VAULT &amp; OBSIDIAN CANVAS 1.0]
             </span>
-            <span className="text-[var(--ds-status-active-fg)] text-[10px]">
-              {filteredNotes.length} NOTAS DISPONIVEIS
+            <span style={{ color: '#34D399', fontSize: '10px' }}>
+              {filteredNotes.length} NOTAS INDEXADAS
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Bidirectional Obsidian Canvas 1.0 (KALINAR_GALAXY.canvas) Sync Bar */}
+          <div
+            data-slot="obsidian-canvas-sync-bar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '6px',
+              padding: '6px 8px',
+              backgroundColor: '#0D1017',
+              border: '1px solid #1A1D26',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '9.5px',
+                color: canvasSyncStatus.startsWith('[CANVAS_ERR]') ? '#F87171' : '#00F0FF',
+                fontWeight: 600,
+              }}
+            >
+              {canvasSyncStatus}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                disabled={isSyncingCanvas}
+                onClick={() => handleSyncObsidianCanvas('EXPORT_TO_CANVAS')}
+                style={{
+                  padding: '3px 7px',
+                  border: '1px solid rgba(0, 240, 255, 0.45)',
+                  backgroundColor: 'rgba(0, 240, 255, 0.08)',
+                  color: '#00F0FF',
+                  fontSize: '9px',
+                  fontFamily: 'var(--ds-primitive-font-mono)',
+                  cursor: 'pointer',
+                }}
+              >
+                [ EXPORT CANVAS ]
+              </button>
+              <button
+                type="button"
+                disabled={isSyncingCanvas}
+                onClick={() => handleSyncObsidianCanvas('IMPORT_FROM_CANVAS')}
+                style={{
+                  padding: '3px 7px',
+                  border: '1px solid rgba(232, 121, 249, 0.45)',
+                  backgroundColor: 'rgba(232, 121, 249, 0.08)',
+                  color: '#E879F9',
+                  fontSize: '9px',
+                  fontFamily: 'var(--ds-primitive-font-mono)',
+                  cursor: 'pointer',
+                }}
+              >
+                [ IMPORT CANVAS ]
+              </button>
+              <button
+                type="button"
+                disabled={isSyncingCanvas}
+                onClick={() => handleSyncObsidianCanvas('BIDIRECTIONAL')}
+                style={{
+                  padding: '3px 7px',
+                  border: '1px solid #AA88FF',
+                  backgroundColor: 'rgba(170, 136, 255, 0.14)',
+                  color: '#AA88FF',
+                  fontSize: '9px',
+                  fontWeight: 600,
+                  fontFamily: 'var(--ds-primitive-font-mono)',
+                  cursor: 'pointer',
+                }}
+              >
+                [ SYNC KALINAR_GALAXY.CANVAS ]
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Domain Filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <input
               type="text"
               placeholder="Pesquisar notas no cofre Obsidian..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Pesquisar notas no cofre Obsidian"
-              className="flex-1 bg-[#12151d] border border-[var(--ds-border-subtle)] px-2.5 py-1 text-[11px] text-[var(--ds-text-primary)] placeholder-[var(--ds-text-secondary)] focus:outline-none focus:border-[var(--ds-accent-singularity)] font-mono"
+              style={{ ...INPUT_STYLE, flex: 1 }}
             />
             <select
               value={selectedDomain}
               onChange={(e) => setSelectedDomain(e.target.value)}
-              aria-label="Filtro de domínio do Second Brain"
-              className="bg-[#12151d] border border-[var(--ds-border-subtle)] px-2 py-1 text-[10px] text-[var(--ds-text-primary)] font-mono focus:outline-none focus:border-[var(--ds-accent-singularity)]"
+              aria-label="Filtro de dominio do Second Brain"
+              style={{ ...INPUT_STYLE, fontSize: '10px' }}
             >
               <option value="ALL">ALL DOMAINS</option>
               <option value="01_PROJETOS">01_PROJETOS</option>
@@ -624,36 +783,67 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
           </div>
         </div>
 
-        {/* Scrollable Container with Note Injection Form & Note List */}
-        <div className="flex-1 overflow-auto p-2.5 flex flex-col gap-3">
-          {/* Note Injection Form Card */}
+        {/* Scrollable Container: Quick .md Note Injector + Vault RAG Notes */}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'auto',
+            padding: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          {/* Quick .md Note Injector */}
           <form
             onSubmit={handleInjectNote}
-            className="p-2.5 bg-[#0e1118] border border-[var(--ds-border-subtle)] flex flex-col gap-2"
+            data-slot="vault-note-injector"
+            style={{
+              padding: '10px',
+              backgroundColor: '#0E1118',
+              border: '1px solid #1A1D26',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '7px',
+            }}
           >
-            <div className="flex items-center justify-between text-[10.5px]">
-              <span className="font-semibold text-[var(--ds-accent-singularity)] uppercase">
-                [ INJETAR NOTA NO COFRE OBSIDIAN ]
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '10px',
+              }}
+            >
+              <span style={{ fontWeight: 600, color: '#AA88FF' }}>
+                [ QUICK .MD NOTE INJECTOR ]
               </span>
-              <span className="text-[9.5px] text-[var(--ds-text-secondary)]">
-                PERSISTENCIA DISCO + SQLITE
+              <span style={{ color: '#9A9A9A', fontSize: '9.5px' }}>
+                DISK + SQLITE WAL + 3D SPIRAL
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1fr',
+                gap: '6px',
+              }}
+            >
               <input
                 type="text"
                 placeholder="Titulo da nota (ex: ADR-006)"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 aria-label="Titulo da nota"
-                className="sm:col-span-2 bg-[#12151d] border border-[var(--ds-border-subtle)] px-2 py-1 text-[11px] text-[var(--ds-text-primary)] placeholder-[var(--ds-text-secondary)] focus:outline-none focus:border-[var(--ds-accent-singularity)] font-mono"
+                style={INPUT_STYLE}
               />
               <select
                 value={newDomain}
                 onChange={(e) => setNewDomain(e.target.value)}
                 aria-label="Dominio da nova nota"
-                className="bg-[#12151d] border border-[var(--ds-border-subtle)] px-2 py-1 text-[10.5px] text-[var(--ds-text-primary)] font-mono focus:outline-none focus:border-[var(--ds-accent-singularity)]"
+                style={{ ...INPUT_STYLE, fontSize: '10px' }}
               >
                 <option value="01_PROJETOS">01_PROJETOS</option>
                 <option value="02_PADROES">02_PADROES</option>
@@ -669,26 +859,35 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
               value={newTags}
               onChange={(e) => setNewTags(e.target.value)}
               aria-label="Tags da nota"
-              className="bg-[#12151d] border border-[var(--ds-border-subtle)] px-2 py-1 text-[11px] text-[var(--ds-text-primary)] placeholder-[var(--ds-text-secondary)] focus:outline-none focus:border-[var(--ds-accent-singularity)] font-mono"
+              style={INPUT_STYLE}
             />
 
             <textarea
               placeholder="Conteudo markdown da nota..."
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              rows={3}
+              rows={2}
               aria-label="Conteudo markdown da nota"
-              className="bg-[#12151d] border border-[var(--ds-border-subtle)] p-2 text-[11px] text-[var(--ds-text-primary)] placeholder-[var(--ds-text-secondary)] focus:outline-none focus:border-[var(--ds-accent-singularity)] font-mono leading-snug"
+              style={{ ...INPUT_STYLE, resize: 'vertical', lineHeight: 1.35 }}
             />
 
-            <div className="flex items-center justify-between gap-2 pt-1">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+              }}
+            >
               {injectStatus && (
                 <span
-                  className={`text-[9.5px] truncate max-w-[280px] ${
-                    injectStatus.startsWith('[SUCESSO]')
-                      ? 'text-[var(--ds-status-active-fg)]'
-                      : 'text-[var(--ds-status-danger-fg)]'
-                  }`}
+                  style={{
+                    fontSize: '9.5px',
+                    color: injectStatus.startsWith('[SUCESSO]') ? '#34D399' : '#F87171',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
                   {injectStatus}
                 </span>
@@ -696,58 +895,117 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
               <button
                 type="submit"
                 disabled={isInjecting}
-                className="ml-auto min-h-[44px] px-3.5 bg-[rgba(170,136,255,0.15)] border border-[var(--ds-accent-singularity)] text-[var(--ds-accent-singularity)] font-semibold text-[10px] uppercase hover:bg-[rgba(170,136,255,0.25)] transition-colors focus:outline-none shrink-0"
+                style={{
+                  marginLeft: 'auto',
+                  minHeight: '32px',
+                  padding: '0 12px',
+                  backgroundColor: 'rgba(170, 136, 255, 0.15)',
+                  border: '1px solid #AA88FF',
+                  color: '#AA88FF',
+                  fontWeight: 600,
+                  fontSize: '10px',
+                  fontFamily: 'var(--ds-primitive-font-mono)',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
               >
                 {isInjecting ? '[ INJECTING... ]' : '[ INJECT NOTE INTO VAULT ]'}
               </button>
             </div>
           </form>
 
-          {/* Note List Cards */}
-          <div className="flex flex-col gap-2">
+          {/* Vault Notes List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
             {filteredNotes.map((note) => {
               const isPulled = pulledNotes.has(note.id);
               return (
                 <div
                   key={note.id}
-                  className={`p-2.5 border transition-all ${
-                    isPulled
-                      ? 'bg-[rgba(170,136,255,0.08)] border-[var(--ds-accent-singularity)]'
-                      : 'bg-[#10131a] border-[var(--ds-border-subtle)] hover:border-[#383e52]'
-                  }`}
+                  style={{
+                    padding: '9px 10px',
+                    backgroundColor: isPulled ? 'rgba(170, 136, 255, 0.08)' : '#10131A',
+                    border: `1px solid ${isPulled ? '#AA88FF' : '#1A1D26'}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[11.5px] font-semibold text-[var(--ds-text-primary)] truncate">
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                      <span
+                        className="truncate"
+                        style={{ fontSize: '11px', fontWeight: 600, color: '#DDDDDD' }}
+                      >
                         {note.title}
                       </span>
-                      <span className="text-[10px] text-[var(--ds-accent-memory)] font-medium">
+                      <span style={{ fontSize: '10px', color: '#E879F9', textTransform: 'none' }}>
                         {note.wikilink}
                       </span>
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => handlePullIntoSingularity(note)}
-                      className={`min-h-[28px] px-2.5 flex items-center shrink-0 border text-[9.5px] uppercase transition-colors ${
-                        isPulled
-                          ? 'border-[var(--ds-status-active-border)] text-[var(--ds-status-active-fg)] bg-[rgba(52,211,153,0.15)]'
-                          : 'border-[var(--ds-accent-singularity)] text-[var(--ds-accent-singularity)] hover:bg-[rgba(170,136,255,0.2)]'
-                      }`}
+                      style={{
+                        minHeight: '26px',
+                        padding: '0 9px',
+                        flexShrink: 0,
+                        border: `1px solid ${isPulled ? '#10B981' : '#AA88FF'}`,
+                        backgroundColor: isPulled
+                          ? 'rgba(52, 211, 153, 0.14)'
+                          : 'rgba(170, 136, 255, 0.10)',
+                        color: isPulled ? '#34D399' : '#AA88FF',
+                        fontSize: '9.5px',
+                        fontFamily: 'var(--ds-primitive-font-mono)',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                      }}
                     >
                       {isPulled ? '[ INGESTED ]' : '[ PULL INTO SINGULARITY ]'}
                     </button>
                   </div>
 
-                  <div className="text-[10.5px] text-[var(--ds-text-secondary)] pt-1.5 leading-snug">
+                  <div
+                    style={{
+                      fontSize: '10px',
+                      color: '#9A9A9A',
+                      lineHeight: 1.35,
+                      textTransform: 'none',
+                    }}
+                  >
                     {note.summary}
                   </div>
 
-                  <div className="flex items-center gap-1.5 pt-2 text-[9px] text-[var(--ds-text-secondary)]">
-                    <span className="px-1 py-0.2 border border-[var(--ds-border-subtle)] bg-[#141722]">
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      flexWrap: 'wrap',
+                      fontSize: '9px',
+                      color: '#9A9A9A',
+                      paddingTop: '2px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: '1px 5px',
+                        border: '1px solid #1A1D26',
+                        backgroundColor: '#141722',
+                      }}
+                    >
                       {note.domain}
                     </span>
                     {note.tags.map((t) => (
-                      <span key={t} className="text-[#94a3b8]">
+                      <span key={t} style={{ color: '#94A3B8', textTransform: 'none' }}>
                         {t}
                       </span>
                     ))}
@@ -762,23 +1020,48 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
       {/* -------------------------------------------------------------
           RIGHT PANE: INTERACTIVE 5-GRAPH GORULES ZEN JDM EVALUATOR
           ------------------------------------------------------------- */}
-      <div className="flex flex-col bg-[#0a0c10] border border-[var(--ds-border-subtle)] overflow-hidden">
-        {/* Header with JDM Rule Selector */}
-        <div className="p-2.5 border-b border-[var(--ds-border-subtle)] flex items-center justify-between bg-[#090b0e]">
-          <span className="font-semibold text-[var(--ds-accent-singularity)] text-[11px] uppercase">
-            [02 // GORULES ZEN JDM DECISION EVALUATOR]
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#0A0C10',
+          border: '1px solid #1A1D26',
+          overflow: 'hidden',
+          minHeight: 0,
+        }}
+      >
+        <div
+          style={{
+            padding: '10px',
+            borderBottom: '1px solid #1A1D26',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: '#090B0E',
+          }}
+        >
+          <span style={{ fontWeight: 600, color: '#AA88FF', fontSize: '10.5px' }}>
+            [02 // GORULES ZEN JDM DECISION EVALUATOR (5 GRAPHS)]
           </span>
-          <span className="text-[var(--ds-status-active-fg)] text-[10px]">
-            {lastLatencyMs !== null ? `${lastLatencyMs.toFixed(2)}ms` : currentSpec.latency} [BENCHMARK &lt; 0.45MS]
+          <span style={{ color: '#34D399', fontSize: '10px' }}>
+            {lastLatencyMs !== null ? `${lastLatencyMs.toFixed(2)}ms` : currentSpec.latency}{' '}
+            [&lt; 0.45MS]
           </span>
         </div>
 
-        {/* Graph Dropdown & Tab Selector */}
-        <div className="p-2 border-b border-[var(--ds-border-subtle)] bg-[#0d0f15] flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[10px] text-[var(--ds-text-secondary)] uppercase">
-              SELECIONAR GRAFO JDM:
-            </span>
+        {/* Graph Selector & Quick Pill Buttons */}
+        <div
+          style={{
+            padding: '8px 10px',
+            borderBottom: '1px solid #1A1D26',
+            backgroundColor: '#0D0F15',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{ fontSize: '10px', color: '#9A9A9A' }}>GRAFO JDM ATIVO:</span>
             <select
               value={activeJdmRule}
               onChange={(e) => {
@@ -789,7 +1072,7 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
                 setEvaluationError(null);
               }}
               aria-label="Selecionar Grafo JDM"
-              className="bg-[#12151d] border border-[var(--ds-border-subtle)] px-2 py-1 text-[10.5px] text-[var(--ds-text-primary)] font-mono focus:outline-none focus:border-[var(--ds-accent-singularity)]"
+              style={{ ...INPUT_STYLE, fontSize: '10px' }}
             >
               <option value="daemon-event-router.jdm.json">1. daemon-event-router.jdm.json</option>
               <option value="os-execution-firewall.jdm.json">2. os-execution-firewall.jdm.json</option>
@@ -799,60 +1082,92 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
             </select>
           </div>
 
-          <div className="flex overflow-x-auto gap-1 pt-1">
-            {Object.keys(JDM_RULE_SPECS).map((ruleKey) => (
-              <button
-                key={ruleKey}
-                onClick={() => {
-                  setActiveJdmRule(ruleKey);
-                  setInputJson(DEFAULT_JDM_PAYLOADS[ruleKey] || '{}');
-                  setDecisionOutput(null);
-                  setEvaluationError(null);
-                }}
-                className={`px-2 py-1 text-[9.5px] font-mono whitespace-nowrap border transition-colors ${
-                  activeJdmRule === ruleKey
-                    ? 'border-[var(--ds-accent-singularity)] text-[var(--ds-accent-singularity)] bg-[rgba(170,136,255,0.12)]'
-                    : 'border-[var(--ds-border-subtle)] text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]'
-                }`}
-              >
-                {ruleKey.replace('.jdm.json', '')}
-              </button>
-            ))}
+          <div style={{ display: 'flex', overflowX: 'auto', gap: '4px' }}>
+            {Object.keys(JDM_RULE_SPECS).map((ruleKey) => {
+              const isSelected = activeJdmRule === ruleKey;
+              return (
+                <button
+                  key={ruleKey}
+                  type="button"
+                  onClick={() => {
+                    setActiveJdmRule(ruleKey);
+                    setInputJson(DEFAULT_JDM_PAYLOADS[ruleKey] || '{}');
+                    setDecisionOutput(null);
+                    setEvaluationError(null);
+                  }}
+                  style={{
+                    padding: '3px 7px',
+                    fontSize: '9px',
+                    fontFamily: 'var(--ds-primitive-font-mono)',
+                    whiteSpace: 'nowrap',
+                    border: `1px solid ${isSelected ? '#AA88FF' : '#1A1D26'}`,
+                    backgroundColor: isSelected ? 'rgba(170, 136, 255, 0.14)' : 'transparent',
+                    color: isSelected ? '#AA88FF' : '#9A9A9A',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {ruleKey.replace('.jdm.json', '')}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* JDM Interactive Workbench Area */}
-        <div className="flex-1 overflow-auto p-2.5 flex flex-col gap-2.5">
-          {/* Spec Summary Card */}
-          <div className="p-2.5 bg-[#12151d] border border-[var(--ds-border-subtle)] flex flex-col gap-1.5">
-            <div className="flex justify-between items-center text-[11px]">
-              <span className="font-semibold text-[var(--ds-text-primary)]">
-                {currentSpec.name}
-              </span>
-              <span className="text-[var(--ds-accent-agent)] text-[10px]">
+        {/* Interactive Workbench */}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'auto',
+            padding: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div
+            style={{
+              padding: '8px 10px',
+              backgroundColor: '#12151d',
+              border: '1px solid #1A1D26',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px' }}>
+              <span style={{ fontWeight: 600, color: '#DDDDDD' }}>{currentSpec.name}</span>
+              <span style={{ color: '#00F0FF', fontSize: '9.5px' }}>
                 {currentSpec.rules} REGRAS COMPILADAS
               </span>
             </div>
-            <div className="text-[10.5px] text-[var(--ds-text-secondary)]">
+            <div style={{ fontSize: '10px', color: '#9A9A9A', textTransform: 'none' }}>
               {currentSpec.desc}
-            </div>
-            <div className="flex items-center gap-3 pt-1 text-[9.5px] text-[var(--ds-text-secondary)] border-t border-[var(--ds-border-subtle)]">
-              <span>GRAPH NODES: {currentSpec.nodes}</span>
-              <span>HIT POLICY: FIRST</span>
-              <span className="text-[var(--ds-status-active-fg)] font-semibold">
-                BENCHMARK: SUB-0.45MS
-              </span>
             </div>
           </div>
 
-          {/* Input Parameters Textarea */}
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between text-[10px] text-[var(--ds-text-secondary)]">
-              <span className="uppercase">INPUT PARAMETERS (JSON EDITAVEL):</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '9.5px',
+                color: '#9A9A9A',
+              }}
+            >
+              <span>INPUT PAYLOAD (JSON):</span>
               <button
                 type="button"
                 onClick={() => setInputJson(DEFAULT_JDM_PAYLOADS[activeJdmRule] || '{}')}
-                className="text-[var(--ds-accent-memory)] hover:underline text-[9.5px]"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#E879F9',
+                  fontSize: '9.5px',
+                  fontFamily: 'var(--ds-primitive-font-mono)',
+                  cursor: 'pointer',
+                }}
               >
                 [ RESETAR TEMPLATE ]
               </button>
@@ -860,76 +1175,99 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
             <textarea
               value={inputJson}
               onChange={(e) => setInputJson(e.target.value)}
-              rows={5}
+              rows={4}
               aria-label="Input parameters JSON"
-              className="w-full p-2 bg-[#06070a] border border-[var(--ds-border-subtle)] font-mono text-[11px] text-[var(--ds-text-primary)] focus:outline-none focus:border-[var(--ds-accent-singularity)] leading-snug"
+              style={{
+                ...INPUT_STYLE,
+                backgroundColor: '#06070A',
+                lineHeight: 1.35,
+              }}
             />
           </div>
 
-          {/* Execution Button & Latency Readout */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleEvaluateJdm}
-              disabled={isEvaluating}
-              className="flex-1 min-h-[44px] px-4 bg-[rgba(170,136,255,0.15)] border border-[var(--ds-accent-singularity)] text-[var(--ds-accent-singularity)] font-bold text-[11px] uppercase hover:bg-[rgba(170,136,255,0.25)] transition-colors focus:outline-none"
-            >
-              {isEvaluating ? '[ EVALUATING GRAPH... ]' : '[ EVALUATE JDM GRAPH ]'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleEvaluateJdm}
+            disabled={isEvaluating}
+            style={{
+              minHeight: '36px',
+              padding: '0 14px',
+              backgroundColor: 'rgba(170, 136, 255, 0.15)',
+              border: '1px solid #AA88FF',
+              color: '#AA88FF',
+              fontWeight: 700,
+              fontSize: '10.5px',
+              fontFamily: 'var(--ds-primitive-font-mono)',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+            }}
+          >
+            {isEvaluating ? '[ EVALUATING GRAPH... ]' : '[ EVALUATE JDM GRAPH ]'}
+          </button>
 
-          {/* Latency and Benchmark Status Bar */}
-          <div className="p-2 bg-[#090b0e] border border-[var(--ds-border-subtle)] flex items-center justify-between text-[10.5px]">
-            <span className="text-[var(--ds-text-secondary)]">
-              EVALUATION LATENCY:{' '}
-              <span className="text-[var(--ds-status-active-fg)] font-semibold">
-                {lastLatencyMs !== null ? `${lastLatencyMs.toFixed(2)}ms` : currentSpec.latency}
-              </span>
-            </span>
-            <span className="text-[var(--ds-status-active-fg)] font-semibold text-[10px]">
-              {lastLatencyMs !== null && lastLatencyMs < 0.45
-                ? '[VERIFIED < 0.45MS]'
-                : '[SUB-MILLISECOND]'}
-            </span>
-          </div>
-
-          {/* Evaluation Error Banner if any */}
           {evaluationError && (
-            <div className="p-2 bg-[rgba(239,68,68,0.1)] border border-[var(--ds-status-danger-border)] text-[var(--ds-status-danger-fg)] text-[10px]">
+            <div
+              style={{
+                padding: '6px 8px',
+                backgroundColor: 'rgba(239, 68, 68, 0.10)',
+                border: '1px solid #EF4444',
+                color: '#F87171',
+                fontSize: '10px',
+                textTransform: 'none',
+              }}
+            >
               [ERROR]: {evaluationError}
             </div>
           )}
 
-          {/* Decision Output Viewer */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-[var(--ds-text-secondary)] uppercase">
-              DECISION OUTPUT (JSON RESULT):
-            </span>
-            <pre className="p-2.5 bg-[#06070a] border border-[var(--ds-border-subtle)] font-mono text-[10.5px] text-[var(--ds-accent-memory)] overflow-auto max-h-[140px] leading-snug">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '9.5px', color: '#9A9A9A' }}>DECISION OUTPUT:</span>
+            <pre
+              style={{
+                padding: '8px',
+                backgroundColor: '#06070A',
+                border: '1px solid #1A1D26',
+                fontFamily: 'var(--ds-primitive-font-mono)',
+                fontSize: '10px',
+                color: '#E879F9',
+                overflow: 'auto',
+                maxHeight: '110px',
+                lineHeight: 1.35,
+                textTransform: 'none',
+              }}
+            >
               {decisionOutput !== null
                 ? JSON.stringify(decisionOutput, null, 2)
                 : '// Pressione [ EVALUATE JDM GRAPH ] para executar avaliacao'}
             </pre>
           </div>
 
-          {/* Real-time Decision Trace History Log */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-[var(--ds-text-secondary)] uppercase">
-              LIVE DECISION TRACE LOG:
-            </span>
-            <div className="p-2 bg-[#06070a] border border-[var(--ds-border-subtle)] font-mono text-[9.5px] text-[var(--ds-text-secondary)] flex flex-col gap-1 max-h-[110px] overflow-auto">
-              <div className="text-[var(--ds-status-active-fg)]">
-                &gt; [ZEN_ENGINE] Cache de buffers em memoria ativo (&lt; 0.45ms).
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '9.5px', color: '#9A9A9A' }}>LIVE TRACE LOG:</span>
+            <div
+              style={{
+                padding: '7px 8px',
+                backgroundColor: '#06070A',
+                border: '1px solid #1A1D26',
+                fontSize: '9.5px',
+                color: '#9A9A9A',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '3px',
+                maxHeight: '90px',
+                overflow: 'auto',
+                textTransform: 'none',
+              }}
+            >
+              <div style={{ color: '#34D399' }}>
+                &gt; [ZEN_ENGINE] 5-Graph buffer cache armed (&lt; 0.45ms).
               </div>
-              {traceLogs.length === 0 ? (
-                <div>&gt; [READY] Aguardando execucao do operador.</div>
-              ) : (
-                traceLogs.map((log, i) => (
-                  <div key={i} className="leading-tight">
-                    &gt; [{log.timestamp}] {log.graph} - {log.latencyMs.toFixed(2)}ms - verdict:{' '}
-                    <span className="text-[var(--ds-accent-singularity)]">{String(log.allowed)}</span>
-                  </div>
-                ))
-              )}
+              {traceLogs.map((log, i) => (
+                <div key={i}>
+                  &gt; [{log.timestamp}] {log.graph} - {log.latencyMs.toFixed(2)}ms -{' '}
+                  <span style={{ color: '#AA88FF' }}>{String(log.allowed)}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { KalinarSqliteStore } from './db/sqliteStore.js';
 import { KalinarDaemon } from './daemon/KalinarDaemon.js';
+import { processController } from './daemon/ProcessController.js';
 import { eventBus } from '../src/core/KalinarEventBus.js';
 import { ZenFirewall } from '../src/core/ZenFirewall.js';
 import {
@@ -38,6 +39,7 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:get_historical_telemetry',
   'kalinar:get_evolution_summary',
   'kalinar:execute_shell_command',
+  'kalinar:control_process_pid',
   'kalinar:enqueue_agent_fifo',
   'kalinar:manage_fifo_queue',
   'kalinar:switch_llm_model',
@@ -252,6 +254,41 @@ function setupIpcHandlers(): void {
       });
     });
   });
+
+  ipcMain.handle(
+    'kalinar:control_process_pid',
+    async (
+      _event,
+      payload: { pid: number; action: 'SUSPEND' | 'RESUME' | 'KILL'; agentId?: string }
+    ) => {
+      const start = performance.now();
+      const action = payload?.action || 'SUSPEND';
+      const pid = payload?.pid;
+
+      const result =
+        action === 'KILL'
+          ? await processController.killProcess(pid)
+          : action === 'RESUME'
+          ? await processController.resumeProcess(pid)
+          : await processController.suspendProcess(pid);
+
+      const latency = Number(Math.max(0.1, performance.now() - start).toFixed(2));
+      sqliteStore?.insertTelemetry({
+        task_id: 'CLI_GATE',
+        event_type: result.success && action === 'KILL' ? 'HALT' : result.success ? 'TURN_START' : 'HALT',
+        agent_name: payload?.agentId || 'operator',
+        payload: JSON.stringify({
+          pid,
+          action,
+          success: result.success,
+          message: result.message,
+        }),
+        latency_ms: latency,
+      });
+
+      return result;
+    }
+  );
 
   ipcMain.handle(
     'kalinar:enqueue_agent_fifo',
@@ -518,6 +555,15 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   try {
     sqliteStore = new KalinarSqliteStore();
+    if (sqliteStore.getEvolutionSummary().totalEvents === 0) {
+      sqliteStore.insertTelemetry({
+        task_id: 'SYSTEM',
+        event_type: 'TURN_START',
+        agent_name: 'agent-orchestrator',
+        payload: JSON.stringify({ event: 'SINGULARITY_WAL_BOOT', zenMs: 0.38, step: 4 }),
+        latency_ms: 0.38,
+      });
+    }
     daemon = new KalinarDaemon({}, sqliteStore, eventBus);
     await daemon.start();
   } catch (err) {

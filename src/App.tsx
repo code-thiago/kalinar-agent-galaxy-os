@@ -4,7 +4,7 @@ import { LeftAgentCardsColumn } from './components/hud/LeftAgentCardsColumn.js';
 import { RightSingularityColumn } from './components/hud/RightSingularityColumn.js';
 import { TopRightTrigger } from './components/hud/TopRightTrigger.js';
 import { NodeInspectorDrawer } from './components/hud/NodeInspectorDrawer.js';
-import { KalinarBottomDock } from './components/terminal/KalinarBottomDock.js';
+import { KalinarBottomDock } from './components/dock/KalinarBottomDock.js';
 import { useKalinarStore } from './store/useKalinarStore.js';
 
 export function App() {

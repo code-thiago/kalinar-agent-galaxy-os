@@ -28,6 +28,7 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:get_historical_telemetry',
   'kalinar:get_evolution_summary',
   'kalinar:execute_shell_command',
+  'kalinar:control_process_pid',
   'kalinar:enqueue_agent_fifo',
   'kalinar:manage_fifo_queue',
   'kalinar:switch_llm_model',
@@ -47,6 +48,13 @@ export interface ShellResult {
   exitCode: number;
 }
 
+export interface ProcessControlBridgeResult {
+  success: boolean;
+  action: 'SUSPEND' | 'RESUME' | 'KILL';
+  pid: number;
+  message: string;
+}
+
 export interface KalinarApiBridge {
   getSingularityState: () => Promise<SingularityCoreState>;
   getActiveAgents: () => Promise<AgentNode[]>;
@@ -54,6 +62,12 @@ export interface KalinarApiBridge {
   getHistoricalTelemetry: (limit?: number) => Promise<any[]>;
   getEvolutionSummary: () => Promise<any>;
   executeShellCommand: (cmd: string, cwd?: string) => Promise<ShellResult>;
+  controlProcessPid: (payload: {
+    pid: number;
+    action: 'SUSPEND' | 'RESUME' | 'KILL';
+    agentId?: string;
+  }) => Promise<ProcessControlBridgeResult>;
+  killProcess: (pid: number, agentId?: string) => Promise<ProcessControlBridgeResult>;
   enqueueAgentFifo: (payload: {
     targetAgentId: string;
     instruction: string;
@@ -102,6 +116,10 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:get_evolution_summary'),
   executeShellCommand: (cmd: string, cwd?: string) =>
     ipcRenderer.invoke('kalinar:execute_shell_command', { cmd, cwd }),
+  controlProcessPid: (payload) =>
+    ipcRenderer.invoke('kalinar:control_process_pid', payload),
+  killProcess: (pid: number, agentId?: string) =>
+    ipcRenderer.invoke('kalinar:control_process_pid', { pid, action: 'KILL', agentId }),
   enqueueAgentFifo: (payload) =>
     ipcRenderer.invoke('kalinar:enqueue_agent_fifo', payload),
   manageFifoQueue: (payload) =>
