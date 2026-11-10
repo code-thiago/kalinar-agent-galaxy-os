@@ -57,12 +57,16 @@ describe('Dev Launcher & Windows CRLF Sanitization', () => {
 
     // Probe an ephemeral bound port vs free port using isPortFree
     const occupiedServer = net.createServer();
-    await new Promise((resolve) => occupiedServer.listen({ port: 0, host: '127.0.0.1' }, resolve));
+    await new Promise<void>((resolve) => {
+      occupiedServer.listen({ port: 0, host: '127.0.0.1' }, () => resolve());
+    });
     const addr = occupiedServer.address();
     const ephemeralPort = typeof addr === 'object' && addr ? addr.port : 0;
 
     expect(await isPortFree(ephemeralPort)).toBe(false);
-    await new Promise((resolve) => occupiedServer.close(resolve));
+    await new Promise<void>((resolve) => {
+      occupiedServer.close(() => resolve());
+    });
     expect(await isPortFree(ephemeralPort)).toBe(true);
   });
 });
