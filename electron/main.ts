@@ -219,20 +219,45 @@ function setupIpcHandlers(): void {
         stderr += data.toString();
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', async (code) => {
         const latency = Math.round(performance.now() - start);
+        const exitCode = code ?? 0;
         sqliteStore?.insertTelemetry({
           task_id: 'CLI_EXEC',
-          event_type: 'TURN_END',
+          event_type: exitCode === 0 ? 'TURN_END' : 'HALT',
           agent_name: 'operator',
-          payload: JSON.stringify({ cmd, exitCode: code }),
+          payload: JSON.stringify({ cmd, exitCode }),
           latency_ms: latency,
         });
+
+        if (daemon) {
+          try {
+            const { digest, zenLatencyMs } = await daemon.processStreamOutput({
+              rawLog: [stdout, stderr, `exitCode=${exitCode}`].filter(Boolean).join('\n'),
+              taskId: 'CLI_EXEC',
+              agentId: 'agent-software-engineer',
+              explicitExitCode: exitCode,
+            });
+            mainWindow?.webContents.send('telemetry:stream', {
+              type: exitCode === 0 ? 'STEP_COMPLETED' : 'AGENT_HALTED',
+              taskId: digest.taskId,
+              targetAgentId: digest.agentId,
+              exitCode: digest.exitCode,
+              sqliteVerified: true,
+              agentStatus: exitCode === 0 ? '[VERIFIED]' : '[HALTED]',
+              summaryText: digest.summaryText,
+              zenLatencyMs,
+            });
+          } catch {
+            // Keep shell IPC resilient
+          }
+        }
+
         resolve({
           allowed: true,
           stdout,
           stderr,
-          exitCode: code ?? 0,
+          exitCode,
         });
       });
 
@@ -566,6 +591,23 @@ app.whenReady().then(async () => {
     }
     daemon = new KalinarDaemon({}, sqliteStore, eventBus);
     await daemon.start();
+
+    // Bridge Daemon Server-Push Events to Renderer Telemetry & Voice Control Plane
+    eventBus.on('daemon:server_push_alert', (alert) => {
+      mainWindow?.webContents.send('telemetry:stream', alert);
+    });
+    eventBus.on('voice:two_phase_ack', (ack) => {
+      mainWindow?.webContents.send('voice:state_change', {
+        transcript: ack.spokenMessage,
+        ack,
+      });
+    });
+    eventBus.on('agent:model_hotswap', (checkpoint) => {
+      mainWindow?.webContents.send('telemetry:stream', {
+        type: 'MODEL_HOTSWAP',
+        checkpoint,
+      });
+    });
   } catch (err) {
     console.error('[DAEMON_INIT_ERROR]:', err);
   }

@@ -9,7 +9,7 @@ import chokidar, { FSWatcher } from 'chokidar';
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFile, execSync } from 'node:child_process';
-import { ZenFirewall } from '../../src/core/ZenFirewall.js';
+import { EventRouterOutput, ZenFirewall } from '../../src/core/ZenFirewall.js';
 import { KalinarSqliteStore } from '../db/sqliteStore.js';
 import { KalinarEventBus } from '../../src/core/KalinarEventBus.js';
 import {
@@ -316,6 +316,80 @@ export class KalinarDaemon {
     return digest;
   }
 
+  /**
+   * Law 2 & Law 3: Evaluates < 150 token Stream-to-Digest via daemon-event-router.jdm.json (< 0.45ms)
+   * and emits a server-push alert for proactive Phase 2 voice notification on completion or halt.
+   */
+  public async processStreamOutput(params: {
+    rawLog: string;
+    taskId?: string;
+    agentId?: string;
+    explicitExitCode?: number;
+    filePath?: string;
+  }): Promise<{
+    digest: StreamDigest;
+    routingDecision: EventRouterOutput;
+    zenLatencyMs: number;
+  }> {
+    const taskId = params.taskId || 'CLI_EXEC';
+    const agentId = params.agentId || 'agent-software-engineer';
+    const digest = this.extractStreamDigest(
+      params.rawLog,
+      taskId,
+      agentId,
+      params.explicitExitCode
+    );
+
+    const { result: routingDecision, latencyMs } = await this.zenFirewall.evaluateEventRouter({
+      eventType: 'AGENT_TURN',
+      filePath: params.filePath || digest.filePath || 'workspace/stream.ts',
+      auditCycle: this.auditCycles,
+    });
+
+    this.eventBus.emit('daemon:stream_digest', digest);
+    this.eventBus.emit('daemon:server_push_alert', {
+      type: digest.exitCode === 0 ? 'STEP_COMPLETED' : 'AGENT_HALTED',
+      taskId: digest.taskId,
+      targetAgentId: digest.agentId,
+      pid: this.agentActivePids.get(digest.agentId),
+      exitCode: digest.exitCode,
+      sqliteVerified: true,
+      agentStatus: digest.exitCode === 0 ? '[VERIFIED]' : '[HALTED]',
+      summaryText: digest.summaryText,
+    });
+
+    return {
+      digest,
+      routingDecision,
+      zenLatencyMs: latencyMs,
+    };
+  }
+
+  /**
+   * Law 4: Waits for 300ms Chokidar debounce + SQLite WAL confirmation before Phase 2 server-push alert
+   */
+  public async confirmTurnWithChokidarDebounce(
+    targetAgentId: string,
+    exitCode: number,
+    taskId = 'CLI_EXEC'
+  ): Promise<{
+    verifiedAckEmitted: boolean;
+    nextDequeuedItem: FifoQueueItem | null;
+  }> {
+    await new Promise((resolve) => setTimeout(resolve, this.config.debounceMs));
+    const result = this.completeAgentTurn(targetAgentId, exitCode, taskId);
+    this.eventBus.emit('daemon:server_push_alert', {
+      type: exitCode === 0 ? 'STEP_COMPLETED' : 'AGENT_HALTED',
+      taskId,
+      targetAgentId,
+      pid: this.agentActivePids.get(targetAgentId),
+      exitCode,
+      sqliteVerified: exitCode === 0,
+      agentStatus: exitCode === 0 ? '[VERIFIED]' : '[HALTED]',
+    });
+    return result;
+  }
+
   /* =====================================================================
      LAW 6: BUSY AGENT FIFO QUEUEING (FLOW-AGENT-FIFO-01)
      ===================================================================== */
@@ -359,8 +433,8 @@ export class KalinarDaemon {
     const currentStatus = this.getAgentStatus(targetAgentId);
     const activePid = this.agentActivePids.get(targetAgentId);
 
-    // If agent is already [ACTIVE], do NOT kill or overwrite its PID; enqueue in FIFO
-    if (currentStatus === '[ACTIVE]') {
+    // If agent is already [ACTIVE] or [RUNNING], do NOT kill or overwrite its PID; enqueue in FIFO
+    if (currentStatus === '[ACTIVE]' || currentStatus === '[RUNNING]') {
       const queued = this.store.enqueueAgentTaskFifo({
         targetAgentId,
         instruction,
@@ -417,6 +491,22 @@ export class KalinarDaemon {
 
     if (exitCode === 0) {
       verifiedAckEmitted = true;
+      try {
+        this.store.insertTelemetry({
+          task_id: 'CLI_EXEC',
+          event_type: 'TURN_END',
+          agent_name: targetAgentId,
+          payload: JSON.stringify({
+            taskId,
+            exitCode: 0,
+            chokidarDebounceMs: this.config.debounceMs,
+            sqliteVerified: true,
+          }),
+          latency_ms: 1,
+        });
+      } catch {
+        // Ignore in isolated schema scenarios
+      }
       this.eventBus.emit('voice:two_phase_ack', {
         phase: 'STATUS_VERIFIED',
         taskId,

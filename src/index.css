@@ -80,6 +80,7 @@ canvas#singularity-bg {
 .kalinar-hud [data-slot="top-right-trigger"],
 .kalinar-hud [data-slot="node-inspector-drawer"],
 .kalinar-hud [data-slot="dock-root"],
+.kalinar-hud [data-slot="command-palette"],
 .kalinar-hud aside,
 .kalinar-hud button,
 .kalinar-hud input,

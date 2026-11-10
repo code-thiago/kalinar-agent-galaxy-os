@@ -21,6 +21,7 @@ interface KalinarStoreState {
   activeFilter: string;
   isBottomDockExpanded: boolean;
   isInspectorDrawerOpen: boolean;
+  isCommandPaletteOpen: boolean;
   selectedAgentId: string | null;
   inspectedFilePath: string;
 
@@ -29,6 +30,8 @@ interface KalinarStoreState {
   setBottomDockExpanded: (expanded: boolean) => void;
   toggleInspectorDrawer: () => void;
   setInspectorDrawerOpen: (open: boolean) => void;
+  toggleCommandPalette: () => void;
+  setCommandPaletteOpen: (open: boolean) => void;
   setInspectedFilePath: (filePath: string) => void;
   selectAgent: (id: string | null) => void;
   updateSingularityTranscript: (transcript: string) => void;
@@ -51,6 +54,7 @@ interface KalinarStoreState {
   updateAgentStatus: (agentId: string, status: AgentStatus) => void;
   setAgentFifoCount: (agentId: string, count: number) => void;
   setFifoQueueItems: (items: FifoQueueItem[]) => void;
+  enqueueFifoItemInStore: (item: FifoQueueItem) => void;
   promoteFifoItemInStore: (itemId: string) => void;
   clearFifoQueueInStore: (agentId?: string) => void;
   updateAgentStep: (agentId: string, step: number, preview: string) => void;
@@ -260,6 +264,7 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
   activeFilter: 'ALL',
   isBottomDockExpanded: false,
   isInspectorDrawerOpen: false,
+  isCommandPaletteOpen: false,
   selectedAgentId: 'agent-orchestrator-01',
   inspectedFilePath: 'src/services/kalinarVoiceService.ts',
 
@@ -269,6 +274,9 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
   toggleInspectorDrawer: () =>
     set((state) => ({ isInspectorDrawerOpen: !state.isInspectorDrawerOpen })),
   setInspectorDrawerOpen: (isInspectorDrawerOpen) => set({ isInspectorDrawerOpen }),
+  toggleCommandPalette: () =>
+    set((state) => ({ isCommandPaletteOpen: !state.isCommandPaletteOpen })),
+  setCommandPaletteOpen: (isCommandPaletteOpen) => set({ isCommandPaletteOpen }),
   setInspectedFilePath: (inspectedFilePath) => set({ inspectedFilePath }),
   selectAgent: (selectedAgentId) => set({ selectedAgentId }),
   updateSingularityTranscript: (liveTranscript) =>
@@ -310,6 +318,21 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       ),
     })),
   setFifoQueueItems: (fifoQueueItems) => set({ fifoQueueItems }),
+  enqueueFifoItemInStore: (item) =>
+    set((state) => ({
+      fifoQueueItems: [...state.fifoQueueItems, item],
+      agents: state.agents.map((a) =>
+        a.id === item.targetAgentId ||
+        a.filename === item.targetAgentId ||
+        a.filename.replace(/^@/, '') === item.targetAgentId.replace(/^@/, '')
+          ? {
+              ...a,
+              fifoQueueCount: (a.fifoQueueCount ?? 0) + 1,
+              lastAckBadge: '[FIFO_QUEUED]',
+            }
+          : a
+      ),
+    })),
   promoteFifoItemInStore: (itemId) =>
     set((state) => {
       const target = state.fifoQueueItems.find((i) => i.id === itemId);

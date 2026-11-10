@@ -73,3 +73,4 @@ export function findAgentByIdentifier(agents: AgentNode[], identifier: string): 
       a.filename.toLowerCase().replace(/^@/, '') === normalized
   );
 }
+

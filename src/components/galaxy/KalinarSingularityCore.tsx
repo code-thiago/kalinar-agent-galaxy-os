@@ -127,17 +127,18 @@ export class KalinarSingularityCore {
     isReducedMotion: boolean
   ): TauzFrequencyBands {
     const voiceState = useKalinarStore.getState().singularity.voiceState;
-    const isVoiceActive = voiceState === '[SPEAKING]' || voiceState === '[LISTENING]';
+    const isSpeakingState = voiceState === '[SPEAKING]' || voiceState === '[KALINAR_SPEAKING]';
+    const isListeningState = voiceState === '[LISTENING]' || voiceState === '[LISTENING PT-BR]';
+    const isVoiceActive = isSpeakingState || isListeningState;
     const bands = isVoiceActive
       ? kalinarVoiceService.getRealtimeFrequencyBands()
       : { subBass: 0, lowMid: 0, highPresence: 0, compositePulse: 0 };
 
-    const voicePulse =
-      voiceState === '[SPEAKING]'
-        ? 1.0 + bands.compositePulse * 0.85 + bands.subBass * 0.45
-        : voiceState === '[LISTENING]'
-        ? 0.35 + bands.compositePulse * 0.35 + bands.subBass * 0.25
-        : 0.08 + Math.sin(time * 2.0) * 0.02;
+    const voicePulse = isSpeakingState
+      ? 1.0 + bands.compositePulse * 0.85 + bands.subBass * 0.45
+      : isListeningState
+      ? 0.35 + bands.compositePulse * 0.35 + bands.subBass * 0.25
+      : 0.08 + Math.sin(time * 2.0) * 0.02;
 
     this.update(time, voicePulse, fluidVelocityTexture, isReducedMotion, bands);
     return bands;
@@ -151,9 +152,14 @@ export class KalinarSingularityCore {
     frequencyBands?: TauzFrequencyBands
   ): void {
     const voiceState = useKalinarStore.getState().singularity.voiceState;
+    const isVoiceActive =
+      voiceState === '[SPEAKING]' ||
+      voiceState === '[KALINAR_SPEAKING]' ||
+      voiceState === '[LISTENING]' ||
+      voiceState === '[LISTENING PT-BR]';
     const activeBands =
       frequencyBands ||
-      (voiceState === '[SPEAKING]' || voiceState === '[LISTENING]'
+      (isVoiceActive
         ? kalinarVoiceService.getRealtimeFrequencyBands()
         : { subBass: 0, lowMid: 0, highPresence: 0, compositePulse: 0 });
 

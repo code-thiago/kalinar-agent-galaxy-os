@@ -1,7 +1,8 @@
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 
 export function TopRightTrigger() {
-  const { agents, toggleInspectorDrawer, isInspectorDrawerOpen } = useKalinarStore();
+  const { agents, toggleInspectorDrawer, isInspectorDrawerOpen, toggleCommandPalette } =
+    useKalinarStore();
 
   const handleSecondBrainTrigger = () => {
     toggleInspectorDrawer();
@@ -19,6 +20,17 @@ export function TopRightTrigger() {
       >
         {agents.length}
       </div>
+
+      {/* Global Command Palette Shortcut Trigger (Ctrl+K) */}
+      <button
+        type="button"
+        data-slot="command-palette-trigger"
+        onClick={toggleCommandPalette}
+        className="h-[44px] px-3 border border-[var(--ds-border-subtle)] hover:border-[var(--ds-accent-singularity)] bg-[rgba(13,15,20,0.9)] text-[var(--ds-accent-singularity)] font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer flex items-center"
+        title="Abrir Paleta de Comando Tatica (Ctrl+K)"
+      >
+        [ CTRL+K ]
+      </button>
 
       {/* [ ACIONAR SECOND BRAIN ] trigger */}
       <button

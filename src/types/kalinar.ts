@@ -204,10 +204,24 @@ export interface IKalinarAgentConnector {
    DAEMON & EVENT BUS EVENTS
    ===================================================================== */
 
+export interface ServerPushAlertPayload {
+  type: 'STEP_COMPLETED' | 'AGENT_HALTED' | 'HARD_BLOCK';
+  taskId: string;
+  targetAgentId: string;
+  pid?: number;
+  exitCode: number;
+  sqliteVerified?: boolean;
+  agentStatus?: AgentStatus;
+  firewallVerdict?: string;
+  summaryText?: string;
+}
+
 export type KalinarEventMap = {
   'singularity:state_changed': SingularityCoreState;
   'singularity:voice_transcript': { text: string; isFinal: boolean; source: 'OPERATOR' | 'KALINAR' };
   'voice:two_phase_ack': TwoPhaseVoiceAck;
+  'daemon:stream_digest': StreamDigest;
+  'daemon:server_push_alert': ServerPushAlertPayload;
   'agent:registered': AgentNode;
   'agent:step_updated': { agentId: string; step: number; description: string; preview: string };
   'agent:status_changed': { agentId: string; previous: AgentStatus; current: AgentStatus };

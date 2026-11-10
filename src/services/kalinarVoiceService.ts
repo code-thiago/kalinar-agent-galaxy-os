@@ -8,7 +8,13 @@
  * Strictly Zero Emojis
  */
 
-import { LlmModelId, TauzFrequencyBands, TwoPhaseVoiceAck, VoiceState } from '../types/kalinar.js';
+import {
+  LlmModelId,
+  ServerPushAlertPayload,
+  TauzFrequencyBands,
+  TwoPhaseVoiceAck,
+  VoiceState,
+} from '../types/kalinar.js';
 import { useKalinarStore } from '../store/useKalinarStore.js';
 import { kalinarSingularityBrain } from './kalinarSingularityBrain.js';
 import { eventBus } from '../core/KalinarEventBus.js';
@@ -97,6 +103,8 @@ export class KalinarVoiceService {
   private hotWindowTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingVoiceQueue: TwoPhaseVoiceAck[] = [];
   private escapeKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private serverPushUnsubscribe: (() => void) | null = null;
+  private speechGeneration = 0;
 
   private typewriterInterval: any = null;
   private currentFullTranscript = '';
@@ -105,6 +113,7 @@ export class KalinarVoiceService {
 
   private constructor() {
     this.registerGlobalKillSwitchListeners();
+    this.subscribeToServerPushAlerts();
     this.touchHotWindow();
   }
 
@@ -384,6 +393,7 @@ export class KalinarVoiceService {
     source: 'ESCAPE_KEY' | 'SINGULARITY_CLICK' | 'SPACEBAR';
   } {
     const start = performance.now();
+    this.speechGeneration++;
 
     // 1. Immediately abort any active TTS synthesis and clear audio/typewriter buffers
     if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -848,10 +858,79 @@ export class KalinarVoiceService {
     }
   }
 
+  public subscribeToServerPushAlerts(): void {
+    if (this.serverPushUnsubscribe) return;
+    this.serverPushUnsubscribe = eventBus.on('daemon:server_push_alert', (payload) => {
+      void this.handleServerPushAlert(payload);
+    });
+  }
+
+  /**
+   * Law 3 & Law 4 & Law 5: Handles proactive server-push voice alerts on step completion or halt
+   */
+  public async handleServerPushAlert(payload: ServerPushAlertPayload): Promise<{
+    ack: TwoPhaseVoiceAck | null;
+    arbitrationVerdict:
+      | 'SPEAK_NOW'
+      | 'QUEUE_IN_PENDING_VOICE'
+      | 'PREEMPT_IMMEDIATELY'
+      | 'REJECTED_NON_ZERO_EXIT';
+  }> {
+    this.touchHotWindow();
+    const isHalt =
+      payload.type === 'AGENT_HALTED' ||
+      payload.type === 'HARD_BLOCK' ||
+      payload.agentStatus === '[HALTED]' ||
+      payload.firewallVerdict === 'HARD_BLOCK';
+
+    return this.emitPhase2VerifiedAck({
+      taskId: payload.taskId,
+      targetAgentId: payload.targetAgentId,
+      pid: payload.pid,
+      exitCode: payload.exitCode,
+      sqliteVerified: payload.sqliteVerified ?? true,
+      agentStatus: isHalt ? payload.agentStatus || '[HALTED]' : payload.agentStatus,
+      firewallVerdict:
+        payload.firewallVerdict || (payload.type === 'HARD_BLOCK' ? 'HARD_BLOCK' : undefined),
+    });
+  }
+
+  public isMicActive(): boolean {
+    return this.isListening || Boolean(this.micStream);
+  }
+
+  public async toggleVoiceLink(): Promise<boolean> {
+    if (this.isMicActive()) {
+      if (this.recognition) {
+        try {
+          this.recognition.stop();
+        } catch {
+          // Ignore stop exception
+        }
+      }
+      if (this.micStream) {
+        this.micStream.getTracks().forEach((t) => t.stop());
+        this.micStream = null;
+      }
+      this.isListening = false;
+      this.setVoiceState('[STANDBY]');
+      return false;
+    }
+    const enabled = await this.enableMicrophone();
+    if (enabled) {
+      this.touchHotWindow();
+      this.setVoiceState('[LISTENING PT-BR]');
+    }
+    return enabled;
+  }
+
   /**
    * Speaks authoritative tactical response in pt-BR with Tauz pitch/rate and deepest pt-BR voice
    */
   public async speakDirective(text: string): Promise<void> {
+    const activeGen = ++this.speechGeneration;
+    this.touchHotWindow();
+
     if (typeof window === 'undefined' || !window.speechSynthesis) {
       this.speakingFlag = true;
       this.micMutedByAcousticInterlock = true;
@@ -864,6 +943,11 @@ export class KalinarVoiceService {
     this.speakingFlag = true;
     this.micMutedByAcousticInterlock = true;
     this.setVoiceState('[SPEAKING]');
+
+    if (this.interlockDecayTimer) {
+      clearTimeout(this.interlockDecayTimer);
+      this.interlockDecayTimer = null;
+    }
 
     if (this.recognition && this.isListening) {
       try {
@@ -896,8 +980,21 @@ export class KalinarVoiceService {
       }
 
       utterance.onend = () => {
+        if (activeGen !== this.speechGeneration) {
+          resolve();
+          return;
+        }
         this.speakingFlag = false;
-        setTimeout(() => {
+        this.touchHotWindow();
+        if (this.interlockDecayTimer) {
+          clearTimeout(this.interlockDecayTimer);
+        }
+        this.interlockDecayTimer = setTimeout(() => {
+          this.interlockDecayTimer = null;
+          if (activeGen !== this.speechGeneration) {
+            resolve();
+            return;
+          }
           this.micMutedByAcousticInterlock = false;
           this.setVoiceState('[STANDBY]');
           if (this.recognition) {
@@ -912,6 +1009,10 @@ export class KalinarVoiceService {
       };
 
       utterance.onerror = () => {
+        if (activeGen !== this.speechGeneration) {
+          resolve();
+          return;
+        }
         this.speakingFlag = false;
         this.micMutedByAcousticInterlock = false;
         this.setVoiceState('[STANDBY]');

@@ -1,4 +1,4 @@
 {
-  "activeRepairStep": 6,
-  "completedSteps": [1, 2, 3, 4, 5]
+  "activeRepairStep": "COMPLETED",
+  "completedSteps": [1, 2, 3, 4, 5, 6]
 }

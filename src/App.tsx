@@ -5,6 +5,8 @@ import { RightSingularityColumn } from './components/hud/RightSingularityColumn.
 import { TopRightTrigger } from './components/hud/TopRightTrigger.js';
 import { NodeInspectorDrawer } from './components/hud/NodeInspectorDrawer.js';
 import { KalinarBottomDock } from './components/dock/KalinarBottomDock.js';
+import { KalinarCommandPalette } from './components/hud/KalinarCommandPalette.js';
+import { kalinarVoiceService } from './services/kalinarVoiceService.js';
 import { useKalinarStore } from './store/useKalinarStore.js';
 
 export function App() {
@@ -21,8 +23,22 @@ export function App() {
           updateSingularityTranscript(state.transcript);
         }
       });
+      const cleanupTelemetry =
+        typeof api.onTelemetryStream === 'function'
+          ? api.onTelemetryStream((payload: any) => {
+              if (
+                payload &&
+                (payload.type === 'STEP_COMPLETED' ||
+                  payload.type === 'AGENT_HALTED' ||
+                  payload.type === 'HARD_BLOCK')
+              ) {
+                void kalinarVoiceService.handleServerPushAlert(payload);
+              }
+            })
+          : () => {};
       return () => {
         cleanupVoice();
+        cleanupTelemetry();
       };
     }
   }, [updateSingularityTranscript]);
@@ -48,6 +64,9 @@ export function App() {
 
         {/* Retractable Bottom IDE Dock */}
         <KalinarBottomDock />
+
+        {/* Global Tactical Command Palette (Ctrl+K / Cmd+K) */}
+        <KalinarCommandPalette />
       </div>
     </main>
   );

@@ -289,7 +289,7 @@ const BASELINE_SECOND_BRAIN_NODES: SecondBrainNode[] = [
 
 export function KalinarGalaxyCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { singularity, agents, selectedAgentId, selectAgent, isInspectorDrawerOpen } = useKalinarStore();
+  const { agents, selectedAgentId, selectAgent, isInspectorDrawerOpen } = useKalinarStore();
 
   useEffect(() => {
     const container = containerRef.current;
@@ -787,6 +787,17 @@ export function KalinarGalaxyCanvas() {
     };
 
     const onPointerDown = (e: MouseEvent) => {
+      const targetEl = e.target as HTMLElement | null;
+      if (
+        targetEl &&
+        targetEl !== renderer.domElement &&
+        targetEl.closest(
+          '[data-slot="command-palette"], [data-slot="dock-root"], [data-slot="node-inspector-drawer"], [data-slot="left-agent-cards-column"], [data-slot="top-right-trigger"], button, input, select, textarea'
+        )
+      ) {
+        return;
+      }
+
       const clickX = (e.clientX / width) * 2 - 1;
       const clickY = -(e.clientY / height) * 2 + 1;
 
@@ -843,16 +854,21 @@ export function KalinarGalaxyCanvas() {
       fluid.step(dt);
 
       // Acoustic coupling: Sample real-time Tauz frequency bands at 60 FPS
+      const storeSnapshot = useKalinarStore.getState();
+      const liveVoiceState = storeSnapshot.singularity.voiceState;
+      const isSpeakingState =
+        liveVoiceState === '[SPEAKING]' || liveVoiceState === '[KALINAR_SPEAKING]';
+      const isListeningState =
+        liveVoiceState === '[LISTENING]' || liveVoiceState === '[LISTENING PT-BR]';
       const bands =
-        singularity.voiceState === '[SPEAKING]' || singularity.voiceState === '[LISTENING]'
+        isSpeakingState || isListeningState
           ? kalinarVoiceService.getRealtimeFrequencyBands()
           : { subBass: 0, lowMid: 0, highPresence: 0, compositePulse: 0 };
-      const voicePulse =
-        singularity.voiceState === '[SPEAKING]'
-          ? 1.0 + bands.compositePulse * 0.85 + bands.subBass * 0.45
-          : singularity.voiceState === '[LISTENING]'
-          ? 0.35 + bands.compositePulse * 0.35 + bands.subBass * 0.25
-          : 0.08 + Math.sin(elapsedTime * 2.0) * 0.02;
+      const voicePulse = isSpeakingState
+        ? 1.0 + bands.compositePulse * 0.85 + bands.subBass * 0.45
+        : isListeningState
+        ? 0.35 + bands.compositePulse * 0.35 + bands.subBass * 0.25
+        : 0.08 + Math.sin(elapsedTime * 2.0) * 0.02;
 
       // Update Black Hole Singularity Core
       singularityCore.update(
@@ -932,7 +948,11 @@ export function KalinarGalaxyCanvas() {
       octreeLOD.evaluateLOD(camera);
 
       // Camera Gaze Parallax (lerp 0.05) & Smooth Flight to Focused Target
-      const targetAgent = agents.find((a) => a.id === selectedAgentId || a.filename === selectedAgentId);
+      const liveAgents = storeSnapshot.agents;
+      const liveSelectedAgentId = storeSnapshot.selectedAgentId;
+      const targetAgent = liveAgents.find(
+        (a) => a.id === liveSelectedAgentId || a.filename === liveSelectedAgentId
+      );
       if (targetAgent && activeAgentMeshes.has(targetAgent.id)) {
         const agentGroupMesh = activeAgentMeshes.get(targetAgent.id)!;
         cameraDesiredPos.set(
@@ -1002,7 +1022,7 @@ export function KalinarGalaxyCanvas() {
         renderer.domElement.parentElement.removeChild(renderer.domElement);
       }
     };
-  }, [agents, selectedAgentId, selectAgent, singularity.voiceState]);
+  }, [selectAgent]);
 
   // When drawer opens or RAG button is clicked, trigger ingestion
   useEffect(() => {

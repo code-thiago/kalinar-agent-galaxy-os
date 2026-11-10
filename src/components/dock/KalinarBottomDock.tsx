@@ -379,3 +379,4 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
     </div>
   );
 });
+

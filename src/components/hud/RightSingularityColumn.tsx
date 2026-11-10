@@ -91,9 +91,37 @@ export function RightSingularityColumn() {
   );
 
   useEffect(() => {
+    let rafId = 0;
+    let disposed = false;
+
+    const tick = () => {
+      if (disposed) return;
+      const next = kalinarVoiceService.getRealtimeFrequencyBands();
+      setBands((prev) => {
+        if (
+          Math.abs(prev.subBass - next.subBass) < 0.002 &&
+          Math.abs(prev.lowMid - next.lowMid) < 0.002 &&
+          Math.abs(prev.highPresence - next.highPresence) < 0.002 &&
+          Math.abs(prev.compositePulse - next.compositePulse) < 0.002
+        ) {
+          return prev;
+        }
+        return next;
+      });
+      rafId = requestAnimationFrame(tick);
+    };
+
+    if (typeof requestAnimationFrame === 'function') {
+      rafId = requestAnimationFrame(tick);
+      return () => {
+        disposed = true;
+        cancelAnimationFrame(rafId);
+      };
+    }
+
     const interval = setInterval(() => {
       setBands(kalinarVoiceService.getRealtimeFrequencyBands());
-    }, 50);
+    }, 16);
     return () => clearInterval(interval);
   }, []);
 
@@ -157,13 +185,8 @@ export function RightSingularityColumn() {
   }, []);
 
   const handleMicToggle = async () => {
-    if (!isMicActive) {
-      const enabled = await kalinarVoiceService.enableMicrophone();
-      setIsMicActive(enabled);
-    } else {
-      kalinarVoiceService.dispose();
-      setIsMicActive(false);
-    }
+    const active = await kalinarVoiceService.toggleVoiceLink();
+    setIsMicActive(active);
   };
 
   const handleBriefingRequest = async () => {
