@@ -1,9 +1,12 @@
 import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
+import net from 'node:net';
 import path from 'node:path';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+
+const DEV_PORT = 5173;
 
 export function resolveElectronBin() {
   const require = createRequire(import.meta.url);
@@ -58,6 +61,137 @@ export function resolveElectronBin() {
   return electronBin;
 }
 
+function checkHostFree(port, host) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.once('error', (err) => {
+      if (err && (err.code === 'EADDRNOTAVAIL' || err.code === 'EAFNOSUPPORT')) {
+        resolve(true);
+        return;
+      }
+      resolve(false);
+    });
+    server.once('listening', () => {
+      server.close(() => resolve(true));
+    });
+    server.listen({ port, host });
+  });
+}
+
+export async function isPortFree(port = DEV_PORT) {
+  const ipv4Free = await checkHostFree(port, '127.0.0.1');
+  if (!ipv4Free) return false;
+  return await checkHostFree(port, '::1');
+}
+
+export function killPidTree(pid) {
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) {
+    return false;
+  }
+  if (process.platform === 'win32') {
+    const res = spawnSync('taskkill', ['/F', '/T', '/PID', String(pid)], {
+      stdio: 'ignore',
+      shell: false,
+      windowsHide: true,
+    });
+    return res.status === 0;
+  }
+  try {
+    process.kill(pid, 'SIGTERM');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function findPortOwnerPidsWin32(port = DEV_PORT) {
+  if (process.platform !== 'win32') return [];
+  const res = spawnSync('netstat', ['-ano', '-p', 'TCP'], {
+    encoding: 'utf-8',
+    shell: false,
+    windowsHide: true,
+  });
+  if (!res.stdout) return [];
+
+  const pids = new Set();
+  const portPattern = new RegExp(`:${port}\\s+.*LISTENING\\s+(\\d+)`, 'i');
+  for (const line of res.stdout.split(/\r?\n/)) {
+    const match = line.match(portPattern);
+    if (match) {
+      const pid = Number.parseInt(match[1], 10);
+      if (Number.isInteger(pid) && pid > 0 && pid !== process.pid) {
+        pids.add(pid);
+      }
+    }
+  }
+  return Array.from(pids);
+}
+
+export async function ensurePortReleased(port = DEV_PORT, maxWaitMs = 1000) {
+  if (await isPortFree(port)) {
+    return true;
+  }
+
+  console.log(`[KALINAR DEV] Porta ${port} ocupada. Liberando processo orfao...`);
+  if (process.platform === 'win32') {
+    const pids = findPortOwnerPidsWin32(port);
+    for (const pid of pids) {
+      spawnSync('taskkill', ['/F', '/PID', String(pid)], {
+        stdio: 'ignore',
+        shell: false,
+        windowsHide: true,
+      });
+    }
+  } else {
+    spawnSync('fuser', ['-k', `${port}/tcp`], { stdio: 'ignore', shell: false });
+  }
+
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    if (await isPortFree(port)) {
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+
+  return await isPortFree(port);
+}
+
+export function cleanupOrphanElectronProcesses(projectRoot = process.cwd()) {
+  if (process.platform !== 'win32') return [];
+  const normalizedRoot = path.resolve(projectRoot).toLowerCase();
+  const escapedRoot = normalizedRoot.replace(/'/g, "''");
+  const psScript = `Get-CimInstance Win32_Process -Filter "Name='electron.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains('${escapedRoot}') } | Select-Object -ExpandProperty ProcessId`;
+
+  const res = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-Command', psScript],
+    {
+      encoding: 'utf-8',
+      shell: false,
+      windowsHide: true,
+    }
+  );
+
+  if (!res.stdout) return [];
+
+  const killed = [];
+  for (const raw of res.stdout.split(/\r?\n/)) {
+    const pid = Number.parseInt(raw.trim(), 10);
+    if (Number.isInteger(pid) && pid > 0 && pid !== process.pid) {
+      if (killPidTree(pid)) {
+        killed.push(pid);
+      }
+    }
+  }
+
+  if (killed.length > 0) {
+    console.log(`[KALINAR DEV] Processos electron.exe orfaos encerrados: ${killed.join(', ')}`);
+  }
+  return killed;
+}
+
 export function runTsc() {
   return new Promise((resolve, reject) => {
     console.log('[KALINAR DEV] Compilando Electron TypeScript (dist-electron)...');
@@ -107,13 +241,15 @@ export function waitForServer(url, timeoutMs = 25000) {
 }
 
 export async function startDev() {
+  cleanupOrphanElectronProcesses(process.cwd());
+  await ensurePortReleased(DEV_PORT, 1000);
   await runTsc();
 
   const electronBin = resolveElectronBin();
 
   console.log('[KALINAR DEV] Iniciando Vite Dev Server...');
   const viteScript = path.resolve('node_modules/vite/bin/vite.js');
-  const viteProc = spawn(process.execPath, [viteScript, '--port', '5173', '--strictPort'], {
+  const viteProc = spawn(process.execPath, [viteScript, '--port', String(DEV_PORT), '--strictPort'], {
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: false,
   });
@@ -126,41 +262,55 @@ export async function startDev() {
   });
 
   let electronProc = null;
+  let cleanedUp = false;
 
   const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+
     if (electronProc && !electronProc.killed) {
+      if (electronProc.pid) {
+        killPidTree(electronProc.pid);
+      }
       try {
-        electronProc.kill();
+        electronProc.kill('SIGTERM');
       } catch {
         // ignore
       }
     }
+
     if (viteProc && !viteProc.killed) {
+      if (viteProc.pid) {
+        killPidTree(viteProc.pid);
+      }
       try {
-        viteProc.kill();
+        viteProc.kill('SIGTERM');
       } catch {
         // ignore
       }
     }
   };
 
-  process.on('SIGINT', () => {
+  process.once('SIGINT', () => {
     cleanup();
     process.exit(0);
   });
-  process.on('SIGTERM', () => {
+  process.once('SIGTERM', () => {
     cleanup();
     process.exit(0);
+  });
+  process.once('exit', () => {
+    cleanup();
   });
 
   try {
-    await waitForServer('http://localhost:5173', 25000);
-    console.log('[KALINAR DEV] Vite pronto em http://localhost:5173. Abrindo janela Electron...');
+    await waitForServer(`http://localhost:${DEV_PORT}`, 25000);
+    console.log(`[KALINAR DEV] Vite pronto em http://localhost:${DEV_PORT}. Abrindo janela Electron...`);
 
     const electronEnv = {
       ...process.env,
       NODE_ENV: 'development',
-      VITE_DEV_SERVER_URL: 'http://localhost:5173',
+      VITE_DEV_SERVER_URL: `http://localhost:${DEV_PORT}`,
     };
     delete electronEnv.ELECTRON_RUN_AS_NODE;
 

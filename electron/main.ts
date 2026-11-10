@@ -576,6 +576,27 @@ function setupIpcHandlers(): void {
   );
 }
 
+if (!app.isPackaged || process.env.VITE_DEV_SERVER_URL) {
+  const devUserData = path.join(app.getPath('appData'), 'kalinar-agent-galaxy-os-dev');
+  app.setPath('userData', devUserData);
+}
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log('[ELECTRON] Another instance is already running; terminating duplicate process.');
+  app.quit();
+  process.exit(0);
+}
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+  }
+});
+
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   try {
