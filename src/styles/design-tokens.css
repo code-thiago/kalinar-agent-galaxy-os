@@ -183,12 +183,19 @@ canvas#singularity-bg {
 
 .kalinar-hud > *,
 .kalinar-hud [data-slot="left-agent-cards-column"],
-.kalinar-hud [data-slot="right-singularity-column"],
 .kalinar-hud [data-slot="top-right-trigger"],
 .kalinar-hud [data-slot="node-inspector-drawer"],
 .kalinar-hud [data-slot="dock-root"],
-.kalinar-hud aside,
 .kalinar-hud button {
+  pointer-events: auto;
+}
+
+.kalinar-hud [data-slot="right-singularity-column"] {
+  pointer-events: none;
+}
+
+.kalinar-hud [data-slot="right-singularity-column"] a,
+.kalinar-hud [data-slot="right-singularity-column"] button {
   pointer-events: auto;
 }
 

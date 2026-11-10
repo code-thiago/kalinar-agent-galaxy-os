@@ -74,10 +74,9 @@ canvas#singularity-bg {
   display: block;
 }
 
-/* Child interactive panels set pointer-events: auto */
+/* Child interactive panels set pointer-events: auto; Right Ethereal Column keeps pointer-events: none */
 .kalinar-hud > *,
 .kalinar-hud [data-slot="left-agent-cards-column"],
-.kalinar-hud [data-slot="right-singularity-column"],
 .kalinar-hud [data-slot="top-right-trigger"],
 .kalinar-hud [data-slot="node-inspector-drawer"],
 .kalinar-hud [data-slot="dock-root"],
@@ -89,17 +88,26 @@ canvas#singularity-bg {
   pointer-events: auto;
 }
 
+.kalinar-hud [data-slot="right-singularity-column"] {
+  pointer-events: none;
+}
+
+.kalinar-hud [data-slot="right-singularity-column"] a,
+.kalinar-hud [data-slot="right-singularity-column"] button {
+  pointer-events: auto;
+}
+
 /* =====================================================================
    ASYMMETRIC HUD SPATIAL GRID
    ===================================================================== */
 [data-slot="left-agent-cards-column"] {
   position: fixed;
   left: 24px;
-  top: 0;
-  bottom: 44px;
+  top: 24px;
+  bottom: 52px;
   width: var(--ds-left-column-width, 320px);
   pointer-events: auto;
-  z-index: 20;
+  z-index: 15;
   display: flex;
   flex-direction: column;
 }
@@ -110,8 +118,9 @@ canvas#singularity-bg {
   top: 50%;
   transform: translateY(-50%);
   width: var(--ds-right-column-width, 360px);
-  pointer-events: auto;
-  z-index: 20;
+  mix-blend-mode: plus-lighter;
+  pointer-events: none;
+  z-index: 15;
 }
 
 [data-slot="top-right-trigger"] {

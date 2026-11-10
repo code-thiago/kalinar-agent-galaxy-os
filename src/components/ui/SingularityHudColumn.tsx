@@ -1,37 +1,46 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { TauzFrequencyBands } from '../../types/kalinar.js';
+
+export const TRANSCRIPT_STREAM_INTERVAL_MS = 18;
 
 export interface SingularityHudColumnRootProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
   isDrawerOpen?: boolean;
 }
 
-export function SingularityHudColumnRoot({
+export const SingularityHudColumnRoot = React.memo(function SingularityHudColumnRoot({
   children,
   isDrawerOpen = false,
   className = '',
+  style,
   ...props
 }: SingularityHudColumnRootProps) {
   return (
     <div
-      data-slot="singularity-hud-column"
-      className={`w-[360px] flex flex-col gap-6 text-[12px] leading-relaxed transition-all duration-300 pointer-events-auto select-none ${
-        isDrawerOpen ? 'translate-x-[420px] opacity-0' : 'translate-x-0 opacity-100'
+      data-slot="singularity-hud-root"
+      data-drawer-open={isDrawerOpen}
+      className={`w-[360px] flex flex-col gap-5 text-[12px] leading-relaxed transition-all duration-300 pointer-events-none select-none ${
+        isDrawerOpen ? 'translate-x-6 opacity-0' : 'translate-x-0 opacity-100'
       } ${className}`}
-      style={{ mixBlendMode: 'plus-lighter' }}
+      style={{
+        mixBlendMode: 'plus-lighter',
+        pointerEvents: 'none',
+        opacity: isDrawerOpen ? 0 : 1,
+        ...style,
+      }}
       {...props}
     >
       {children}
     </div>
   );
-}
+});
 
 export interface SingularityHudBlockProps extends React.HTMLAttributes<HTMLDivElement> {
   tag: string;
   children?: React.ReactNode;
 }
 
-export function SingularityHudBlock({
+export const SingularityHudBlock = React.memo(function SingularityHudBlock({
   tag,
   children,
   className = '',
@@ -41,16 +50,16 @@ export function SingularityHudBlock({
     <div
       data-slot="singularity-hud-block"
       data-hud-tag={tag}
-      className={`flex flex-col gap-1.5 ${className}`}
+      className={`flex flex-col gap-1.5 pointer-events-none ${className}`}
       {...props}
     >
-      <div className="font-mono text-[11px] font-semibold tracking-wider text-[var(--ds-accent-singularity)] uppercase">
+      <div className="font-mono text-[11px] font-semibold tracking-wider text-[#AA88FF] normal-case">
         [{tag}]
       </div>
-      <div className="text-[var(--ds-text-primary)] font-mono text-[12px]">{children}</div>
+      <div className="text-[#DDDDDD] font-mono text-[12px] tabular-nums">{children}</div>
     </div>
   );
-}
+});
 
 export interface SingularityCoreBlockProps extends React.HTMLAttributes<HTMLDivElement> {
   voiceState: string;
@@ -62,10 +71,26 @@ export interface SingularityCoreBlockProps extends React.HTMLAttributes<HTMLDivE
   frequencyBands?: TauzFrequencyBands;
 }
 
-export function SingularityCoreBlock({
+export function resolveAcousticStateBadge(voiceState: string): string {
+  if (voiceState === '[LISTENING]' || voiceState === '[LISTENING PT-BR]') {
+    return '[LISTENING PT-BR]';
+  }
+  if (voiceState === '[GRAVITY_PULL]' || voiceState === '[GRAVITY_INGESTION]') {
+    return '[GRAVITY_INGESTION]';
+  }
+  if (voiceState === '[SPEAKING]' || voiceState === '[KALINAR_SPEAKING]') {
+    return '[KALINAR_SPEAKING]';
+  }
+  if (voiceState === '[VOICE_HIBERNATE]') {
+    return '[VOICE_HIBERNATE]';
+  }
+  return '[SINGULARITY: STANDBY]';
+}
+
+export const SingularityCoreBlock = React.memo(function SingularityCoreBlock({
   voiceState,
   transcript,
-  zenLatencyMs = 0.42,
+  zenLatencyMs = 0.38,
   onMicToggle,
   onBriefingRequest,
   isMicActive = false,
@@ -73,67 +98,89 @@ export function SingularityCoreBlock({
   className = '',
   ...props
 }: SingularityCoreBlockProps) {
-  // Format tactical status badge
-  let statusBadge = '[SINGULARITY: STANDBY]';
-  if (voiceState === '[LISTENING]' || voiceState === '[LISTENING PT-BR]') {
-    statusBadge = '[LISTENING PT-BR]';
-  } else if (voiceState === '[GRAVITY_PULL]' || voiceState === '[GRAVITY_INGESTION]') {
-    statusBadge = '[GRAVITY_INGESTION]';
-  } else if (voiceState === '[SPEAKING]' || voiceState === '[KALINAR_SPEAKING]') {
-    statusBadge = '[KALINAR_SPEAKING]';
-  } else if (voiceState === '[VOICE_HIBERNATE]') {
-    statusBadge = '[VOICE_HIBERNATE]';
-  }
+  const fullTranscript =
+    transcript || 'Aguardando diretriz tática. Núcleo gravitacional em operação nominal.';
+  const [visibleChars, setVisibleChars] = useState<number>(fullTranscript.length);
+
+  // 18ms/char progressive transcript streaming effect
+  useEffect(() => {
+    setVisibleChars(0);
+    if (!fullTranscript) return;
+
+    const timer = setInterval(() => {
+      setVisibleChars((prev) => {
+        if (prev >= fullTranscript.length) {
+          clearInterval(timer);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, TRANSCRIPT_STREAM_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [fullTranscript]);
+
+  const statusBadge = resolveAcousticStateBadge(voiceState);
+  const streamedText = fullTranscript.slice(0, visibleChars);
 
   return (
     <div
       data-slot="singularity-core-block"
-      className={`p-3 bg-[rgba(10,8,16,0.7)] border-l-2 border-[var(--ds-accent-singularity)] flex flex-col gap-2.5 ${className}`}
+      className={`p-3 bg-[rgba(10,8,16,0.55)] border-l-2 border-[#AA88FF] flex flex-col gap-2.5 pointer-events-none ${className}`}
       {...props}
     >
-      <div className="flex items-center justify-between text-[11px] font-mono uppercase">
-        <span className="text-[var(--ds-accent-singularity)] font-semibold">[SINGULARITY_CORE]</span>
-        <span className="text-[var(--ds-primitive-lavender-400)] font-medium tabular-nums">{statusBadge}</span>
-      </div>
-      <div className="font-mono text-[13px] text-[var(--ds-accent-singularity)] leading-snug min-h-[44px] italic">
-        {transcript || '"Aguardando diretriz tática. O núcleo gravitacional permanece ativo."'}
+      <div className="flex items-center justify-between text-[11px] font-mono">
+        <span className="text-[#AA88FF] font-semibold normal-case">[singularity_core]</span>
+        <span
+          data-slot="singularity-acoustic-badge"
+          className="text-[#DDDDDD] font-medium tabular-nums"
+        >
+          {statusBadge}
+        </span>
       </div>
 
-      {/* Monospace Tabular-Nums DSP Acoustic Telemetry Strip */}
+      <div
+        data-slot="singularity-voice-transcript"
+        className="font-mono text-[13px] text-[#AA88FF] leading-snug min-h-[44px] normal-case"
+      >
+        {streamedText}
+      </div>
+
+      {/* Real-time Tauz DSP Frequency Meters */}
       <div
         data-slot="singularity-acoustic-telemetry"
-        className="font-mono text-[10px] tabular-nums text-[var(--ds-accent-singularity)] flex justify-between items-center px-2 py-1 bg-[rgba(13,15,20,0.85)] border border-[rgba(170,136,255,0.25)] select-none"
+        className="font-mono text-[10px] tabular-nums text-[#DDDDDD] flex justify-between items-center px-2 py-1 bg-[rgba(13,15,20,0.65)] border border-[rgba(170,136,255,0.28)]"
       >
         <div className="flex items-center gap-1.5">
-          <span className="text-[var(--ds-text-secondary)]">SUB-110HZ:</span>
-          <span className="text-[var(--ds-accent-singularity)] font-semibold">
+          <span className="text-[#9A9A9A]">SUB-110HZ:</span>
+          <span className="text-[#AA88FF] font-semibold">
             {(frequencyBands?.subBass ?? 0).toFixed(2)}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[var(--ds-text-secondary)]">PRES-2.4KHZ:</span>
-          <span className="text-[var(--ds-primitive-lavender-400)] font-semibold">
+          <span className="text-[#9A9A9A]">PRES-2.4KHZ:</span>
+          <span className="text-[#DDDDDD] font-semibold">
             {(frequencyBands?.highPresence ?? 0).toFixed(2)}
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[var(--ds-text-secondary)]">PULSE:</span>
-          <span className="text-[var(--ds-status-active-fg)] font-semibold">
+          <span className="text-[#9A9A9A]">PULSE:</span>
+          <span className="text-[#34D399] font-semibold">
             {(frequencyBands?.compositePulse ?? 0).toFixed(2)}
           </span>
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-[10px] text-[var(--ds-text-secondary)] font-mono tabular-nums pt-1.5 border-t border-[rgba(170,136,255,0.25)]">
+      <div className="flex justify-between items-center text-[10px] text-[#9A9A9A] font-mono tabular-nums pt-1.5 border-t border-[rgba(170,136,255,0.25)]">
         <div className="flex items-center gap-2">
           <span>SOVEREIGN PT-BR</span>
           {onMicToggle && (
             <button
               onClick={onMicToggle}
-              className={`px-1.5 py-0.5 border text-[9.5px] transition-colors ${
+              className={`pointer-events-auto px-1.5 py-0.5 border text-[9.5px] transition-colors cursor-pointer ${
                 isMicActive
-                  ? 'border-[var(--ds-accent-singularity)] text-[var(--ds-accent-singularity)] bg-[rgba(170,136,255,0.15)]'
-                  : 'border-[var(--ds-border-subtle)] text-[var(--ds-text-secondary)] hover:text-[var(--ds-text-primary)]'
+                  ? 'border-[#AA88FF] text-[#AA88FF] bg-[rgba(170,136,255,0.15)]'
+                  : 'border-[#1A1D26] text-[#9A9A9A] hover:text-[#DDDDDD]'
               }`}
             >
               {isMicActive ? '[MIC ACTIVE]' : '[ENABLE MIC]'}
@@ -142,7 +189,7 @@ export function SingularityCoreBlock({
           {onBriefingRequest && (
             <button
               onClick={onBriefingRequest}
-              className="px-1.5 py-0.5 border border-[var(--ds-border-subtle)] text-[9.5px] text-[var(--ds-text-secondary)] hover:text-[var(--ds-accent-singularity)] hover:border-[var(--ds-accent-singularity)] transition-colors"
+              className="pointer-events-auto px-1.5 py-0.5 border border-[#1A1D26] text-[9.5px] text-[#9A9A9A] hover:text-[#AA88FF] hover:border-[#AA88FF] transition-colors cursor-pointer"
             >
               [TACTICAL BRIEFING]
             </button>
@@ -152,7 +199,7 @@ export function SingularityCoreBlock({
       </div>
     </div>
   );
-}
+});
 
 export const SingularityHudColumn = {
   Root: SingularityHudColumnRoot,

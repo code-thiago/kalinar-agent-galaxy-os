@@ -14,6 +14,7 @@ export function NodeInspectorDrawer() {
   const {
     isInspectorDrawerOpen,
     toggleInspectorDrawer,
+    setInspectorDrawerOpen,
     agents,
     selectedAgentId,
     inspectedFilePath,
@@ -48,6 +49,44 @@ export function NodeInspectorDrawer() {
       item.targetAgentId === selectedAgent?.filename ||
       item.targetAgentId === selectedAgent?.filename?.replace(/^@/, '')
   );
+
+  useEffect(() => {
+    if (selectedAgent) {
+      setCurrentMode(selectedAgent.executionMode);
+      const previewLines = (selectedAgent.livePreviewStream || '')
+        .split(/\r?\n/)
+        .filter((l) => l.length > 0)
+        .map((line, index): StructuredDiffLine => {
+          const type = line.startsWith('+')
+            ? '+'
+            : line.startsWith('-')
+            ? '-'
+            : line.startsWith('@@') || line.startsWith('---') || line.startsWith('+++')
+            ? 'header'
+            : 'context';
+          return { type, lineNumber: index + 1, content: line };
+        });
+
+      if (previewLines.length > 0) {
+        setDiffLines([
+          { type: 'header', lineNumber: 1, content: `--- a/${inspectedFilePath}` },
+          { type: 'header', lineNumber: 1, content: `+++ b/${inspectedFilePath}` },
+          ...previewLines,
+        ]);
+      }
+    }
+  }, [selectedAgent?.id, selectedAgent?.executionMode, selectedAgent?.livePreviewStream, inspectedFilePath]);
+
+  useEffect(() => {
+    if (!isInspectorDrawerOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setInspectorDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isInspectorDrawerOpen, setInspectorDrawerOpen]);
 
   useEffect(() => {
     const api = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
