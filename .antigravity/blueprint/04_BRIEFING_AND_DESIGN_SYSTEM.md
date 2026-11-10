@@ -1,9 +1,10 @@
-# 04_BRIEFING_AND_DESIGN_SYSTEM.md — KALINAR SINGULARITY DESIGN SYSTEM (v1.1.0 LOCK)
+# 04_BRIEFING_AND_DESIGN_SYSTEM.md — KALINAR SINGULARITY DESIGN SYSTEM (v1.4.0 LOCK)
 
-> **Document ID:** `DOC-04-DESIGN-SYSTEM-KALINAR-v1.1.0`  
+> **Document ID:** `DOC-04-DESIGN-SYSTEM-KALINAR-v1.4.0`  
 > **Lead Agent:** `@agent-design`  
 > **Co-Authors:** `@human-developer`, `@agent-software-engineer`, `@agent-cybersecurity`, `@agent-orchestrator`, `@agent-qa`  
-> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_1_0`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_4_0`  
+> **Release Baseline:** `v1.4.0-singularity-verified` (`13ca02f`)  
 > **Visual Philosophy:** `KALINAR Singularity & Gravitational Telemetry`  
 > **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
@@ -136,7 +137,7 @@ All KALINAR UI primitives follow React 19 direct ref/prop composition (zero `Rea
 * `data-slot="singularity-hud-block"`: Individual telemetry block wrapper (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`).
 * `data-slot="singularity-voice-transcript"`: Live character-by-character (`18ms/char`) `#aa88ff` transcript stream rendered directly inside `[singularity_core]`.
 
-### 4.3 `RetractableIdeDock` (`src/components/terminal/KalinarBottomDock.tsx`) & `StepDivisionCell` (`src/components/terminal/TelemetryMatrixTable.tsx`)
+### 4.3 `RetractableIdeDock` (`src/components/dock/KalinarBottomDock.tsx`) & `StepDivisionCell` (`src/components/terminal/TelemetryMatrixTable.tsx`)
 * `data-slot="dock-root"`: Bottom IDE dock container anchored at `bottom: 0`.
 * `data-slot="dock-status-bar"`: Collapsed `36px` (`--ds-dock-collapsed-h`) tactical status bar with `44px` minimum interactive hit targets.
 * `data-slot="dock-viewport"`: Expanded `350px` (`--ds-dock-expanded-h`) or `75vh` (`max-h-[75vh]`) 4-tab workspace.
@@ -144,3 +145,12 @@ All KALINAR UI primitives follow React 19 direct ref/prop composition (zero `Rea
   - `data-slot="step-fraction"`: Tabular step ratio (`STEP 04/06`).
   - `data-slot="step-bar-track"`: Segmented progress bar track colored by `--ds-accent-singularity` / `--ds-status-active-fg`.
   - `data-slot="step-label"`: Truncated monospace description of the active subtask.
+
+### 4.4 `KalinarCommandPalette` (`src/components/hud/KalinarCommandPalette.tsx`) & `TopRightTrigger` (`src/components/hud/TopRightTrigger.tsx`)
+* `data-slot="top-right-trigger"`: Fixed top-right trigger bar (`top: 24px`, `right: 24px`, `z-index: 30`) containing the `44x44px` active-agent counter, `[ CTRL+K ]` (`data-slot="command-palette-trigger"`, `44px` height), and `[ ACIONAR SECOND BRAIN ]` button.
+* `data-slot="command-palette"`: `React.memo` modal overlay (`z-index: 50`, `width: 680px`, `max-width: 92vw`, surface `rgba(7, 8, 10, 0.98)`, border `1px solid #AA88FF`) toggled via `Ctrl+K` / `Cmd+K` or `[ CTRL+K ]`. Returns `null` when closed so `.kalinar-hud` never blocks `canvas#singularity-bg`; isolated from the central Singularity `< 10ms` kill-switch via target boundary checks in `KalinarGalaxyCanvas.tsx`.
+* Child slots:
+  - `data-slot="command-palette-agents"`: Target `@agent-*` selector chips with live model badges.
+  - `data-slot="command-palette-input"`: Tactical directive and filter input supporting direct `@agent-*` dispatch and `rag <query>`.
+  - `data-slot="command-palette-models"`: 4-column Argon / Claude / Gemini Pro / Gemini Flash hot-swap strip.
+  - `data-slot="command-palette-list"`: Keyboard-navigable (`ArrowUp` / `ArrowDown` / `Enter` / `Escape`) action list.

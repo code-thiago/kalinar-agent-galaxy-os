@@ -1,9 +1,10 @@
-# 03_APP_FLOW.md — KALINAR SINGULARITY APP FLOW & STATE MACHINES (v1.1.0 LOCK)
+# 03_APP_FLOW.md — KALINAR SINGULARITY APP FLOW & STATE MACHINES (v1.4.0 LOCK)
 
-> **Document ID:** `DOC-03-APP-FLOW-KALINAR-v1.1.0`  
+> **Document ID:** `DOC-03-APP-FLOW-KALINAR-v1.4.0`  
 > **Lead Architects:** `@agent-orchestrator` & `@agent-design`  
 > **Co-Authors:** `@human-developer`, `@agent-software-engineer`, `@agent-data`, `@agent-cybersecurity`, `@agent-qa`  
-> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_1_0`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_4_0`  
+> **Release Baseline:** `v1.4.0-singularity-verified` (`13ca02f`)  
 > **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
@@ -32,9 +33,11 @@ KALINAR executes as a single-window native Electron 35 Desktop OS with zero page
    - **Procedural Galaxy (`50,000` Nodes via `THREE.InstancedMesh`):** Logarithmic spiral constellations (`01_PROJETOS` through `05_AGENTS`) with Spatial Octree LOD culling (`< 4ms`), orbital Arc Cyan (`#00F0FF`) agent swarms, and Amber (`#FBBF24`) artifact satellites.
 2. **Layer 1 — Asymmetric Monospace Telemetry HUD (`.kalinar-hud`, `z-index: 1`):**
    - **Left Dynamic Column (`left: 24px`, `width: 320px`):** `40x40px` 8-point geometric SVG brand mark (`top: 24px`), domain filter chips (`top: 120px`), and a scrollable stack (`top: 250px`) of `AgentLivePreviewCard` components featuring an opaque **`160px`** (`min-h-[160px]`, `#0a0a0a`) live code/diff viewport (`data-slot="agent-card-viewport"`) and a 2-line `tabular-nums` metadata footer (`STEP X/Y`, `TOK/S`, `ETA`).
-   - **Top-Right Counter & Second Brain Trigger (`top: 24px`, `right: 24px`):** `44x44px` circular active-agent badge paired with the `[ ACIONAR SECOND BRAIN ]` gravitational RAG button.
-   - **Right Ethereal Column (`right: 48px`, `top: 50%`, `translateY(-50%)`, `width: 360px`):** Four stacked telemetry blocks rendered with `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). Live spoken transcripts stream at `18ms/char` in `#AA88FF` directly inside `[singularity_core]` (zero floating corner voice orbs). Smoothly retracts (`opacity: 0`, `pointer-events: none`) whenever the `480px` `NodeInspectorDrawer` opens.
-   - **Retractable Bottom IDE Dock (`bottom: 0`):** Collapsed by default to a `36px` tactical bar (`data-slot="dock-status-bar"`) so the central Black Hole remains unobstructed; expands smoothly to `350px` or `75vh` exposing 4 tabs:
+   - **Top-Right Counter, Command Trigger & Second Brain Trigger (`top: 24px`, `right: 24px`):** `44x44px` circular active-agent badge paired with the `[ CTRL+K ]` trigger (`data-slot="command-palette-trigger"`) and `[ ACIONAR SECOND BRAIN ]` gravitational RAG button (`TopRightTrigger.tsx`).
+   - **Global Tactical Command Palette (`KalinarCommandPalette.tsx`, `Ctrl+K` / `Cmd+K`, `z-index: 50`):** `React.memo` modal overlay (`data-slot="command-palette"`) mounted inside `.kalinar-hud` (returns `null` when closed so zero pointer interception occurs over `canvas#singularity-bg`). Supports dispatching FIFO/direct orders to any `@agent-*`, hot-swapping **Argon** / **Claude** / **Gemini** models, triggering Second Brain Gravitational RAG, toggling the sovereign `pt-BR` voice link, speaking Tauz briefings, and firing the `< 10ms` emergency kill-switch.
+   - **HUD & Palette Click Isolation (`KalinarGalaxyCanvas.tsx`):** `onPointerDown` ignores events whose target originates inside `[data-slot="command-palette"]`, `[data-slot="dock-root"]`, `[data-slot="node-inspector-drawer"]`, `[data-slot="left-agent-cards-column"]`, `[data-slot="top-right-trigger"]`, or interactive form controls (`button`, `input`, `select`, `textarea`), ensuring UI interactions never trigger the central Singularity `< 10ms` kill-switch accidentally.
+   - **Right Ethereal Column (`right: 48px`, `top: 50%`, `translateY(-50%)`, `width: 360px`):** Four stacked telemetry blocks rendered with `mix-blend-mode: plus-lighter` (`[singularity_core]`, `[active_directive]`, `[gravitational_rag]`, `[synaptic_feed]`). Live spoken transcripts stream at `18ms/char` in `#AA88FF` alongside `requestAnimationFrame` (`60 FPS`) Tauz DSP acoustic meters (`SUB-110HZ`, `PRES-2.4KHZ`, `PULSE`) directly inside `[singularity_core]` (zero floating corner voice orbs). Smoothly retracts (`opacity: 0`, `pointer-events: none`) whenever the `480px` `NodeInspectorDrawer` opens.
+   - **Retractable Bottom IDE Dock (`src/components/dock/KalinarBottomDock.tsx`, `bottom: 0`):** Collapsed by default to a `36px` tactical bar (`data-slot="dock-status-bar"`) so the central Black Hole remains unobstructed; expands smoothly to `350px` or `75vh` exposing 4 tabs:
      - **Tab 1:** Step Division & PID Matrix (`TelemetryMatrixTable`).
      - **Tab 2:** Real-Time & `node:sqlite` Historical Evolution Charts (`EvolutionChartsView`).
      - **Tab 3:** Second Brain & GoRules ZEN Cortex (`CortexSecondBrainView`).

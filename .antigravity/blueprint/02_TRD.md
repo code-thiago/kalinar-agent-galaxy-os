@@ -1,9 +1,10 @@
-# 02_TRD.md — KALINAR SINGULARITY TECHNICAL REQUIREMENTS & ARCHITECTURE (v1.3.0 LOCK)
+# 02_TRD.md — KALINAR SINGULARITY TECHNICAL REQUIREMENTS & ARCHITECTURE (v1.4.0 LOCK)
 
-> **Document ID:** `DOC-02-TRD-KALINAR-v1.3.0`  
+> **Document ID:** `DOC-02-TRD-KALINAR-v1.4.0`  
 > **Lead Agents:** `@agent-software-engineer` + `@agent-orchestrator`  
 > **Co-Authors:** `@human-developer`, `@agent-cybersecurity`, `@agent-design`, `@agent-data`, `@agent-qa`  
-> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_3_0`  
+> **Gate Status:** `APPROVED_BY_SWARM_LOCKED_V1_4_0`  
+> **Release Baseline:** `v1.4.0-singularity-verified` (`13ca02f`)  
 > **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
@@ -18,7 +19,7 @@
 | `@agent-cybersecurity` | DevSecOps & PID Gatekeeper | Zero-Trust Path Traversal (../), ELECTRON_IPC_CHANNELS Whitelist | `APPROVED` | `2026-11-06T16:30:30Z` | `SIG-CSEC-TRD-130` |
 | `@agent-design` | UI/UX & Design System Architect | 262k GPGPU, Monospace DSP Acoustic Telemetry, WCAG AAA | `APPROVED` | `2026-11-06T16:30:40Z` | `SIG-DSGN-TRD-130` |
 | `@agent-data` | Decision Engine Specialist | 5 GoRules ZEN Graphs (< 0.45ms), Second Brain Cortex Evaluator | `APPROVED` | `2026-11-06T16:30:50Z` | `SIG-DATA-TRD-130` |
-| `@agent-qa` | QA & Traceability Auditor | 12 Vitest Suites Pass (100%), Headless Electron E2E Gate | `APPROVED` | `2026-11-06T16:31:00Z` | `SIG-QATE-TRD-130` |
+| `@agent-qa` | QA & Traceability Auditor | 17 Vitest Suites Pass (122 / 122 Tests), Headless Electron E2E Gate | `APPROVED` | `2026-11-10T18:03:00Z` | `SIG-QATE-TRD-140` |
 
 ---
 
@@ -26,10 +27,10 @@
 
 | Architectural Layer | Selected Technology | Exact Version / Mode | Rationale & Architectural Invariant |
 | :--- | :--- | :--- | :--- |
-| **Desktop Runtime & OS Shell** | Electron + Node.js 22/24 LTS | `Electron ^35.x` / `Node.js 22/24 LTS` | Native desktop container (`electron/main.ts` + `electron/preload.ts`) with `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. |
-| **Frontend UI & Build Pipeline** | React 19 + TypeScript + Vite | `React ^19.0.0`, `TS ^5.8.x`, `Vite ^6.x` | Isolated `React.memo` HUD islands over a locked `100vw x 100vh` `#000000` canvas; zero layout thrashing. |
+| **Desktop Runtime & OS Shell** | Electron + Node.js 22/24 LTS | `Electron ^35.x` / `Node.js 22/24 LTS` | Native frameless desktop container (`electron/main.ts` + `electron/preload.ts`) with `Menu.setApplicationMenu(null)`, `autoHideMenuBar: true`, `titleBarStyle: 'hidden'`, `titleBarOverlay: { color: '#000000', symbolColor: '#AA88FF', height: 32 }`, `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`. |
+| **Frontend UI & Build Pipeline** | React 19 + TypeScript + Vite | `React ^19.0.0`, `TS ^5.8.x`, `Vite ^6.x` | Isolated `React.memo` HUD islands (`KalinarCommandPalette`, `KalinarBottomDock`, `SingularityHudColumn`) over a locked `100vw x 100vh` `#000000` canvas; zero layout thrashing. |
 | **Styling & Token System** | Tailwind CSS v4 | `Tailwind v4.x` + 3-Tier CSS Tokens | `--ds-surface-singularity-void: #000000`, `--ds-accent-singularity: #AA88FF`, `--ds-text-secondary: #9A9A9A` (`7.45:1` WCAG AAA). |
-| **3D Singularity & Galaxy Engine** | Three.js / `@react-three/fiber` | `three ^0.187.0` + GPGPU Float Ping-Pong | `262,144` GPGPU accretion disk particles (`512x512` float RGBA buffer) + Navier-Stokes 2D cursor fluid (`256x256`) + `50,000` `THREE.InstancedMesh` nodes with Spatial Octree LOD. |
+| **3D Singularity & Galaxy Engine** | Three.js / `@react-three/fiber` | `three ^0.187.0` + GPGPU Float Ping-Pong | `262,144` GPGPU accretion disk particles (`512x512` float RGBA buffer) + Navier-Stokes 2D cursor fluid (`256x256`) + `50,000` `THREE.InstancedMesh` nodes partitioned by `SpatialOctreeLOD.ts` (`maxDepth: 4`, `maxPerLeaf: 1024`, `< 4ms` frustum culling, 3-level LOD: `lod0 < 800`, `800 <= lod1 < 1800`, `lod2 >= 1800`). |
 | **Sub-ms Decision Firewall** | GoRules ZEN Engine | `@gorules/zen-engine ^2.1.9` | Pre-warmed in-memory WASM/native evaluation (`< 0.45ms`, zero LLM token cost) across 5 canonical JDM graphs. |
 | **State & Telemetry Persistence** | Native `node:sqlite` | `DatabaseSync` (`PRAGMA journal_mode = WAL`) | Zero C++ rebuild friction; `busy_timeout = 5000`; append-only triggers on `telemetry_logs`; historical hydration for Tab 2 charts. |
 | **Workspace File Watcher** | `chokidar` | `chokidar ^4.0.3` (`300ms` debounce) | Sliding-window `300ms` debounce + `.kalinar-lock` single-writer token suppressing internal agent write loops. |
@@ -81,14 +82,15 @@ flowchart TB
     OSInfra -->|"9. Exit Code + stdout/stderr"| RingBuf
 ```
 
-### 2.1 Layer 1 — Conversational Control Plane (`kalinarSingularityBrain.ts` & `kalinarVoiceService.ts`)
-* **90-Second Hot WebSocket Window & Zero-Cost Hibernation:** Active voice sessions maintain a `90s` hot connection window for immediate `< 50ms` turn-taking. After `90s` of operator silence, the remote socket hibernates to `[STANDBY]` and hands off to a zero-cost local `pt-BR` wake-word listener.
-* **Acoustic Interlock & Hardware Kill-Switch:** `EngageMicInterlock` hardware-mutes microphone capture throughout TTS synthesis and enforces a mandatory `400ms` post-TTS room reverb decay window before re-arming `[LISTENING PT-BR]`. Pressing `Esc` or clicking the central Black Hole Singularity executes a `< 10ms` hardware audio abort and flushes the TTS buffer.
+### 2.1 Layer 1 — Conversational Control Plane (`kalinarSingularityBrain.ts`, `kalinarVoiceService.ts` & `KalinarCommandPalette.tsx`)
+* **90-Second Hot WebSocket Window & Proactive Server-Push Bridge:** Active voice sessions maintain a `90s` hot connection window (`HOT_WINDOW_MS = 90_000`) for immediate `< 50ms` turn-taking. After `90s` of operator silence, the session hibernates to `[VOICE_HIBERNATE]` and hands off to a zero-cost local `pt-BR` wake-word listener. On step completion or agent halt, `KalinarDaemon` (`processStreamOutput` / `confirmTurnWithChokidarDebounce`) emits `daemon:server_push_alert` on `KalinarEventBus`, which `electron/main.ts` forwards over `mainWindow.webContents.send('telemetry:stream', alert)` to `App.tsx` (`onTelemetryStream`) and `kalinarVoiceService.handleServerPushAlert()` for proactive Phase 2 voice alerts.
+* **Acoustic Interlock & Hardware Kill-Switch:** `EngageMicInterlock` hardware-mutes microphone capture throughout TTS synthesis and enforces a mandatory `400ms` post-TTS room reverb decay window (`MIC_INTERLOCK_DECAY_MS = 400`, tracked via `interlockDecayTimer` and `speechGeneration` cancellation guard) before re-arming `[LISTENING PT-BR]`. Pressing `Esc` or clicking the central Black Hole Singularity (isolated from HUD panels and `KalinarCommandPalette`) executes a `< 10ms` hardware audio abort and flushes the TTS buffer.
+* **Global Tactical Command Palette (`KalinarCommandPalette.tsx`):** Mounted inside `.kalinar-hud` via `Ctrl+K` / `Cmd+K` or `[ CTRL+K ]` in `TopRightTrigger.tsx`, providing unified dispatch to all 7 `@agent-*` (Law 4 + Law 6 FIFO), Argon/Claude/Gemini hot-swap (Law 7), Second Brain Gravitational RAG pull, and `toggleVoiceLink()` / `< 10ms` kill-switch control.
 * **Two-Phase Truthful Ack & Speech Arbitration Rule B:**
   - **Phase 1 (`STATUS_DISPATCHED`):** Immediate `< 50ms` acknowledgement when a command passes JDM gating and enters the daemon/FIFO queue.
-  - **Phase 2 (`STATUS_VERIFIED`):** Spoken/rendered only after the underlying OS process returns exit code `0` and `node:sqlite` commits the turn.
-  - **Speech Arbitration Rule B:** While the operator is actively speaking (`[LISTENING PT-BR]`), non-emergency agent announcements are held in `PendingVoiceQueue`. Only `[HALTED]` circuit trips or `CRITICAL` firewall violations may preempt active operator speech.
-* **Strict Token Isolation:** Layer 1 **never** ingests raw compiler dumps, stack traces, or unbounded terminal buffers; it receives exclusively `< 150 token` structured digests from Layer 3.
+  - **Phase 2 (`STATUS_VERIFIED`):** Spoken/rendered only after the underlying OS process returns `exitCode === 0` and `node:sqlite` commits the turn (`confirmTurnWithChokidarDebounce` + `TURN_END`).
+  - **Speech Arbitration Rule B:** While the operator is actively speaking (`[LISTENING PT-BR]`), non-emergency agent announcements are held in `PendingVoiceQueue`. Only `[HALTED]` circuit trips or `HARD_BLOCK` firewall violations may preempt active operator speech.
+* **Strict Token Isolation:** Layer 1 **never** ingests raw compiler dumps, stack traces, or unbounded terminal buffers; it receives exclusively `< 150 token` structured digests (`StreamDigestSchema`) from Layer 3.
 
 ### 2.2 Layer 2 — Sub-Millisecond Deterministic JDM Firewall (`ZenFirewall.ts`)
 All 5 canonical JSON Decision Models are pre-loaded into `jdmBufferCache` at startup and warmed up to guarantee `< 0.45ms` evaluation latency with zero LLM token consumption:

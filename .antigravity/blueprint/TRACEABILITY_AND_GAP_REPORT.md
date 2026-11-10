@@ -1,9 +1,9 @@
 # TRACEABILITY & BLUEPRINT AUDIT REPORT (`TRACEABILITY_AND_GAP_REPORT.md`)
 
-> Audit ID: `AUDIT-KALINAR-V1.3.0-FINAL`  
+> Audit ID: `AUDIT-KALINAR-V1.4.0-SINGULARITY-VERIFIED`  
 > Audit Authority: Autonomous Swarm (`@agent-orchestrator` + `@agent-qa` + `@agent-cybersecurity` + `@agent-software-engineer` + `@agent-data` + `@agent-design` + `@agent-content`)  
-> Target Release: `v1.3.0`  
-> Audit Timestamp: `2026-11-06T16:40:00Z`  
+> Target Release: `v1.4.0-singularity-verified` (`13ca02f`)  
+> Audit Timestamp: `2026-11-10T18:03:00Z`  
 > Verification Result: `100% TASKS AND INVARIANTS SATISFIED - ZERO GAPS - PRODUCTION READY`  
 > Visual Constraint: `STRICT ZERO-EMOJI ENFORCEMENT - TYPOGRAPHICAL & ASCII ONLY`
 
@@ -34,7 +34,7 @@ The Kalinar Sovereign Desktop OS & 3D Agent Galaxy has satisfied 100% of all tec
 | **Visual Invariant (Zero-Emoji Compliance)** | `100%` (0 emojis) | `100%` (0 emojis found) | `COMPLIANT` |
 | **Persona Invariant (Zero-Prohibited-Terms Compliance)** | `100%` (0 occurrences) | `100%` (0 occurrences) | `COMPLIANT` |
 | **GoRules ZEN Engine Latency (5 JDM Graphs)** | `< 0.45ms` | `< 0.45ms` (Deterministic) | `PASS` |
-| **Vitest Test Suite Pass Rate** | `100%` | `100%` (12 / 12 test suites passing) | `PASS` |
+| **Vitest Test Suite Pass Rate** | `100%` | `100%` (`17 / 17` test suites, `122 / 122` tests passing) | `PASS` |
 | **WCAG 2.2 AAA Color Contrast** | `>= 7.0:1` | `7.67:1` (#AA88FF on #000000) | `PASS` |
 
 ---
@@ -57,4 +57,13 @@ Following Gate 1 empirical evaluations by Challenger 1 and Challenger 2, surgica
 1. `AgentConnectorRegistry.ts`: URL-decoding and rejection of encoded traversal tokens (`%2e`, `%2f`, `%5c`, `%25`) before and after path resolution; `targetPath` lookup direct indexing; bounded fallback excerpt (`< 250` chars guarantee).
 2. `tests/task-10-canvas-sync-live-cortex.test.ts`: Aligned Test 5 assertions with canonical `ZenFirewall` interfaces (`result.allowed: true/false`, `result.requiresHumanApproval: true`); excluded internal agent metadata directories (`.agents`, `.antigravity`) from Test 9 emoji scanner.
 3. Acceptance Verification: All 18 tests in `tests/task-10-canvas-sync-live-cortex.test.ts`, all 14 tests in `tests/task-10-challenger-empirical.test.ts`, and all security/performance benchmarks in `tests/task-10-challenger-2-empirical.test.ts` pass with 100% success.
+
+---
+
+## 4. Release `v1.4.0-singularity-verified` (`13ca02f`) Hardening & Repair Closure Ledger
+
+Following the 6-step repair sequence (`.antigravity/comms/REPAIR_QUEUE.json` -> `COMPLETED`):
+1. **Frameless Electron Shell & `SpatialOctreeLOD.ts`:** Enforced `Menu.setApplicationMenu(null)`, `titleBarStyle: 'hidden'`, and `titleBarOverlay: { color: '#000000', symbolColor: '#AA88FF', height: 32 }` in `electron/main.ts`, paired with `SpatialOctreeLOD.ts` (`< 4ms` frustum culling and 3-level LOD across 50,000 `THREE.InstancedMesh` nodes) verified by `tests/task-3-galaxy-spiral-rag.test.ts` (`9 tests`).
+2. **HUD & Dock Isolation:** Verified `160px` opaque `AgentLivePreviewCard` and `plus-lighter` `RightSingularityColumn` (`tests/task-4-hud-preview-ethereal.test.ts`, `6 tests`) plus `36px -> 350px / 75vh` `KalinarBottomDock` (`tests/task-5-dock.test.ts`, `9 tests`).
+3. **Tauz 60 FPS DSP, 7 Laws Server-Push & `Ctrl+K` Command Palette:** Mounted `KalinarCommandPalette.tsx` (`Ctrl+K` / `Cmd+K` and `[ CTRL+K ]` trigger in `TopRightTrigger.tsx`) with HUD/palette click isolation from the central Singularity `< 10ms` kill-switch, wired `daemon:server_push_alert` -> `telemetry:stream` proactive voice notifications, and verified all **17 test suites and 122 passing tests** (`npx vitest run`, including `tests/task-6-command-palette-voice-laws.test.ts`, `5 tests`) alongside clean `tsc` and `npm run desktop:build`.
 

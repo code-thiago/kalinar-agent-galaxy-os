@@ -1,9 +1,10 @@
-# DESIGN.md — KALINAR SINGULARITY & GRAVITATIONAL TELEMETRY DESIGN SYSTEM (v1.1.0 LOCK)
+# DESIGN.md — KALINAR SINGULARITY & GRAVITATIONAL TELEMETRY DESIGN SYSTEM (v1.4.0 LOCK)
 
-> **System ID:** `KALINAR-DS-SINGULARITY-V1.1.0`  
+> **System ID:** `KALINAR-DS-SINGULARITY-V1.4.0`  
 > **Lead Architect:** `@agent-design`  
 > **Co-Authors:** `@human-developer`, `@agent-software-engineer`, `@agent-cybersecurity`, `@agent-orchestrator`, `@agent-qa`  
 > **Blueprint Mirror:** `.antigravity/blueprint/04_BRIEFING_AND_DESIGN_SYSTEM.md`  
+> **Release Baseline:** `v1.4.0-singularity-verified` (`13ca02f`)  
 > **Visual Constraint:** `STRICT ZERO-EMOJI ENFORCEMENT — ASCII & MONOSPACE TELEMETRY ONLY`
 
 ---
@@ -82,3 +83,6 @@ All system statuses are rendered exclusively via standardized ASCII badges (100%
 * **`RetractableIdeDock` & `StepDivisionCell`:**
   - `data-slot="dock-root"`, `data-slot="dock-status-bar"` (`36px`), `data-slot="dock-viewport"` (`350px` / `75vh`).
   - `StepDivisionCell`: `data-slot="step-fraction"`, `data-slot="step-bar-track"`, `data-slot="step-label"`.
+* **`KalinarCommandPalette` & `TopRightTrigger` (`Ctrl+K` / `Cmd+K`):**
+  - `data-slot="top-right-trigger"`, `data-slot="command-palette-trigger"` (`[ CTRL+K ]`, `44px` hit target).
+  - `data-slot="command-palette"` (`z-index: 50`, `680px`, `React.memo`, returns `null` when closed, isolated from central Singularity `< 10ms` kill-switch clicks), plus child slots `command-palette-agents`, `command-palette-input`, `command-palette-models`, `command-palette-list`.
