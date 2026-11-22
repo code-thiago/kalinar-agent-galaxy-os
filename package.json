@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@gorules/zen-engine": "^2.1.9",
+    "@kalinar/contracts": "file:../Dev/kalinar-contracts",
     "chokidar": "^4.0.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

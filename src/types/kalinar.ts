@@ -4,54 +4,18 @@
  * Strictly Zero Emojis
  */
 
-import { z } from 'zod';
+import type {
+  AgentStatus,
+  FifoQueueItem,
+  LlmModelCheckpoint,
+  LlmModelId,
+  SingularityCoreState,
+  StreamDigest,
+  TwoPhaseVoiceAck,
+  VoiceState,
+} from '@kalinar/contracts';
 
-export const SCHEMA_VERSION = 1 as const;
-
-export type LlmModelId =
-  | 'argon'
-  | 'claude-sonnet'
-  | 'claude-3.7-sonnet'
-  | 'gemini-pro'
-  | 'gemini-2.5-pro'
-  | 'gemini-flash'
-  | 'gemini-2.5-flash';
-
-export const LlmModelIdSchema = z.enum([
-  'argon',
-  'claude-sonnet',
-  'claude-3.7-sonnet',
-  'gemini-pro',
-  'gemini-2.5-pro',
-  'gemini-flash',
-  'gemini-2.5-flash',
-]);
-
-export type VoiceState =
-  | '[STANDBY]'
-  | '[LISTENING]'
-  | '[SPEAKING]'
-  | '[GRAVITY_PULL]'
-  | '[SINGULARITY: STANDBY]'
-  | '[LISTENING PT-BR]'
-  | '[GRAVITY_INGESTION]'
-  | '[KALINAR_SPEAKING]'
-  | '[VOICE_HIBERNATE]';
-
-export type AgentStatus =
-  | '[ACTIVE]'
-  | '[IDLE]'
-  | '[HALTED]'
-  | '[PAUSED]'
-  | '[RUNNING]'
-  | '[VERIFIED]'
-  | '[WARN]'
-  | '[ERROR]'
-  | '[STREAM]'
-  | '[ACK_DISPATCHED]'
-  | '[ACK_VERIFIED]'
-  | '[FIFO_QUEUED]'
-  | '[MODEL_HOTSWAP]';
+export * from '@kalinar/contracts';
 
 export type AsciiStatusBadge =
   | VoiceState
@@ -61,56 +25,6 @@ export type AsciiStatusBadge =
   | '[ACK_VERIFIED]'
   | '[FIFO_QUEUED]'
   | '[MODEL_HOTSWAP]';
-
-export const StreamDigestSchema = z.object({
-  taskId: z.string().min(1),
-  agentId: z.string().min(1),
-  exitCode: z.number().int(),
-  filePath: z.string().optional(),
-  line: z.number().int().nonnegative().optional(),
-  col: z.number().int().nonnegative().optional(),
-  errorSignature: z.string().optional(),
-  summaryText: z.string().min(1),
-  tokenCount: z.number().int().min(1).max(150),
-});
-
-export type StreamDigest = z.infer<typeof StreamDigestSchema>;
-
-export const TwoPhaseVoiceAckSchema = z.object({
-  phase: z.enum(['STATUS_DISPATCHED', 'STATUS_VERIFIED']),
-  taskId: z.string().min(1),
-  targetAgentId: z.string().min(1),
-  pid: z.number().int().optional(),
-  exitCode: z.number().int().optional(),
-  spokenMessage: z.string().min(1),
-  emergencyPreempt: z.boolean(),
-});
-
-export type TwoPhaseVoiceAck = z.infer<typeof TwoPhaseVoiceAckSchema>;
-
-export const FifoQueueItemSchema = z.object({
-  id: z.string().min(1),
-  targetAgentId: z.string().min(1),
-  instruction: z.string().min(1),
-  modelId: LlmModelIdSchema,
-  status: z.enum(['FIFO_QUEUED', 'DISPATCHED', 'COMPLETED', 'CANCELLED']),
-  createdAt: z.number().int().nonnegative(),
-});
-
-export type FifoQueueItem = z.infer<typeof FifoQueueItemSchema>;
-
-export const LlmModelCheckpointSchema = z.object({
-  id: z.string().min(1),
-  agentId: z.string().min(1),
-  taskId: z.string().min(1),
-  gitCommitOrStashHash: z.string().min(1),
-  activeModelId: LlmModelIdSchema,
-  fallbackModelId: LlmModelIdSchema,
-  retryCount: z.number().int().min(0),
-  status: z.enum(['CHECKPOINTED', 'ROLLED_BACK', 'HOT_SWAPPED', 'COMMITTED']),
-});
-
-export type LlmModelCheckpoint = z.infer<typeof LlmModelCheckpointSchema>;
 
 export type ExecutionMode = 'AUTO_PILOT' | 'STEP_BY_STEP_GATE' | 'SANDBOX_DRY_RUN';
 
@@ -124,19 +38,6 @@ export type CanonicalAgentFilename =
   | '@agent-content';
 
 export type BeamType = 'GRAVITATIONAL_PULL' | 'SINGULARITY_PULSE' | 'AGENT_TO_AGENT';
-
-export interface SingularityCoreState {
-  schemaVersion: typeof SCHEMA_VERSION;
-  voiceState: VoiceState;
-  liveTranscript: string;
-  accretionTurbulence: number;
-  activeDirective: string;
-  zenLatencyMs: number;
-  activeAgentCount: number;
-  activeModelId?: LlmModelId;
-  lastAckBadge?: '[ACK_DISPATCHED]' | '[ACK_VERIFIED]' | '[FIFO_QUEUED]' | '[MODEL_HOTSWAP]';
-  pendingVoiceQueueCount?: number;
-}
 
 export interface AgentNode {
   id: string;
