@@ -117,12 +117,33 @@ export interface ServerPushAlertPayload {
   summaryText?: string;
 }
 
+export interface SyncSentinelEventPayload {
+  mode: 'WATCHING' | 'SYNC_MUTE_WINDOW';
+  status:
+    | 'NO_LOCK'
+    | 'SYNC_MUTE_WINDOW'
+    | 'SYNC_MUTE_RELEASED'
+    | 'RECOVERED_PID_DEAD'
+    | 'RECOVERED_TTL_EXPIRED'
+    | 'RECOVERED_INVALID_SCHEMA';
+  lockPath: string;
+  pid?: number;
+  timestamp?: number;
+  ttlMs?: number;
+  ageMs?: number;
+  staleLockRemoved: boolean;
+  suppressedCount?: number;
+  flushedCount?: number;
+  reason: string;
+}
+
 export type KalinarEventMap = {
   'singularity:state_changed': SingularityCoreState;
   'singularity:voice_transcript': { text: string; isFinal: boolean; source: 'OPERATOR' | 'KALINAR' };
   'voice:two_phase_ack': TwoPhaseVoiceAck;
   'daemon:stream_digest': StreamDigest;
   'daemon:server_push_alert': ServerPushAlertPayload;
+  'daemon:sync_sentinel_lock': SyncSentinelEventPayload;
   'agent:registered': AgentNode;
   'agent:step_updated': { agentId: string; step: number; description: string; preview: string };
   'agent:status_changed': { agentId: string; previous: AgentStatus; current: AgentStatus };

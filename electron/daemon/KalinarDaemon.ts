@@ -28,12 +28,21 @@ import {
   StreamDigestSchema,
   WorkspaceScanResult,
 } from '../../src/types/kalinar.js';
+import {
+  SyncSentinelGuard,
+  type SyncSentinelEvaluation,
+  type WatcherOperatingMode,
+} from './SyncSentinelGuard.js';
 
 export interface DaemonConfig {
   workspacePath: string;
   debounceMs: number;
   lockFile: string;
   warRoomPath?: string;
+  syncSentinelPath?: string;
+  syncSentinelPollMs?: number;
+  syncClock?: () => number;
+  syncPidAliveCheck?: (pid: number) => boolean;
 }
 
 export interface RingBufferEntry {
@@ -47,10 +56,12 @@ export class KalinarDaemon {
   public static readonly RING_BUFFER_CAPACITY = 200;
 
   private watcher: FSWatcher | null = null;
+  private watcherReadyPromise: Promise<void> | null = null;
   private config: DaemonConfig;
   private zenFirewall: ZenFirewall;
   private store: KalinarSqliteStore;
   private eventBus: KalinarEventBus;
+  private syncSentinelGuard: SyncSentinelGuard;
   private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
   private streamRingBuffer: RingBufferEntry[] = [];
   private agentStatuses: Map<string, AgentStatus> = new Map();
@@ -71,16 +82,120 @@ export class KalinarDaemon {
       lockFile: config?.lockFile || '.kalinar-lock',
       warRoomPath:
         config?.warRoomPath || path.resolve(wsPath, '.antigravity', 'comms', 'WAR_ROOM.md'),
+      syncSentinelPath: config?.syncSentinelPath,
+      syncSentinelPollMs: config?.syncSentinelPollMs,
+      syncClock: config?.syncClock,
+      syncPidAliveCheck: config?.syncPidAliveCheck,
     };
     this.zenFirewall = ZenFirewall.getInstance();
     this.store = store || new KalinarSqliteStore();
     this.eventBus = eventBus || KalinarEventBus.getInstance();
+    this.syncSentinelGuard = new SyncSentinelGuard({
+      rootPaths: [this.config.workspacePath],
+      sentinelPaths: config?.syncSentinelPath ? [config.syncSentinelPath] : undefined,
+      pollIntervalMs: config?.syncSentinelPollMs,
+      clock: config?.syncClock,
+      isPidAlive: config?.syncPidAliveCheck,
+      onEnterMuteWindow: (evaluation) => {
+        try {
+          this.store.insertTelemetry({
+            task_id: 'WORKSPACE_DAEMON',
+            event_type: 'FILE_WATCH',
+            agent_name: 'kalinar-daemon',
+            payload: JSON.stringify({
+              status: 'SYNC_MUTE_WINDOW',
+              lockPath: evaluation.lockPath,
+              pid: evaluation.lock?.pid,
+              ageMs: evaluation.ageMs,
+              reason: evaluation.reason,
+            }),
+            latency_ms: 0,
+          });
+        } catch {
+          // Ignore in isolated or closed store scenarios
+        }
+        this.eventBus.emit('daemon:sync_sentinel_lock', {
+          mode: 'SYNC_MUTE_WINDOW',
+          status: 'SYNC_MUTE_WINDOW',
+          lockPath: evaluation.lockPath,
+          pid: evaluation.lock?.pid,
+          timestamp: evaluation.lock?.timestamp,
+          ttlMs: evaluation.lock?.ttlMs,
+          ageMs: evaluation.ageMs,
+          staleLockRemoved: false,
+          reason: evaluation.reason,
+        });
+      },
+      onStaleLockRecovered: (evaluation) => {
+        try {
+          this.store.insertTelemetry({
+            task_id: 'WORKSPACE_DAEMON',
+            event_type: 'FILE_WATCH',
+            agent_name: 'kalinar-daemon',
+            payload: JSON.stringify({
+              status: evaluation.status,
+              lockPath: evaluation.lockPath,
+              pid: evaluation.lock?.pid,
+              ageMs: evaluation.ageMs,
+              staleLockRemoved: evaluation.staleLockRemoved,
+              reason: evaluation.reason,
+            }),
+            latency_ms: 0,
+          });
+        } catch {
+          // Ignore in isolated or closed store scenarios
+        }
+        this.eventBus.emit('daemon:sync_sentinel_lock', {
+          mode: this.syncSentinelGuard.getMode(),
+          status: evaluation.status,
+          lockPath: evaluation.lockPath,
+          pid: evaluation.lock?.pid,
+          timestamp: evaluation.lock?.timestamp,
+          ttlMs: evaluation.lock?.ttlMs,
+          ageMs: evaluation.ageMs,
+          staleLockRemoved: evaluation.staleLockRemoved,
+          reason: evaluation.reason,
+        });
+      },
+      onExitMuteWindow: (summary) => {
+        try {
+          this.store.insertTelemetry({
+            task_id: 'WORKSPACE_DAEMON',
+            event_type: 'FILE_WATCH',
+            agent_name: 'kalinar-daemon',
+            payload: JSON.stringify({
+              status: 'SYNC_MUTE_RELEASED',
+              suppressedCount: summary.suppressedBurstCount,
+              flushedCount: summary.deferredCount,
+              reason: summary.reason,
+            }),
+            latency_ms: 0,
+          });
+        } catch {
+          // Ignore in isolated or closed store scenarios
+        }
+        this.eventBus.emit('daemon:sync_sentinel_lock', {
+          mode: 'WATCHING',
+          status: 'SYNC_MUTE_RELEASED',
+          lockPath: this.syncSentinelGuard.getSentinelPaths()[0] ?? '',
+          staleLockRemoved: false,
+          suppressedCount: summary.suppressedBurstCount,
+          flushedCount: summary.deferredCount,
+          reason: summary.reason,
+        });
+      },
+      onFlushDeferredEvent: async (deferred) => {
+        await this.processDebouncedEvent(deferred.event, deferred.filePath);
+      },
+    });
   }
 
   public async start(): Promise<void> {
     if (this.isRunning) return;
 
     await this.zenFirewall.initialize();
+    this.syncSentinelGuard.activate();
+    this.syncSentinelGuard.checkSentinel();
 
     const ignoredPatterns = [
       /(^|[/\\])\.git([/\\]|$)/,
@@ -91,6 +206,7 @@ export class KalinarDaemon {
       /\.db-wal$/,
       /\.db-shm$/,
       /TASK_LOCK\.json$/,
+      /\.sync-in-progress\.tmp\.\d+$/,
     ];
 
     this.watcher = chokidar.watch(this.config.workspacePath, {
@@ -103,6 +219,10 @@ export class KalinarDaemon {
       },
     });
 
+    this.watcherReadyPromise = new Promise((resolve) => {
+      this.watcher!.once('ready', () => resolve());
+    });
+
     this.watcher
       .on('add', (filePath) => this.handleFileEvent('add', filePath))
       .on('change', (filePath) => this.handleFileEvent('change', filePath))
@@ -113,6 +233,16 @@ export class KalinarDaemon {
   }
 
   private handleFileEvent(event: 'add' | 'change' | 'unlink', filePath: string): void {
+    const gate = this.syncSentinelGuard.shouldProcessOrDefer(event, filePath);
+    if (!gate.proceed) {
+      const existing = this.debounceTimers.get(filePath);
+      if (existing) {
+        clearTimeout(existing);
+        this.debounceTimers.delete(filePath);
+      }
+      return;
+    }
+
     // Sliding window debounce (300ms)
     const existing = this.debounceTimers.get(filePath);
     if (existing) {
@@ -128,6 +258,11 @@ export class KalinarDaemon {
   }
 
   private async processDebouncedEvent(event: 'add' | 'change' | 'unlink', filePath: string): Promise<void> {
+    const gate = this.syncSentinelGuard.shouldProcessOrDefer(event, filePath);
+    if (!gate.proceed) {
+      return;
+    }
+
     // Check if internal agent lock is active (single-writer suppression)
     const lockPath = path.resolve(this.config.workspacePath, this.config.lockFile);
     if (fs.existsSync(lockPath)) {
@@ -678,11 +813,39 @@ export class KalinarDaemon {
     };
   }
 
-  public getStatus(): { isRunning: boolean; auditCycles: number; debounceMs: number } {
+  public async waitForReady(): Promise<void> {
+    if (this.watcherReadyPromise) {
+      await this.watcherReadyPromise;
+    }
+  }
+
+  public evaluateSyncSentinel(): SyncSentinelEvaluation {
+    return this.syncSentinelGuard.checkSentinel();
+  }
+
+  public getSyncSentinelMode(): WatcherOperatingMode {
+    return this.syncSentinelGuard.getMode();
+  }
+
+  public getSyncSentinelMetrics() {
+    return this.syncSentinelGuard.getMetrics();
+  }
+
+  public handleWatchedEvent(event: 'add' | 'change' | 'unlink', filePath: string): void {
+    this.handleFileEvent(event, filePath);
+  }
+
+  public getStatus(): {
+    isRunning: boolean;
+    auditCycles: number;
+    debounceMs: number;
+    syncMode: WatcherOperatingMode;
+  } {
     return {
       isRunning: this.isRunning,
       auditCycles: this.auditCycles,
       debounceMs: this.config.debounceMs,
+      syncMode: this.syncSentinelGuard.getMode(),
     };
   }
 
@@ -869,6 +1032,8 @@ export class KalinarDaemon {
       clearTimeout(timer);
     }
     this.debounceTimers.clear();
+    this.syncSentinelGuard.dispose();
+    this.watcherReadyPromise = null;
 
     if (this.watcher) {
       await this.watcher.close();
