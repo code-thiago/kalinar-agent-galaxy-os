@@ -6,7 +6,23 @@
 
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { LlmModelId } from '../types/kalinar.js';
+import {
+  CANONICAL_JDM_RULES,
+  LlmModelId,
+  ProcessLeaseScope,
+  resolveJdmRulePath,
+} from '../types/kalinar.js';
+
+const CANONICAL_KEY_BY_FILENAME: Record<
+  string,
+  (typeof CANONICAL_JDM_RULES)[keyof typeof CANONICAL_JDM_RULES]
+> = {
+  'daemon-event-router.jdm.json': CANONICAL_JDM_RULES.DAEMON_EVENT_ROUTER,
+  'os-execution-firewall.jdm.json': CANONICAL_JDM_RULES.OS_EXECUTION_FIREWALL,
+  'execution-gate.jdm.json': CANONICAL_JDM_RULES.EXECUTION_GATE,
+  'voice-command-guard.jdm.json': CANONICAL_JDM_RULES.VOICE_COMMAND_GUARD,
+  'llm-model-router.jdm.json': CANONICAL_JDM_RULES.LLM_MODEL_ROUTER,
+};
 
 export interface EventRouterInput {
   eventType: string;
@@ -24,12 +40,14 @@ export interface EventRouterOutput {
 export interface OsFirewallInput {
   command: string;
   isSandbox: boolean;
+  origin?: string;
 }
 
 export interface OsFirewallOutput {
   allowed: boolean;
   verdictReason: string;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  leaseScope: ProcessLeaseScope;
 }
 
 export interface ExecutionGateInput {
@@ -140,13 +158,20 @@ export class ZenFirewall {
         'llm-model-router.jdm.json',
       ];
       for (const f of jdmFiles) {
-        const fullPath = path.resolve(process.cwd(), 'src', 'rules', f);
-        try {
-          const content = await fs.readFile(fullPath);
-          this.jdmBufferCache.set(f, content);
-          this.jdmBufferCache.set(fullPath, content);
-        } catch {
-          // Ignore if file missing in specific test environment
+        const canonicalRule = CANONICAL_KEY_BY_FILENAME[f];
+        const candidatePaths = [
+          ...(canonicalRule ? [resolveJdmRulePath(canonicalRule)] : []),
+          path.resolve(process.cwd(), 'src', 'rules', f),
+        ];
+        for (const fullPath of candidatePaths) {
+          try {
+            const content = await fs.readFile(fullPath);
+            this.jdmBufferCache.set(f, content);
+            this.jdmBufferCache.set(fullPath, content);
+            break;
+          } catch {
+            // Try fallback path
+          }
         }
       }
 
@@ -198,13 +223,23 @@ export class ZenFirewall {
     if (this.jdmBufferCache.has(filename)) {
       return this.jdmBufferCache.get(filename)!;
     }
-    let resolvedPath = key;
-    if (!path.isAbsolute(key)) {
-      resolvedPath = path.resolve(process.cwd(), 'src', 'rules', filename);
+    const canonicalRule = CANONICAL_KEY_BY_FILENAME[filename];
+    const candidatePaths = path.isAbsolute(key)
+      ? [key]
+      : [
+          ...(canonicalRule ? [resolveJdmRulePath(canonicalRule)] : []),
+          path.resolve(process.cwd(), 'src', 'rules', filename),
+        ];
+    for (const candidate of candidatePaths) {
+      try {
+        const content = await fs.readFile(candidate);
+        this.jdmBufferCache.set(filename, content);
+        return content;
+      } catch {
+        // Try next candidate
+      }
     }
-    const content = await fs.readFile(resolvedPath);
-    this.jdmBufferCache.set(filename, content);
-    return content;
+    throw new Error(`Unable to locate JDM rule file: ${key}`);
   }
 
   /**
@@ -251,10 +286,15 @@ export class ZenFirewall {
     latencyMs: number;
   }> {
     const start = performance.now();
+    const normalizedInput: OsFirewallInput = {
+      command: input?.command ?? '',
+      isSandbox: Boolean(input?.isSandbox),
+      origin: input?.origin ?? '',
+    };
 
     if (typeof window !== 'undefined' && (window as any).kalinarApi?.evaluateZenRule) {
       try {
-        return await (window as any).kalinarApi.evaluateZenRule('os-execution-firewall', input);
+        return await (window as any).kalinarApi.evaluateZenRule('os-execution-firewall', normalizedInput);
       } catch {
         // Fall back to deterministic client evaluation
       }
@@ -262,10 +302,20 @@ export class ZenFirewall {
 
     if (this.zenEngineInstance) {
       try {
-        const response = await this.zenEngineInstance.evaluate('os-execution-firewall.jdm.json', input);
+        const response = await this.zenEngineInstance.evaluate('os-execution-firewall.jdm.json', normalizedInput);
         const latencyMs = Math.min(performance.now() - start, 0.38);
+        const raw = response.result as Partial<OsFirewallOutput>;
+        const leaseScope: ProcessLeaseScope =
+          raw.leaseScope === 'DETACHED_DAEMON_SERVICE' || raw.leaseScope === 'EPHEMERAL_UI_BOUND'
+            ? raw.leaseScope
+            : this.fallbackEvaluateOsFirewall(normalizedInput).leaseScope;
         return {
-          result: response.result as OsFirewallOutput,
+          result: {
+            allowed: Boolean(raw.allowed),
+            verdictReason: raw.verdictReason || 'COMMAND_VETTED_BY_FIREWALL',
+            riskLevel: raw.riskLevel || 'LOW',
+            leaseScope,
+          },
           latencyMs,
         };
       } catch {
@@ -274,7 +324,7 @@ export class ZenFirewall {
     }
 
     // Deterministic fallback matching exact JDM table logic (< 0.1ms)
-    const result = this.fallbackEvaluateOsFirewall(input);
+    const result = this.fallbackEvaluateOsFirewall(normalizedInput);
     const latencyMs = performance.now() - start;
     return { result, latencyMs };
   }
@@ -757,12 +807,14 @@ export class ZenFirewall {
   private fallbackEvaluateOsFirewall(input: OsFirewallInput): OsFirewallOutput {
     const cmd = input.command || '';
     const cmdLower = cmd.toLowerCase();
+    const originUpper = (input.origin || '').trim().toUpperCase();
 
     if (cmd.includes('rm -rf /') || cmd.includes('rm -rf *')) {
       return {
         allowed: false,
         verdictReason: 'DESTRUCTIVE_ROOT_WIPE_PROHIBITED',
         riskLevel: 'CRITICAL',
+        leaseScope: 'EPHEMERAL_UI_BOUND',
       };
     }
 
@@ -771,6 +823,7 @@ export class ZenFirewall {
         allowed: false,
         verdictReason: 'DESTRUCTIVE_DISK_FORMAT_PROHIBITED',
         riskLevel: 'CRITICAL',
+        leaseScope: 'EPHEMERAL_UI_BOUND',
       };
     }
 
@@ -779,6 +832,7 @@ export class ZenFirewall {
         allowed: false,
         verdictReason: 'DATABASE_DESTRUCTION_PROHIBITED',
         riskLevel: 'CRITICAL',
+        leaseScope: 'EPHEMERAL_UI_BOUND',
       };
     }
 
@@ -787,6 +841,82 @@ export class ZenFirewall {
         allowed: false,
         verdictReason: 'SYSTEM_INIT_KILL_PROHIBITED',
         riskLevel: 'HIGH',
+        leaseScope: 'EPHEMERAL_UI_BOUND',
+      };
+    }
+
+    if (
+      originUpper === 'TELEGRAM' ||
+      originUpper === 'TELEGRAM_BRIDGE' ||
+      originUpper === 'TELEGRAM_TASK' ||
+      originUpper === 'DAEMON_WORKER' ||
+      originUpper === 'DAEMON' ||
+      originUpper === 'BACKGROUND_BUILD' ||
+      originUpper === 'HYPERFRAMES' ||
+      originUpper === 'SWARM_WORKER'
+    ) {
+      return {
+        allowed: true,
+        verdictReason: 'DETACHED_DAEMON_ORIGIN_VETTED',
+        riskLevel: 'LOW',
+        leaseScope: 'DETACHED_DAEMON_SERVICE',
+      };
+    }
+
+    if (
+      cmdLower.includes('hyperframes render') ||
+      cmdLower.includes('hyperframes preview') ||
+      cmdLower.includes('npx hyperframes')
+    ) {
+      return {
+        allowed: true,
+        verdictReason: 'HYPERFRAMES_DETACHED_RENDER_VETTED',
+        riskLevel: 'LOW',
+        leaseScope: 'DETACHED_DAEMON_SERVICE',
+      };
+    }
+
+    if (
+      cmdLower.includes('npm run build') ||
+      cmdLower.includes('npm run desktop:build') ||
+      cmdLower.includes('npm run desktop:dist') ||
+      cmdLower.includes('vite build') ||
+      cmdLower.includes('electron-builder') ||
+      cmdLower.includes('--background')
+    ) {
+      return {
+        allowed: true,
+        verdictReason: 'BACKGROUND_BUILD_DETACHED_VETTED',
+        riskLevel: 'LOW',
+        leaseScope: 'DETACHED_DAEMON_SERVICE',
+      };
+    }
+
+    if (
+      cmdLower.includes('kalinar-daemon') ||
+      cmdLower.includes('swarm-daemon') ||
+      cmdLower.includes('dist/daemon.js') ||
+      cmdLower.includes('src/daemon.ts')
+    ) {
+      return {
+        allowed: true,
+        verdictReason: 'DAEMON_WORKER_DETACHED_VETTED',
+        riskLevel: 'LOW',
+        leaseScope: 'DETACHED_DAEMON_SERVICE',
+      };
+    }
+
+    if (
+      originUpper === 'ANTIGRAVITY_CLI_TAB' ||
+      originUpper === 'UI_CLI' ||
+      originUpper === 'ELECTRON_UI' ||
+      originUpper === 'INTERACTIVE_SHELL'
+    ) {
+      return {
+        allowed: true,
+        verdictReason: 'UI_BOUND_INTERACTIVE_COMMAND_VETTED',
+        riskLevel: 'LOW',
+        leaseScope: 'EPHEMERAL_UI_BOUND',
       };
     }
 
@@ -794,6 +924,7 @@ export class ZenFirewall {
       allowed: true,
       verdictReason: 'COMMAND_VETTED_BY_FIREWALL',
       riskLevel: 'LOW',
+      leaseScope: 'EPHEMERAL_UI_BOUND',
     };
   }
 }

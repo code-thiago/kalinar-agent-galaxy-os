@@ -208,6 +208,7 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
     const evaluation = await firewall.evaluateOsFirewall({
       command: cmd,
       isSandbox: true,
+      origin: 'ANTIGRAVITY_CLI_TAB',
     });
 
     if (!evaluation.result.allowed) {
@@ -495,7 +496,7 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
       default: {
         if (kalinarApi?.executeShellCommand) {
           try {
-            const res = await kalinarApi.executeShellCommand(cmd);
+            const res = await kalinarApi.executeShellCommand(cmd, undefined, 'ANTIGRAVITY_CLI_TAB');
             if (!res.allowed) {
               appendCliLines([
                 {

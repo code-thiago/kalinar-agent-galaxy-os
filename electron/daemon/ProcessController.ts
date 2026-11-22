@@ -4,11 +4,12 @@
  * Strictly Zero Emojis
  */
 
-import { exec } from 'node:child_process';
+import { exec, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ZenFirewall } from '../../src/core/ZenFirewall.js';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface ProcessControlResult {
   success: boolean;
@@ -158,6 +159,72 @@ export class ProcessController {
       };
     } catch (err: any) {
       // In case process is already dead or exited
+      return {
+        success: true,
+        action: 'KILL',
+        pid,
+        message: `[PROCESS_ALREADY_DEAD_OR_EXITED: ${err.message}]`,
+      };
+    }
+  }
+
+  /**
+   * Cleanly terminates an entire process tree (taskkill /F /T /PID on Windows, process group SIGTERM/SIGKILL on POSIX)
+   */
+  public async killProcessTree(pid: number): Promise<ProcessControlResult> {
+    const safety = this.validatePidSafety(pid);
+    if (!safety.safe) {
+      return { success: false, action: 'KILL', pid, message: safety.reason };
+    }
+
+    const firewallCheck = await this.zenFirewall.evaluateOsFirewall({
+      command: `taskkill /F /T /PID ${pid}`,
+      isSandbox: false,
+      origin: 'DAEMON_WORKER',
+    });
+
+    if (!firewallCheck.result.allowed) {
+      return {
+        success: false,
+        action: 'KILL',
+        pid,
+        message: `[FIREWALL_BLOCKED] ${firewallCheck.result.verdictReason}`,
+      };
+    }
+
+    try {
+      if (process.platform === 'win32') {
+        await execFileAsync('taskkill', ['/F', '/T', '/PID', String(pid)], {
+          windowsHide: true,
+          timeout: 5000,
+        });
+      } else {
+        try {
+          process.kill(-pid, 'SIGTERM');
+        } catch {
+          process.kill(pid, 'SIGTERM');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        try {
+          process.kill(pid, 0);
+          try {
+            process.kill(-pid, 'SIGKILL');
+          } catch {
+            process.kill(pid, 'SIGKILL');
+          }
+        } catch {
+          // Process exited cleanly on SIGTERM
+        }
+      }
+      this.managedPids.delete(pid);
+      return {
+        success: true,
+        action: 'KILL',
+        pid,
+        message: `[PROCESS_TREE_TERMINATED: PID ${pid}]`,
+      };
+    } catch (err: any) {
+      this.managedPids.delete(pid);
       return {
         success: true,
         action: 'KILL',

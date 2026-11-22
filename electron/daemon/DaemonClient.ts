@@ -14,6 +14,7 @@ import {
   type DaemonIpcEnvelope,
   type DaemonIpcEvent,
   type DaemonIpcTransport,
+  type ProcessLeaseScope,
 } from '@kalinar/contracts';
 import { KalinarEventBus } from '../../src/core/KalinarEventBus.js';
 import type { ServerPushAlertPayload } from '../../src/types/kalinar.js';
@@ -50,6 +51,7 @@ export interface DaemonClientTransportAdapter {
 export interface DaemonClientOptions {
   pipePath?: string;
   wsUrl?: string;
+  uiClientId?: string;
   reconnectIntervalMs?: number;
   maxReconnectIntervalMs?: number;
   autoReconnect?: boolean;
@@ -185,6 +187,7 @@ export class DaemonClient {
 
   private pipePath: string;
   private wsUrl: string;
+  private uiClientId: string;
   private reconnectIntervalMs: number;
   private maxReconnectIntervalMs: number;
   private autoReconnect: boolean;
@@ -213,12 +216,17 @@ export class DaemonClient {
   constructor(options: DaemonClientOptions = {}) {
     this.pipePath = options.pipePath || DAEMON_IPC_TRANSPORT.NAMED_PIPE;
     this.wsUrl = options.wsUrl || DAEMON_IPC_TRANSPORT.WS_URL;
+    this.uiClientId = options.uiClientId || `electron-ui-${process.pid}`;
     this.reconnectIntervalMs = options.reconnectIntervalMs ?? 500;
     this.maxReconnectIntervalMs = options.maxReconnectIntervalMs ?? 5000;
     this.autoReconnect = options.autoReconnect ?? true;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 5000;
     this.eventBus = options.eventBus || KalinarEventBus.getInstance();
     this.mockTransport = options.mockTransport ?? null;
+  }
+
+  public getUiClientId(): string {
+    return this.uiClientId;
   }
 
   public static getSharedInstance(): DaemonClient {
@@ -303,6 +311,7 @@ export class DaemonClient {
       if (pipeOk) {
         this.reconnectAttempts = 0;
         this.flushOfflineQueue();
+        this.notifyUiClientHello();
         if (wasReconnect) {
           for (const cb of this.reconnectListeners) cb(DAEMON_IPC_TRANSPORT.NAMED_PIPE);
         }
@@ -313,6 +322,7 @@ export class DaemonClient {
       if (wsOk) {
         this.reconnectAttempts = 0;
         this.flushOfflineQueue();
+        this.notifyUiClientHello();
         if (wasReconnect) {
           for (const cb of this.reconnectListeners) cb(DAEMON_IPC_TRANSPORT.WS_URL);
         }
@@ -705,6 +715,41 @@ export class DaemonClient {
     taskId?: string
   ): Promise<DaemonIpcResponse> {
     return this.dispatchMutation(event, payload, taskId).ackPromise;
+  }
+
+  public notifyUiClientHello(): DaemonDispatchResult {
+    return this.dispatchMutation('daemon:ui_client_hello', {
+      uiClientId: this.uiClientId,
+    });
+  }
+
+  public notifyUiClientDisconnect(reason = 'window-all-closed'): DaemonDispatchResult {
+    return this.dispatchMutation('daemon:ui_client_disconnect', {
+      uiClientId: this.uiClientId,
+      reason,
+    });
+  }
+
+  public registerPtyLease(params: {
+    pid: number;
+    leaseScope: ProcessLeaseScope;
+    command?: string;
+    origin?: string;
+  }): DaemonDispatchResult {
+    return this.dispatchMutation('daemon:pty_lease_register', {
+      pid: params.pid,
+      leaseScope: params.leaseScope,
+      uiClientId: params.leaseScope === 'DETACHED_DAEMON_SERVICE' ? null : this.uiClientId,
+      command: params.command,
+      origin: params.origin,
+    });
+  }
+
+  public releasePtyLease(pid: number): DaemonDispatchResult {
+    return this.dispatchMutation('daemon:pty_lease_release', {
+      pid,
+      uiClientId: this.uiClientId,
+    });
   }
 
   private registerPending(requestId: string): Promise<DaemonIpcResponse> {

@@ -16,12 +16,14 @@
         "hitPolicy": "first",
         "inputs": [
           { "id": "in-cmd", "field": "command", "name": "Raw Command" },
-          { "id": "in-sandbox", "field": "isSandbox", "name": "Sandbox Flag" }
+          { "id": "in-sandbox", "field": "isSandbox", "name": "Sandbox Flag" },
+          { "id": "in-origin", "field": "origin", "name": "Execution Origin" }
         ],
         "outputs": [
           { "id": "out-allowed", "field": "allowed", "name": "Is Allowed" },
           { "id": "out-reason", "field": "verdictReason", "name": "Verdict Reason" },
-          { "id": "out-risk", "field": "riskLevel", "name": "Risk Level" }
+          { "id": "out-risk", "field": "riskLevel", "name": "Risk Level" },
+          { "id": "out-lease", "field": "leaseScope", "name": "Process Lease Scope" }
         ],
         "rules": [
           {
@@ -29,45 +31,110 @@
             "_description": "Block destructive Unix root wipe",
             "in-cmd": "contains($, 'rm -rf /') or contains($, 'rm -rf *')",
             "in-sandbox": "",
+            "in-origin": "",
             "out-allowed": "false",
             "out-reason": "'DESTRUCTIVE_ROOT_WIPE_PROHIBITED'",
-            "out-risk": "'CRITICAL'"
+            "out-risk": "'CRITICAL'",
+            "out-lease": "'EPHEMERAL_UI_BOUND'"
           },
           {
             "_id": "f2",
             "_description": "Block destructive Windows disk wipe",
             "in-cmd": "contains(lower($), 'del /f /s /q') or contains(lower($), 'format c:')",
             "in-sandbox": "",
+            "in-origin": "",
             "out-allowed": "false",
             "out-reason": "'DESTRUCTIVE_DISK_FORMAT_PROHIBITED'",
-            "out-risk": "'CRITICAL'"
+            "out-risk": "'CRITICAL'",
+            "out-lease": "'EPHEMERAL_UI_BOUND'"
           },
           {
             "_id": "f3",
             "_description": "Block destructive database drop",
             "in-cmd": "contains(lower($), 'drop database') or contains(lower($), 'drop table telemetry_logs')",
             "in-sandbox": "",
+            "in-origin": "",
             "out-allowed": "false",
             "out-reason": "'DATABASE_DESTRUCTION_PROHIBITED'",
-            "out-risk": "'CRITICAL'"
+            "out-risk": "'CRITICAL'",
+            "out-lease": "'EPHEMERAL_UI_BOUND'"
           },
           {
             "_id": "f4",
             "_description": "Block PID 1 / init kill",
             "in-cmd": "contains($, 'kill -9 1') or contains(lower($), 'taskkill /f /pid 4')",
             "in-sandbox": "",
+            "in-origin": "",
             "out-allowed": "false",
             "out-reason": "'SYSTEM_INIT_KILL_PROHIBITED'",
-            "out-risk": "'HIGH'"
+            "out-risk": "'HIGH'",
+            "out-lease": "'EPHEMERAL_UI_BOUND'"
           },
           {
             "_id": "f5",
-            "_description": "Allow vetted development and build commands",
+            "_description": "Classify Telegram, background daemon workers, and detached origins as DETACHED_DAEMON_SERVICE",
             "in-cmd": "",
             "in-sandbox": "",
+            "in-origin": "'TELEGRAM', 'TELEGRAM_BRIDGE', 'TELEGRAM_TASK', 'DAEMON_WORKER', 'DAEMON', 'BACKGROUND_BUILD', 'HYPERFRAMES', 'SWARM_WORKER'",
+            "out-allowed": "true",
+            "out-reason": "'DETACHED_DAEMON_ORIGIN_VETTED'",
+            "out-risk": "'LOW'",
+            "out-lease": "'DETACHED_DAEMON_SERVICE'"
+          },
+          {
+            "_id": "f6",
+            "_description": "Classify HyperFrames render and preview jobs as DETACHED_DAEMON_SERVICE",
+            "in-cmd": "contains(lower($), 'hyperframes render') or contains(lower($), 'hyperframes preview') or contains(lower($), 'npx hyperframes')",
+            "in-sandbox": "",
+            "in-origin": "",
+            "out-allowed": "true",
+            "out-reason": "'HYPERFRAMES_DETACHED_RENDER_VETTED'",
+            "out-risk": "'LOW'",
+            "out-lease": "'DETACHED_DAEMON_SERVICE'"
+          },
+          {
+            "_id": "f7",
+            "_description": "Classify background builds as DETACHED_DAEMON_SERVICE",
+            "in-cmd": "contains(lower($), 'npm run build') or contains(lower($), 'npm run desktop:build') or contains(lower($), 'npm run desktop:dist') or contains(lower($), 'vite build') or contains(lower($), 'electron-builder') or contains(lower($), '--background')",
+            "in-sandbox": "",
+            "in-origin": "",
+            "out-allowed": "true",
+            "out-reason": "'BACKGROUND_BUILD_DETACHED_VETTED'",
+            "out-risk": "'LOW'",
+            "out-lease": "'DETACHED_DAEMON_SERVICE'"
+          },
+          {
+            "_id": "f8",
+            "_description": "Classify long-running daemon workers as DETACHED_DAEMON_SERVICE",
+            "in-cmd": "contains(lower($), 'kalinar-daemon') or contains(lower($), 'swarm-daemon') or contains(lower($), 'dist/daemon.js') or contains(lower($), 'src/daemon.ts')",
+            "in-sandbox": "",
+            "in-origin": "",
+            "out-allowed": "true",
+            "out-reason": "'DAEMON_WORKER_DETACHED_VETTED'",
+            "out-risk": "'LOW'",
+            "out-lease": "'DETACHED_DAEMON_SERVICE'"
+          },
+          {
+            "_id": "f9",
+            "_description": "Classify AntigravityCliTab and UI-triggered interactive shells as EPHEMERAL_UI_BOUND",
+            "in-cmd": "",
+            "in-sandbox": "",
+            "in-origin": "'ANTIGRAVITY_CLI_TAB', 'UI_CLI', 'ELECTRON_UI', 'INTERACTIVE_SHELL'",
+            "out-allowed": "true",
+            "out-reason": "'UI_BOUND_INTERACTIVE_COMMAND_VETTED'",
+            "out-risk": "'LOW'",
+            "out-lease": "'EPHEMERAL_UI_BOUND'"
+          },
+          {
+            "_id": "f10",
+            "_description": "Allow vetted development commands and default safely to EPHEMERAL_UI_BOUND",
+            "in-cmd": "",
+            "in-sandbox": "",
+            "in-origin": "",
             "out-allowed": "true",
             "out-reason": "'COMMAND_VETTED_BY_FIREWALL'",
-            "out-risk": "'LOW'"
+            "out-risk": "'LOW'",
+            "out-lease": "'EPHEMERAL_UI_BOUND'"
           }
         ]
       }

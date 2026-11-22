@@ -13,6 +13,7 @@ import {
   ExecutionMode,
   LiveGitDiffResult,
   LlmModelId,
+  ProcessLeaseScope,
   SecondBrainInjectPayload,
   SecondBrainInjectResult,
   SecondBrainQueryResult,
@@ -46,6 +47,7 @@ export interface ShellResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+  leaseScope?: ProcessLeaseScope;
 }
 
 export interface ProcessControlBridgeResult {
@@ -61,7 +63,7 @@ export interface KalinarApiBridge {
   invokeTaskAction: (taskId: string, action: string) => Promise<{ success: boolean; message: string }>;
   getHistoricalTelemetry: (limit?: number) => Promise<any[]>;
   getEvolutionSummary: () => Promise<any>;
-  executeShellCommand: (cmd: string, cwd?: string) => Promise<ShellResult>;
+  executeShellCommand: (cmd: string, cwd?: string, origin?: string) => Promise<ShellResult>;
   controlProcessPid: (payload: {
     pid: number;
     action: 'SUSPEND' | 'RESUME' | 'KILL';
@@ -114,8 +116,8 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:get_historical_telemetry', limit),
   getEvolutionSummary: () =>
     ipcRenderer.invoke('kalinar:get_evolution_summary'),
-  executeShellCommand: (cmd: string, cwd?: string) =>
-    ipcRenderer.invoke('kalinar:execute_shell_command', { cmd, cwd }),
+  executeShellCommand: (cmd: string, cwd?: string, origin?: string) =>
+    ipcRenderer.invoke('kalinar:execute_shell_command', { cmd, cwd, origin }),
   controlProcessPid: (payload) =>
     ipcRenderer.invoke('kalinar:control_process_pid', payload),
   killProcess: (pid: number, agentId?: string) =>

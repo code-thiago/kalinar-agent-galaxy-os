@@ -24,6 +24,7 @@ import {
   SCHEMA_VERSION,
   LlmModelId,
   ExecutionMode,
+  ProcessLeaseScope,
   CanvasSyncRequest,
   SecondBrainInjectPayload,
   SecondBrainVaultQueryParams,
@@ -57,6 +58,10 @@ let mainWindow: BrowserWindow | null = null;
 let sqliteStore: KalinarSqliteStore | null = null;
 let daemon: KalinarDaemon | null = null;
 let daemonClient: DaemonClient | null = null;
+const activeShellLeases = new Map<
+  number,
+  { pid: number; leaseScope: ProcessLeaseScope; command: string }
+>();
 
 const initialSingularityState: SingularityCoreState = {
   schemaVersion: SCHEMA_VERSION,
@@ -120,7 +125,16 @@ function createWindow(): void {
     mainWindow?.show();
   });
 
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (daemonClient?.isConnected()) {
+      daemonClient.notifyUiClientHello();
+    }
+  });
+
   mainWindow.on('closed', () => {
+    if (daemonClient?.isConnected()) {
+      daemonClient.notifyUiClientDisconnect('main-window-closed');
+    }
     mainWindow = null;
   });
 }
@@ -178,109 +192,155 @@ function setupIpcHandlers(): void {
     return sqliteStore.getEvolutionSummary();
   });
 
-  ipcMain.handle('kalinar:execute_shell_command', async (_event, { cmd, cwd }: { cmd: string; cwd?: string }) => {
-    const start = performance.now();
-    const firewall = ZenFirewall.getInstance();
-    const verdict = await firewall.evaluateOsFirewall({ command: cmd, isSandbox: true });
-
-    if (!verdict.result.allowed) {
-      const latency = Math.round(performance.now() - start);
-      sqliteStore?.insertTelemetry({
-        task_id: 'CLI_GATE',
-        event_type: 'HALT',
-        agent_name: 'zen-firewall',
-        payload: JSON.stringify({ cmd, reason: verdict.result.verdictReason, risk: verdict.result.riskLevel }),
-        latency_ms: latency,
-      });
-      return {
-        allowed: false,
-        stdout: '',
-        stderr: `[FIREWALL_HALT]: Command rejected by GoRules ZEN Engine: ${verdict.result.verdictReason} [RISK: ${verdict.result.riskLevel}]`,
-        exitCode: 1,
-      };
-    }
-
-    return new Promise((resolve) => {
-      const isWin = process.platform === 'win32';
-      const shellCmd = isWin ? 'powershell.exe' : '/bin/sh';
-      const shellArgs = isWin ? ['-NoProfile', '-NonInteractive', '-Command', cmd] : ['-c', cmd];
-
-      let stdout = '';
-      let stderr = '';
-
-      const proc = spawn(shellCmd, shellArgs, {
-        cwd: cwd || process.cwd(),
-        windowsHide: true,
+  ipcMain.handle(
+    'kalinar:execute_shell_command',
+    async (_event, { cmd, cwd, origin }: { cmd: string; cwd?: string; origin?: string }) => {
+      const start = performance.now();
+      const effectiveOrigin = origin || 'ANTIGRAVITY_CLI_TAB';
+      const firewall = ZenFirewall.getInstance();
+      const verdict = await firewall.evaluateOsFirewall({
+        command: cmd,
+        isSandbox: true,
+        origin: effectiveOrigin,
       });
 
-      proc.stdout?.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      proc.stderr?.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on('close', async (code) => {
+      if (!verdict.result.allowed) {
         const latency = Math.round(performance.now() - start);
-        const exitCode = code ?? 0;
         sqliteStore?.insertTelemetry({
-          task_id: 'CLI_EXEC',
-          event_type: exitCode === 0 ? 'TURN_END' : 'HALT',
-          agent_name: 'operator',
-          payload: JSON.stringify({ cmd, exitCode }),
+          task_id: 'CLI_GATE',
+          event_type: 'HALT',
+          agent_name: 'zen-firewall',
+          payload: JSON.stringify({
+            cmd,
+            origin: effectiveOrigin,
+            reason: verdict.result.verdictReason,
+            risk: verdict.result.riskLevel,
+            leaseScope: verdict.result.leaseScope,
+          }),
           latency_ms: latency,
         });
+        return {
+          allowed: false,
+          stdout: '',
+          stderr: `[FIREWALL_HALT]: Command rejected by GoRules ZEN Engine: ${verdict.result.verdictReason} [RISK: ${verdict.result.riskLevel}]`,
+          exitCode: 1,
+          leaseScope: verdict.result.leaseScope,
+        };
+      }
 
-        if (daemon) {
-          try {
-            const { digest, zenLatencyMs } = await daemon.processStreamOutput({
-              rawLog: [stdout, stderr, `exitCode=${exitCode}`].filter(Boolean).join('\n'),
-              taskId: 'CLI_EXEC',
-              agentId: 'agent-software-engineer',
-              explicitExitCode: exitCode,
-            });
-            mainWindow?.webContents.send('telemetry:stream', {
-              type: exitCode === 0 ? 'STEP_COMPLETED' : 'AGENT_HALTED',
-              taskId: digest.taskId,
-              targetAgentId: digest.agentId,
-              exitCode: digest.exitCode,
-              sqliteVerified: true,
-              agentStatus: exitCode === 0 ? '[VERIFIED]' : '[HALTED]',
-              summaryText: digest.summaryText,
-              zenLatencyMs,
-            });
-          } catch {
-            // Keep shell IPC resilient
-          }
+      const leaseScope: ProcessLeaseScope = verdict.result.leaseScope || 'EPHEMERAL_UI_BOUND';
+
+      return new Promise((resolve) => {
+        const isWin = process.platform === 'win32';
+        const shellCmd = isWin ? 'powershell.exe' : '/bin/sh';
+        const shellArgs = isWin ? ['-NoProfile', '-NonInteractive', '-Command', cmd] : ['-c', cmd];
+
+        let stdout = '';
+        let stderr = '';
+
+        const proc = spawn(shellCmd, shellArgs, {
+          cwd: cwd || process.cwd(),
+          windowsHide: true,
+          detached: !isWin,
+        });
+
+        const spawnedPid = proc.pid;
+        if (spawnedPid && spawnedPid > 100) {
+          activeShellLeases.set(spawnedPid, {
+            pid: spawnedPid,
+            leaseScope,
+            command: cmd,
+          });
+          processController.registerManagedPid(spawnedPid);
+          daemonClient?.registerPtyLease({
+            pid: spawnedPid,
+            leaseScope,
+            command: cmd,
+            origin: effectiveOrigin,
+          });
         }
 
-        resolve({
-          allowed: true,
-          stdout,
-          stderr,
-          exitCode,
-        });
-      });
+        const releaseTrackedPid = () => {
+          if (spawnedPid && spawnedPid > 100) {
+            activeShellLeases.delete(spawnedPid);
+            processController.unregisterManagedPid(spawnedPid);
+            daemonClient?.releasePtyLease(spawnedPid);
+          }
+        };
 
-      proc.on('error', (err) => {
-        const latency = Math.round(performance.now() - start);
-        sqliteStore?.insertTelemetry({
-          task_id: 'CLI_EXEC',
-          event_type: 'HALT',
-          agent_name: 'operator',
-          payload: JSON.stringify({ cmd, error: err.message }),
-          latency_ms: latency,
+        proc.stdout?.on('data', (data) => {
+          stdout += data.toString();
         });
-        resolve({
-          allowed: true,
-          stdout,
-          stderr: err.message,
-          exitCode: 1,
+
+        proc.stderr?.on('data', (data) => {
+          stderr += data.toString();
+        });
+
+        proc.on('close', async (code) => {
+          releaseTrackedPid();
+          const latency = Math.round(performance.now() - start);
+          const exitCode = code ?? 0;
+          sqliteStore?.insertTelemetry({
+            task_id: 'CLI_EXEC',
+            event_type: exitCode === 0 ? 'TURN_END' : 'HALT',
+            agent_name: 'operator',
+            payload: JSON.stringify({ cmd, exitCode, leaseScope, origin: effectiveOrigin }),
+            latency_ms: latency,
+          });
+
+          if (daemon) {
+            try {
+              const { digest, zenLatencyMs } = await daemon.processStreamOutput({
+                rawLog: [stdout, stderr, `exitCode=${exitCode}`].filter(Boolean).join('\n'),
+                taskId: 'CLI_EXEC',
+                agentId: 'agent-software-engineer',
+                explicitExitCode: exitCode,
+              });
+              mainWindow?.webContents.send('telemetry:stream', {
+                type: exitCode === 0 ? 'STEP_COMPLETED' : 'AGENT_HALTED',
+                taskId: digest.taskId,
+                targetAgentId: digest.agentId,
+                exitCode: digest.exitCode,
+                sqliteVerified: true,
+                agentStatus: exitCode === 0 ? '[VERIFIED]' : '[HALTED]',
+                summaryText: digest.summaryText,
+                zenLatencyMs,
+              });
+            } catch {
+              // Keep shell IPC resilient
+            }
+          }
+
+          resolve({
+            allowed: true,
+            stdout,
+            stderr,
+            exitCode,
+            leaseScope,
+          });
+        });
+
+        proc.on('error', (err) => {
+          releaseTrackedPid();
+          const latency = Math.round(performance.now() - start);
+          sqliteStore?.insertTelemetry({
+            task_id: 'CLI_EXEC',
+            event_type: 'HALT',
+            agent_name: 'operator',
+            payload: JSON.stringify({ cmd, error: err.message, leaseScope, origin: effectiveOrigin }),
+            latency_ms: latency,
+          });
+          resolve({
+            allowed: true,
+            stdout,
+            stderr: err.message,
+            exitCode: 1,
+            leaseScope,
+          });
         });
       });
-    });
-  });
+    }
+  );
 
   ipcMain.handle(
     'kalinar:control_process_pid',
@@ -658,6 +718,22 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', async () => {
+  if (daemonClient?.isConnected()) {
+    const disconnectDispatch = daemonClient.notifyUiClientDisconnect('window-all-closed');
+    await Promise.race([
+      disconnectDispatch.ackPromise.catch(() => null),
+      new Promise<void>((resolve) => setTimeout(resolve, 150)),
+    ]);
+  } else {
+    // Standalone fallback: reap EPHEMERAL_UI_BOUND shells while preserving DETACHED_DAEMON_SERVICE
+    for (const [pid, lease] of activeShellLeases.entries()) {
+      if (lease.leaseScope === 'EPHEMERAL_UI_BOUND') {
+        await processController.killProcessTree(pid);
+        activeShellLeases.delete(pid);
+      }
+    }
+  }
+
   if (daemon) {
     await daemon.stop();
   }
