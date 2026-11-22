@@ -14,6 +14,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { KalinarSqliteStore } from './db/sqliteStore.js';
 import { KalinarDaemon } from './daemon/KalinarDaemon.js';
+import { DaemonClient } from './daemon/DaemonClient.js';
 import { processController } from './daemon/ProcessController.js';
 import { eventBus } from '../src/core/KalinarEventBus.js';
 import { ZenFirewall } from '../src/core/ZenFirewall.js';
@@ -55,6 +56,7 @@ export const ELECTRON_IPC_CHANNELS = [
 let mainWindow: BrowserWindow | null = null;
 let sqliteStore: KalinarSqliteStore | null = null;
 let daemon: KalinarDaemon | null = null;
+let daemonClient: DaemonClient | null = null;
 
 const initialSingularityState: SingularityCoreState = {
   schemaVersion: SCHEMA_VERSION,
@@ -511,7 +513,10 @@ function setupIpcHandlers(): void {
       }
       const connector = new LocalVaultAndMdConnector(wsPath);
       if (!sqliteStore) {
-        sqliteStore = new KalinarSqliteStore();
+        sqliteStore = new KalinarSqliteStore({
+          readOnly: true,
+          daemonClient: daemonClient ?? undefined,
+        });
       }
       return await connector.syncObsidianCanvas({
         direction: payload?.direction,
@@ -569,7 +574,10 @@ function setupIpcHandlers(): void {
       }
       const connector = new LocalVaultAndMdConnector(wsPath);
       if (!sqliteStore) {
-        sqliteStore = new KalinarSqliteStore();
+        sqliteStore = new KalinarSqliteStore({
+          readOnly: true,
+          daemonClient: daemonClient ?? undefined,
+        });
       }
       return connector.injectSecondBrainNote(payload, sqliteStore);
     }
@@ -600,7 +608,13 @@ app.on('second-instance', () => {
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   try {
-    sqliteStore = new KalinarSqliteStore();
+    daemonClient = new DaemonClient({ eventBus });
+    void daemonClient.connect();
+
+    sqliteStore = new KalinarSqliteStore({
+      readOnly: true,
+      daemonClient,
+    });
     if (sqliteStore.getEvolutionSummary().totalEvents === 0) {
       sqliteStore.insertTelemetry({
         task_id: 'SYSTEM',
@@ -646,6 +660,9 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', async () => {
   if (daemon) {
     await daemon.stop();
+  }
+  if (daemonClient) {
+    daemonClient.disconnect();
   }
   if (sqliteStore) {
     sqliteStore.close();

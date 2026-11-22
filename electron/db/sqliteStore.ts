@@ -1,6 +1,7 @@
 /**
- * KALINAR SQLITE STORE (v0.1.0-alpha)
- * Native node:sqlite DatabaseSync with WAL Mode and Append-Only Telemetry Triggers
+ * KALINAR SQLITE STORE (v1.6.0-alpha)
+ * Strict Read-Only Electron Bridge to Canonical Daemon WAL DB + IPC Mutation Dispatch
+ * Preserves isolated temp-file schema mode when unit tests supply a non-existent temp path.
  * Strictly Zero Emojis
  */
 
@@ -14,6 +15,17 @@ import {
   ObsidianCanvasDocument,
   WorkspaceScanResult,
 } from '../../src/types/kalinar.js';
+import { DaemonClient, DaemonDispatchResult } from '../daemon/DaemonClient.js';
+
+export const CANONICAL_DAEMON_DB_PATH = 'C:\\Dev\\kalinar-daemon\\data\\kalinar.db';
+export const LOCAL_READONLY_SNAPSHOT_PATH = path.resolve(process.cwd(), 'kalinar-state.db');
+
+export interface KalinarSqliteStoreOptions {
+  dbPath?: string;
+  fallbackSnapshotPath?: string;
+  readOnly?: boolean;
+  daemonClient?: DaemonClient;
+}
 
 export interface TaskRecord {
   id: string;
@@ -69,16 +81,174 @@ export interface SecondBrainNoteRecord {
 export class KalinarSqliteStore {
   private db: DatabaseSync;
   private dbPath: string;
+  private readOnly: boolean;
+  private usingFallbackSnapshot = false;
+  private daemonClient: DaemonClient | null;
+  private lastDispatchResult: DaemonDispatchResult | null = null;
 
-  constructor(customPath?: string) {
-    this.dbPath = customPath || path.resolve(process.cwd(), 'kalinar-state.db');
-    this.db = new DatabaseSync(this.dbPath);
-    this.initPragmasAndSchema();
+  constructor(pathOrOptions?: string | KalinarSqliteStoreOptions) {
+    const resolvedMode = this.resolveStoreMode(pathOrOptions);
+    this.dbPath = resolvedMode.resolvedDbPath;
+    this.readOnly = resolvedMode.readOnly;
+    this.usingFallbackSnapshot = resolvedMode.usingFallbackSnapshot;
+    this.daemonClient = resolvedMode.daemonClient;
+
+    if (this.readOnly) {
+      if (!fs.existsSync(this.dbPath)) {
+        this.initializeEmptySnapshot(this.dbPath);
+      }
+      this.db = new DatabaseSync(this.dbPath, {
+        readOnly: true,
+        timeout: 5000,
+      });
+    } else {
+      const parentDir = path.dirname(path.resolve(this.dbPath));
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+      this.db = new DatabaseSync(this.dbPath, {
+        readOnly: false,
+        timeout: 5000,
+      });
+      this.initPragmasAndSchemaOn(this.db);
+    }
   }
 
-  private initPragmasAndSchema(): void {
+  private resolveStoreMode(pathOrOptions?: string | KalinarSqliteStoreOptions): {
+    resolvedDbPath: string;
+    readOnly: boolean;
+    usingFallbackSnapshot: boolean;
+    daemonClient: DaemonClient | null;
+  } {
+    if (pathOrOptions === undefined) {
+      const canonicalExists = fs.existsSync(CANONICAL_DAEMON_DB_PATH);
+      return {
+        resolvedDbPath: canonicalExists ? CANONICAL_DAEMON_DB_PATH : LOCAL_READONLY_SNAPSHOT_PATH,
+        readOnly: true,
+        usingFallbackSnapshot: !canonicalExists,
+        daemonClient: DaemonClient.getSharedInstance(),
+      };
+    }
+
+    if (typeof pathOrOptions === 'string') {
+      const normalizedArg = path.resolve(pathOrOptions);
+      const isCanonical = normalizedArg === path.resolve(CANONICAL_DAEMON_DB_PATH);
+      const alreadyExists = fs.existsSync(pathOrOptions);
+
+      // Existing DB files and the canonical Daemon DB open strictly read-only.
+      // Brand-new temp paths passed by isolated unit tests keep local schema creation.
+      if (isCanonical || alreadyExists) {
+        return {
+          resolvedDbPath: pathOrOptions,
+          readOnly: true,
+          usingFallbackSnapshot: !isCanonical,
+          daemonClient: DaemonClient.getSharedInstance(),
+        };
+      }
+
+      return {
+        resolvedDbPath: pathOrOptions,
+        readOnly: false,
+        usingFallbackSnapshot: false,
+        daemonClient: null,
+      };
+    }
+
+    const readOnly = pathOrOptions.readOnly !== false;
+    const client = pathOrOptions.daemonClient ?? (readOnly ? DaemonClient.getSharedInstance() : null);
+
+    if (!readOnly) {
+      return {
+        resolvedDbPath: pathOrOptions.dbPath || CANONICAL_DAEMON_DB_PATH,
+        readOnly: false,
+        usingFallbackSnapshot: false,
+        daemonClient: client,
+      };
+    }
+
+    const preferredPath = pathOrOptions.dbPath || CANONICAL_DAEMON_DB_PATH;
+    if (fs.existsSync(preferredPath)) {
+      return {
+        resolvedDbPath: preferredPath,
+        readOnly: true,
+        usingFallbackSnapshot: false,
+        daemonClient: client,
+      };
+    }
+
+    if (!pathOrOptions.dbPath && fs.existsSync(CANONICAL_DAEMON_DB_PATH)) {
+      return {
+        resolvedDbPath: CANONICAL_DAEMON_DB_PATH,
+        readOnly: true,
+        usingFallbackSnapshot: false,
+        daemonClient: client,
+      };
+    }
+
+    const fallback = pathOrOptions.fallbackSnapshotPath || LOCAL_READONLY_SNAPSHOT_PATH;
+    return {
+      resolvedDbPath: fallback,
+      readOnly: true,
+      usingFallbackSnapshot: true,
+      daemonClient: client,
+    };
+  }
+
+  private initializeEmptySnapshot(snapshotPath: string): void {
+    const parentDir = path.dirname(path.resolve(snapshotPath));
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+    const bootstrapDb = new DatabaseSync(snapshotPath, {
+      readOnly: false,
+      timeout: 5000,
+    });
+    try {
+      this.initPragmasAndSchemaOn(bootstrapDb);
+    } finally {
+      bootstrapDb.close();
+    }
+  }
+
+  public isReadOnly(): boolean {
+    return this.readOnly;
+  }
+
+  public isUsingFallbackSnapshot(): boolean {
+    return this.usingFallbackSnapshot;
+  }
+
+  public getDbPath(): string {
+    return this.dbPath;
+  }
+
+  public getDatabase(): DatabaseSync {
+    return this.db;
+  }
+
+  public getDaemonClient(): DaemonClient | null {
+    return this.daemonClient;
+  }
+
+  public setDaemonClient(client: DaemonClient): void {
+    this.daemonClient = client;
+  }
+
+  public getLastDispatchResult(): DaemonDispatchResult | null {
+    return this.lastDispatchResult;
+  }
+
+  private recordDispatch(result: DaemonDispatchResult): DaemonDispatchResult {
+    result.ackPromise.catch(() => {
+      // Prevent unhandled rejection when daemon is offline
+    });
+    this.lastDispatchResult = result;
+    return result;
+  }
+
+  private initPragmasAndSchemaOn(targetDb: DatabaseSync): void {
     // 1. Performance Pragmas
-    this.db.exec(`
+    targetDb.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA synchronous = NORMAL;
       PRAGMA foreign_keys = ON;
@@ -86,7 +256,7 @@ export class KalinarSqliteStore {
     `);
 
     // 2. Agent Registry Table
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS agent_registry (
         name TEXT PRIMARY KEY NOT NULL,
         role_description TEXT NOT NULL,
@@ -96,7 +266,7 @@ export class KalinarSqliteStore {
     `);
 
     // Seed Canonical 7 Agents
-    this.db.exec(`
+    targetDb.exec(`
       INSERT OR IGNORE INTO agent_registry (name, role_description, system_prompt_ref) VALUES
       ('agent-orchestrator', 'Swarm Facilitator, PM, and Queue Controller', '05_AGENTS/agent-orchestrator.md'),
       ('agent-software-engineer', 'Principal Full-Stack & Contract-First Architect', '05_AGENTS/agent-software-engineer.md'),
@@ -108,7 +278,7 @@ export class KalinarSqliteStore {
     `);
 
     // 3. Tasks Table
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY NOT NULL,
         project_path TEXT NOT NULL,
@@ -127,7 +297,7 @@ export class KalinarSqliteStore {
     `);
 
     // Seed System Tasks to satisfy Telemetry foreign keys
-    this.db.exec(`
+    targetDb.exec(`
       INSERT OR IGNORE INTO tasks (id, project_path, title, status, current_agent) VALUES
       ('SYSTEM', 'c:/Kalinar', 'System Daemon', 'COMPLETED', 'agent-orchestrator'),
       ('WORKSPACE_DAEMON', 'c:/Kalinar', 'Workspace Chokidar Daemon', 'COMPLETED', 'agent-orchestrator'),
@@ -136,7 +306,7 @@ export class KalinarSqliteStore {
     `);
 
     // 4. Turns Table
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS turns (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -153,7 +323,7 @@ export class KalinarSqliteStore {
     `);
 
     // 5. Telemetry Logs Table & Append-Only Triggers
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS telemetry_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -178,7 +348,7 @@ export class KalinarSqliteStore {
     `);
 
     // 6. Circuit Breaker Events Table
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS circuit_breaker_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
@@ -192,11 +362,11 @@ export class KalinarSqliteStore {
 
     // 7. Canvas Nodes Table (Zero Foreign Key Constraints - Generic Entity Ref)
     try {
-      const tableInfo = this.db.prepare(
-        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'canvas_nodes'"
-      ).get() as { sql?: string } | undefined;
+      const tableInfo = targetDb
+        .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'canvas_nodes'")
+        .get() as { sql?: string } | undefined;
       if (tableInfo?.sql && tableInfo.sql.includes('REFERENCES tasks')) {
-        this.db.exec(`
+        targetDb.exec(`
           ALTER TABLE canvas_nodes RENAME TO canvas_nodes_old;
           CREATE TABLE canvas_nodes (
             id TEXT PRIMARY KEY NOT NULL,
@@ -218,7 +388,7 @@ export class KalinarSqliteStore {
       // Table might not exist yet, continue to create table
     }
 
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS canvas_nodes (
         id TEXT PRIMARY KEY NOT NULL,
         task_id TEXT NOT NULL,
@@ -234,7 +404,7 @@ export class KalinarSqliteStore {
     `);
 
     // 8. Busy Agent FIFO Queue Table (FLOW-AGENT-FIFO-01)
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS agent_task_fifo_queue (
         id TEXT PRIMARY KEY,
         target_agent_id TEXT NOT NULL,
@@ -246,7 +416,7 @@ export class KalinarSqliteStore {
     `);
 
     // 9. Multi-Model LLM Atomic Git Checkpoints Table (FLOW-LLM-FAILOVER-01)
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS llm_model_checkpoints (
         id TEXT PRIMARY KEY,
         agent_id TEXT NOT NULL,
@@ -261,7 +431,7 @@ export class KalinarSqliteStore {
     `);
 
     // 10. Second Brain Notes Table (Vault Index & Note Injection Storage)
-    this.db.exec(`
+    targetDb.exec(`
       CREATE TABLE IF NOT EXISTS second_brain_notes (
         id TEXT PRIMARY KEY NOT NULL,
         title TEXT NOT NULL,
@@ -282,10 +452,18 @@ export class KalinarSqliteStore {
   }
 
   /* =====================================================================
-     TASK & TELEMETRY MUTATIONS
+     TASK & TELEMETRY MUTATIONS (ROUTED TO DAEMON WHEN READ-ONLY)
      ===================================================================== */
 
   public insertTask(task: TaskRecord): void {
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:task_created', { op: 'task:upsert', task }, task.id)
+      );
+      return;
+    }
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO tasks (
         id, project_path, title, status, current_agent, from_agent,
@@ -308,6 +486,18 @@ export class KalinarSqliteStore {
   }
 
   public insertTelemetry(record: TelemetryLogRecord): void {
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation(
+          'daemon:stream_digest',
+          { op: 'telemetry:insert', record },
+          record.task_id
+        )
+      );
+      return;
+    }
+
     const stmt = this.db.prepare(`
       INSERT INTO telemetry_logs (task_id, event_type, agent_name, payload, latency_ms)
       VALUES (?, ?, ?, ?, ?)
@@ -322,7 +512,11 @@ export class KalinarSqliteStore {
 
   public getTelemetryLogs(taskId: string, limit = 50): TelemetryLogRecord[] {
     const stmt = this.db.prepare(`
-      SELECT * FROM telemetry_logs WHERE task_id = ? ORDER BY id DESC LIMIT ?
+      SELECT task_id, event_type, agent_name, payload, latency_ms
+      FROM telemetry_logs
+      WHERE task_id = ?
+      ORDER BY id DESC
+      LIMIT ?
     `);
     return stmt.all(taskId, limit) as unknown as TelemetryLogRecord[];
   }
@@ -368,7 +562,7 @@ export class KalinarSqliteStore {
      FIFO QUEUE & MULTI-MODEL CHECKPOINT REPOSITORY METHODS
      ===================================================================== */
 
-  public enqueueAgentTaskFifo(item: {
+  public enqueueAgentFifo(item: {
     id?: string;
     targetAgentId: string;
     instruction: string;
@@ -385,6 +579,14 @@ export class KalinarSqliteStore {
       createdAt: item.createdAt ?? Date.now(),
     };
 
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:fifo_queued', { op: 'fifo:enqueue', item: record })
+      );
+      return record;
+    }
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO agent_task_fifo_queue (
         id, target_agent_id, instruction, model_id, status, created_at
@@ -400,6 +602,17 @@ export class KalinarSqliteStore {
     );
 
     return record;
+  }
+
+  public enqueueAgentTaskFifo(item: {
+    id?: string;
+    targetAgentId: string;
+    instruction: string;
+    modelId: LlmModelId;
+    status?: FifoQueueItem['status'];
+    createdAt?: number;
+  }): FifoQueueItem {
+    return this.enqueueAgentFifo(item);
   }
 
   public dequeueNextAgentTaskFifo(targetAgentId: string): FifoQueueItem | null {
@@ -426,12 +639,19 @@ export class KalinarSqliteStore {
       return null;
     }
 
-    const updateStmt = this.db.prepare(`
-      UPDATE agent_task_fifo_queue
-      SET status = 'DISPATCHED'
-      WHERE id = ?
-    `);
-    updateStmt.run(row.id);
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:fifo_queued', { op: 'fifo:dequeue', targetAgentId })
+      );
+    } else {
+      const updateStmt = this.db.prepare(`
+        UPDATE agent_task_fifo_queue
+        SET status = 'DISPATCHED'
+        WHERE id = ?
+      `);
+      updateStmt.run(row.id);
+    }
 
     return {
       id: row.id,
@@ -481,14 +701,21 @@ export class KalinarSqliteStore {
   }
 
   public promoteFifoTask(id: string): FifoQueueItem | null {
-    const minRow = this.db
-      .prepare(`SELECT MIN(created_at) as min_created FROM agent_task_fifo_queue WHERE status = 'FIFO_QUEUED'`)
-      .get() as { min_created: number | null } | undefined;
-    const promotedTimestamp = (minRow?.min_created ?? Date.now()) - 1000;
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:fifo_queued', { op: 'fifo:promote', id })
+      );
+    } else {
+      const minRow = this.db
+        .prepare(`SELECT MIN(created_at) as min_created FROM agent_task_fifo_queue WHERE status = 'FIFO_QUEUED'`)
+        .get() as { min_created: number | null } | undefined;
+      const promotedTimestamp = (minRow?.min_created ?? Date.now()) - 1000;
 
-    this.db
-      .prepare(`UPDATE agent_task_fifo_queue SET created_at = ?, status = 'FIFO_QUEUED' WHERE id = ?`)
-      .run(promotedTimestamp, id);
+      this.db
+        .prepare(`UPDATE agent_task_fifo_queue SET created_at = ?, status = 'FIFO_QUEUED' WHERE id = ?`)
+        .run(promotedTimestamp, id);
+    }
 
     const row = this.db
       .prepare(`
@@ -519,6 +746,15 @@ export class KalinarSqliteStore {
   }
 
   public clearAgentFifoQueue(targetAgentId?: string): number {
+    if (this.readOnly) {
+      const existingCount = this.getAgentFifoQueue(targetAgentId).length;
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:fifo_queued', { op: 'fifo:clear', targetAgentId })
+      );
+      return existingCount;
+    }
+
     if (targetAgentId) {
       const res = this.db
         .prepare(`DELETE FROM agent_task_fifo_queue WHERE target_agent_id = ?`)
@@ -530,6 +766,18 @@ export class KalinarSqliteStore {
   }
 
   public recordModelCheckpoint(checkpoint: LlmModelCheckpoint): LlmModelCheckpoint {
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation(
+          'daemon:model_hotswap',
+          { op: 'checkpoint:record', checkpoint },
+          checkpoint.taskId
+        )
+      );
+      return checkpoint;
+    }
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO llm_model_checkpoints (
         id, agent_id, task_id, git_commit_or_stash_hash,
@@ -556,6 +804,27 @@ export class KalinarSqliteStore {
     retryCount: number,
     activeModelId: LlmModelId
   ): LlmModelCheckpoint | null {
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:model_hotswap', {
+          op: 'checkpoint:update',
+          id,
+          status,
+          retryCount,
+          activeModelId,
+        })
+      );
+      const current = this.getModelCheckpoint(id);
+      if (!current) return null;
+      return {
+        ...current,
+        status,
+        retryCount,
+        activeModelId,
+      };
+    }
+
     const updateStmt = this.db.prepare(`
       UPDATE llm_model_checkpoints
       SET status = ?, retry_count = ?, active_model_id = ?, updated_at = ?
@@ -604,28 +873,49 @@ export class KalinarSqliteStore {
      SECOND BRAIN NOTES STORAGE & QUERY
      ===================================================================== */
 
-  public insertSecondBrainNote(note: SecondBrainNoteRecord): void {
+  public upsertSecondBrainNote(note: SecondBrainNoteRecord): void {
+    const now = new Date().toISOString();
+    const fullNote: SecondBrainNoteRecord = {
+      ...note,
+      created_at: note.created_at || now,
+      updated_at: note.updated_at || now,
+    };
+
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:canvas_sync_requested', {
+          op: 'second_brain:upsert_note',
+          note: fullNote,
+        })
+      );
+      return;
+    }
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO second_brain_notes (
         id, title, file_path, wikilink, domain, tags,
         frontmatter_json, wikilinks_json, excerpt, content, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const now = new Date().toISOString();
     stmt.run(
-      note.id,
-      note.title,
-      note.file_path,
-      note.wikilink,
-      note.domain,
-      note.tags,
-      note.frontmatter_json,
-      note.wikilinks_json,
-      note.excerpt,
-      note.content,
-      note.created_at || now,
-      note.updated_at || now
+      fullNote.id,
+      fullNote.title,
+      fullNote.file_path,
+      fullNote.wikilink,
+      fullNote.domain,
+      fullNote.tags,
+      fullNote.frontmatter_json,
+      fullNote.wikilinks_json,
+      fullNote.excerpt,
+      fullNote.content,
+      fullNote.created_at!,
+      fullNote.updated_at!
     );
+  }
+
+  public insertSecondBrainNote(note: SecondBrainNoteRecord): void {
+    this.upsertSecondBrainNote(note);
   }
 
   public getSecondBrainNotes(filter?: {
@@ -671,6 +961,17 @@ export class KalinarSqliteStore {
   }
 
   public deleteSecondBrainNote(id: string): void {
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:canvas_sync_requested', {
+          op: 'second_brain:delete_note',
+          id,
+        })
+      );
+      return;
+    }
+
     const stmt = this.db.prepare(`DELETE FROM second_brain_notes WHERE id = ?`);
     stmt.run(id);
   }
@@ -680,22 +981,39 @@ export class KalinarSqliteStore {
      ===================================================================== */
 
   public upsertCanvasNode(node: CanvasNodeRecord): void {
+    const now = new Date().toISOString();
+    const fullNode: CanvasNodeRecord = {
+      ...node,
+      last_synced_at: node.last_synced_at || now,
+    };
+
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation(
+          'daemon:canvas_sync_requested',
+          { op: 'canvas:upsert_node', node: fullNode },
+          node.task_id
+        )
+      );
+      return;
+    }
+
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO canvas_nodes (
         id, task_id, x, y, width, height, color_token, canvas_file, last_synced_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const now = new Date().toISOString();
     stmt.run(
-      node.id,
-      node.task_id,
-      node.x,
-      node.y,
-      node.width,
-      node.height,
-      node.color_token,
-      node.canvas_file,
-      node.last_synced_at || now
+      fullNode.id,
+      fullNode.task_id,
+      fullNode.x,
+      fullNode.y,
+      fullNode.width,
+      fullNode.height,
+      fullNode.color_token,
+      fullNode.canvas_file,
+      fullNode.last_synced_at!
     );
   }
 
@@ -709,6 +1027,17 @@ export class KalinarSqliteStore {
   }
 
   public clearCanvasNodes(canvasFile?: string): void {
+    if (this.readOnly) {
+      const client = this.daemonClient || DaemonClient.getSharedInstance();
+      this.recordDispatch(
+        client.dispatchMutation('daemon:canvas_sync_requested', {
+          op: 'canvas:clear_nodes',
+          canvasFile,
+        })
+      );
+      return;
+    }
+
     if (canvasFile) {
       const stmt = this.db.prepare(`DELETE FROM canvas_nodes WHERE canvas_file = ?`);
       stmt.run(canvasFile);
