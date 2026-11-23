@@ -128,8 +128,11 @@ canvas#singularity-bg {
 [data-slot="right-singularity-column"] {
   position: fixed;
   right: var(--ds-right-column-offset, 48px);
-  top: 50%;
-  transform: translateY(-50%);
+  top: 96px;
+  bottom: 48px;
+  transform: none;
+  max-height: calc(100vh - 144px);
+  overflow-y: auto;
   width: var(--ds-right-column-width, 360px);
   mix-blend-mode: plus-lighter;
   pointer-events: none;

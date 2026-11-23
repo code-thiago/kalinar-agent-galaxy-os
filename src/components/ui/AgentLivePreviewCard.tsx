@@ -193,7 +193,7 @@ export const AgentLivePreviewCardMetadataRow = React.memo(function AgentLivePrev
           {agent.filename} · <span style={{ color: '#AA88FF' }}>{modelLabel}</span>
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[#9A9A9A]" style={{ color: '#9A9A9A' }}>
+          <span className="text-[#9A9A9A]" style={{ color: '#9A9A9A', whiteSpace: 'nowrap' }}>
             [FIFO: {fifoCount}]
           </span>
           <span className={`font-semibold ${getStatusColor(agent.status)}`}>{agent.status}</span>

@@ -23,6 +23,12 @@ export function TopRightTrigger() {
       <div
         className="w-[44px] h-[44px] rounded-full border border-[#AA88FF] bg-[rgba(13,15,20,0.88)] flex items-center justify-center font-mono text-[13px] font-bold text-[#AA88FF] tabular-nums shadow-sm"
         style={{
+          width: '44px',
+          height: '44px',
+          borderRadius: '9999px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           background: 'rgba(13, 15, 20, 0.88)',
           color: '#AA88FF',
           border: '1px solid #AA88FF',
@@ -39,6 +45,11 @@ export function TopRightTrigger() {
         onClick={toggleCommandPalette}
         className="h-[44px] px-3 border border-[#2A2A2A] hover:border-[#AA88FF] bg-[rgba(13,15,20,0.88)] text-[#DDDDDD] hover:text-[#AA88FF] font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer flex items-center"
         style={{
+          height: '44px',
+          padding: '0 12px',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
           background: 'rgba(13, 15, 20, 0.88)',
           color: '#DDDDDD',
           border: '1px solid #2A2A2A',
@@ -54,6 +65,12 @@ export function TopRightTrigger() {
         onClick={handleSecondBrainTrigger}
         className="h-[44px] px-4 border border-[#2A2A2A] hover:border-[#AA88FF] bg-[rgba(13,15,20,0.88)] text-[#DDDDDD] hover:text-[#AA88FF] font-mono text-[11px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
         style={{
+          height: '44px',
+          padding: '0 14px',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
           background: 'rgba(13, 15, 20, 0.88)',
           color: '#DDDDDD',
           border: '1px solid #2A2A2A',

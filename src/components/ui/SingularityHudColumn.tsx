@@ -187,6 +187,8 @@ export const SingularityCoreBlock = React.memo(function SingularityCoreBlock({
                 background: 'rgba(13, 15, 20, 0.88)',
                 color: isMicActive ? '#AA88FF' : '#DDDDDD',
                 border: isMicActive ? '1px solid #AA88FF' : '1px solid #2A2A2A',
+                whiteSpace: 'nowrap',
+                padding: '2px 6px',
               }}
             >
               {isMicActive ? '[ MIC ACTIVE ]' : '[ ENABLE MIC ]'}
@@ -201,6 +203,8 @@ export const SingularityCoreBlock = React.memo(function SingularityCoreBlock({
                 background: 'rgba(13, 15, 20, 0.88)',
                 color: '#DDDDDD',
                 border: '1px solid #2A2A2A',
+                whiteSpace: 'nowrap',
+                padding: '2px 6px',
               }}
             >
               [ TACTICAL BRIEFING ]
