@@ -23,11 +23,11 @@ describe('Dev Launcher & Windows CRLF Sanitization', () => {
     expect(fs.existsSync(electronBin)).toBe(true);
   });
 
-  it('verifies package.json specifies version 1.4.0', () => {
+  it('verifies package.json specifies version 2.0.1', () => {
     const pkgPath = path.resolve(__dirname, '../package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
 
-    expect(pkg.version).toBe('1.4.0');
+    expect(pkg.version).toBe('2.0.1');
   });
 
   it('verifies electron/main.ts enforces app.requestSingleInstanceLock and isolates dev userData cache', () => {

@@ -275,8 +275,13 @@ export function RightSingularityColumn() {
                   key={item.wikilink}
                   type="button"
                   onClick={() => handleWikilinkPull(item.position3D)}
-                  className="pointer-events-auto cursor-pointer text-[10px] font-mono text-[#E879F9] hover:text-[#FFFFFF] bg-[rgba(232,121,249,0.08)] border border-[rgba(232,121,249,0.3)] hover:border-[#E879F9] px-1.5 py-0.5 transition-colors normal-case"
-                  style={{ pointerEvents: 'auto' }}
+                  className="pointer-events-auto cursor-pointer text-[10px] font-mono text-[#DDDDDD] hover:text-[#AA88FF] bg-[rgba(13,15,20,0.88)] border border-[#2A2A2A] hover:border-[#AA88FF] px-1.5 py-0.5 transition-colors normal-case"
+                  style={{
+                    pointerEvents: 'auto',
+                    background: 'rgba(13, 15, 20, 0.88)',
+                    color: '#DDDDDD',
+                    border: '1px solid #2A2A2A',
+                  }}
                   title={`Pull ${item.wikilink} (${item.domain}) into Event Horizon`}
                 >
                   {item.wikilink}

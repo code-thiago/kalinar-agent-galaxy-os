@@ -221,5 +221,50 @@ describe('Task 6: Tauz Acoustic DSP, 7 Laws of Voice/Multi-Model & Ctrl+K Comman
       }
     }
   });
+
+  it('6. v2.0.1-desktop Hotfix: TopRightTrigger clears 32px titleBarOverlay (top: 44px) and HUD enforces high-contrast obsidian surfaces without black-on-black text', () => {
+    const topRightSrc = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/hud/TopRightTrigger.tsx'),
+      'utf-8'
+    );
+    expect(topRightSrc).toContain("top: '44px'");
+    expect(topRightSrc).toContain("right: '24px'");
+    expect(topRightSrc).toContain("WebkitAppRegion: 'no-drag'");
+    expect(topRightSrc).toContain('rgba(13, 15, 20, 0.88)');
+    expect(topRightSrc).toContain('#DDDDDD');
+    expect(topRightSrc).toContain('1px solid #2A2A2A');
+
+    const indexCss = fs.readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf-8');
+    expect(indexCss).toContain('top: 44px;');
+    expect(indexCss).toContain('-webkit-app-region: no-drag;');
+    expect(indexCss).toContain('color: var(--ds-text-primary, #DDDDDD);');
+
+    const cardSrc = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/ui/AgentLivePreviewCard.tsx'),
+      'utf-8'
+    );
+    expect(cardSrc).toContain("backgroundColor: '#07080A'");
+    expect(cardSrc).toContain("backgroundColor: '#0D0F14'");
+    expect(cardSrc).toContain("color: '#DDDDDD'");
+    expect(cardSrc).toContain("color: '#AA88FF'");
+    expect(cardSrc).toContain("border: '1px solid #2A2A2A'");
+    expect(cardSrc).not.toContain("color: '#000000'");
+
+    const hudColSrc = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/ui/SingularityHudColumn.tsx'),
+      'utf-8'
+    );
+    expect(hudColSrc).toContain('rgba(13, 15, 20, 0.88)');
+    expect(hudColSrc).toContain('[ ENABLE MIC ]');
+    expect(hudColSrc).toContain('[ TACTICAL BRIEFING ]');
+
+    const rightColSrc = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/components/hud/RightSingularityColumn.tsx'),
+      'utf-8'
+    );
+    expect(rightColSrc).toContain('rgba(13, 15, 20, 0.88)');
+    expect(rightColSrc).toContain("color: '#DDDDDD'");
+    expect(rightColSrc).toContain("border: '1px solid #2A2A2A'");
+  });
 });
 

@@ -151,8 +151,8 @@ export function LeftAgentCardsColumn() {
               }`}
               style={
                 isActive
-                  ? { backgroundColor: '#E6E6E6', color: '#000000' }
-                  : undefined
+                  ? { backgroundColor: '#E6E6E6', color: '#000000', borderColor: '#E6E6E6' }
+                  : { backgroundColor: '#0D0F14', color: '#9A9A9A', borderColor: '#1A1D26' }
               }
             >
               {chip}

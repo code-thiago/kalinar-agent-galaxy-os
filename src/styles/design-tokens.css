@@ -150,6 +150,7 @@ html, body, #root {
   padding: 0;
   overflow: hidden;
   background: #000000;
+  color: var(--ds-text-primary, #DDDDDD);
   font-family: 'Geist Mono', 'SF Mono', Consolas, monospace;
   font-size: 13px;
   line-height: 1.35;
@@ -159,6 +160,16 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
+}
+
+button, a, [data-slot="agent-card-viewport"] {
+  color: var(--ds-text-primary, #DDDDDD);
+  font-family: inherit;
+}
+
+button {
+  background-color: #0D0F14;
+  border: 1px solid #2A2A2A;
 }
 
 /* =====================================================================
@@ -179,6 +190,7 @@ canvas#singularity-bg {
   z-index: 10;
   pointer-events: none;
   display: block;
+  color: var(--ds-text-primary, #DDDDDD);
 }
 
 .kalinar-hud > *,

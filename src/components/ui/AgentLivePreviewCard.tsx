@@ -24,7 +24,7 @@ export const AgentLivePreviewCardRoot = React.memo(function AgentLivePreviewCard
           ? 'border-[#AA88FF] ring-1 ring-[#AA88FF]'
           : 'border-[#1A1D26] hover:border-[#AA88FF]'
       } ${className}`}
-      style={{ mixBlendMode: 'normal' }}
+      style={{ backgroundColor: '#07080A', color: '#DDDDDD', mixBlendMode: 'normal' }}
       {...props}
     >
       {children}
@@ -64,6 +64,7 @@ export const AgentLivePreviewCardLiveViewport = React.memo(function AgentLivePre
       className={`relative h-[var(--ds-agent-card-thumb-h,160px)] min-h-[160px] w-full bg-[#07080A] rounded-[2px] border border-[#1A1D26] p-2.5 font-mono text-[10.5px] leading-tight text-[#DDDDDD] overflow-hidden flex flex-col justify-between group ${className}`}
       style={{
         backgroundColor: '#07080A',
+        color: '#DDDDDD',
         border: '1px solid #1A1D26',
         mixBlendMode: 'normal',
         ...style,
@@ -75,12 +76,14 @@ export const AgentLivePreviewCardLiveViewport = React.memo(function AgentLivePre
         <span
           data-slot="agent-viewport-model-badge"
           className="text-[#AA88FF] font-semibold tracking-wider"
+          style={{ color: '#AA88FF' }}
         >
           {modelBadge}
         </span>
         <span
           data-slot="agent-viewport-fifo-badge"
           className="text-[#9A9A9A] tabular-nums"
+          style={{ color: '#9A9A9A' }}
         >
           [FIFO: {fifoCount}]
         </span>
@@ -96,8 +99,13 @@ export const AgentLivePreviewCardLiveViewport = React.memo(function AgentLivePre
             : isDel
             ? 'text-[#F87171]'
             : 'text-[#DDDDDD] opacity-85';
+          const inlineHex = isAdd ? '#34D399' : isDel ? '#F87171' : '#DDDDDD';
           return (
-            <div key={idx} className={`truncate whitespace-pre ${lineColor}`}>
+            <div
+              key={idx}
+              className={`truncate whitespace-pre ${lineColor}`}
+              style={{ color: inlineHex }}
+            >
               {line}
             </div>
           );
@@ -105,12 +113,21 @@ export const AgentLivePreviewCardLiveViewport = React.memo(function AgentLivePre
       </div>
 
       <div className="flex items-center justify-between pt-1 border-t border-[#1A1D26]">
-        <span className="text-[9px] text-[#AA88FF] uppercase tracking-wider">
+        <span
+          className="text-[9px] text-[#AA88FF] uppercase tracking-wider"
+          style={{ color: '#AA88FF' }}
+        >
           AST DIFF STREAM
         </span>
         <button
+          type="button"
           onClick={onInspectDiff}
-          className="text-[9.5px] font-mono uppercase text-[#00F0FF] hover:text-[#FFFFFF] bg-[rgba(0,240,255,0.1)] px-1.5 py-0.5 rounded-[2px] transition-colors cursor-pointer"
+          className="text-[9.5px] font-mono uppercase text-[#DDDDDD] hover:text-[#FFFFFF] bg-[#0D0F14] border border-[#2A2A2A] hover:border-[#AA88FF] px-1.5 py-0.5 rounded-[2px] transition-colors cursor-pointer"
+          style={{
+            backgroundColor: '#0D0F14',
+            color: '#DDDDDD',
+            border: '1px solid #2A2A2A',
+          }}
         >
           [ INSPECT DIFF ]
         </button>
@@ -168,20 +185,29 @@ export const AgentLivePreviewCardMetadataRow = React.memo(function AgentLivePrev
       {...props}
     >
       {/* Line 1: Agent identity, active model, FIFO & status */}
-      <div className="flex items-center justify-between gap-2 text-[#FFFFFF]">
-        <span className="font-semibold truncate">
-          {agent.filename} · {modelLabel}
+      <div
+        className="flex items-center justify-between gap-2 text-[#DDDDDD]"
+        style={{ color: '#DDDDDD' }}
+      >
+        <span className="font-semibold truncate" style={{ color: '#DDDDDD' }}>
+          {agent.filename} · <span style={{ color: '#AA88FF' }}>{modelLabel}</span>
         </span>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[#9A9A9A]">[FIFO: {fifoCount}]</span>
+          <span className="text-[#9A9A9A]" style={{ color: '#9A9A9A' }}>
+            [FIFO: {fifoCount}]
+          </span>
           <span className={`font-semibold ${getStatusColor(agent.status)}`}>{agent.status}</span>
         </div>
       </div>
 
       {/* Line 2: Tabular telemetry summary */}
-      <div className="flex items-center justify-between text-[10px] text-[#9A9A9A] tabular-nums tracking-tight truncate">
-        <span>
-          {stepFormatted} | TOKENS: {totalTokens} | ETA: {etaFormatted}
+      <div
+        className="flex items-center justify-between text-[10px] text-[#9A9A9A] tabular-nums tracking-tight truncate"
+        style={{ color: '#9A9A9A' }}
+      >
+        <span style={{ color: '#9A9A9A' }}>
+          <span style={{ color: '#AA88FF' }}>{stepFormatted}</span> | TOKENS: {totalTokens} | ETA:{' '}
+          {etaFormatted}
         </span>
       </div>
     </div>

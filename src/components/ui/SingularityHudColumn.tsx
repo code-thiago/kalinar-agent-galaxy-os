@@ -176,22 +176,34 @@ export const SingularityCoreBlock = React.memo(function SingularityCoreBlock({
           <span>SOVEREIGN PT-BR</span>
           {onMicToggle && (
             <button
+              type="button"
               onClick={onMicToggle}
               className={`pointer-events-auto px-1.5 py-0.5 border text-[9.5px] transition-colors cursor-pointer ${
                 isMicActive
-                  ? 'border-[#AA88FF] text-[#AA88FF] bg-[rgba(170,136,255,0.15)]'
-                  : 'border-[#1A1D26] text-[#9A9A9A] hover:text-[#DDDDDD]'
+                  ? 'border-[#AA88FF] text-[#AA88FF] bg-[rgba(13,15,20,0.88)]'
+                  : 'border-[#2A2A2A] text-[#DDDDDD] bg-[rgba(13,15,20,0.88)] hover:text-[#AA88FF] hover:border-[#AA88FF]'
               }`}
+              style={{
+                background: 'rgba(13, 15, 20, 0.88)',
+                color: isMicActive ? '#AA88FF' : '#DDDDDD',
+                border: isMicActive ? '1px solid #AA88FF' : '1px solid #2A2A2A',
+              }}
             >
-              {isMicActive ? '[MIC ACTIVE]' : '[ENABLE MIC]'}
+              {isMicActive ? '[ MIC ACTIVE ]' : '[ ENABLE MIC ]'}
             </button>
           )}
           {onBriefingRequest && (
             <button
+              type="button"
               onClick={onBriefingRequest}
-              className="pointer-events-auto px-1.5 py-0.5 border border-[#1A1D26] text-[9.5px] text-[#9A9A9A] hover:text-[#AA88FF] hover:border-[#AA88FF] transition-colors cursor-pointer"
+              className="pointer-events-auto px-1.5 py-0.5 border border-[#2A2A2A] bg-[rgba(13,15,20,0.88)] text-[9.5px] text-[#DDDDDD] hover:text-[#AA88FF] hover:border-[#AA88FF] transition-colors cursor-pointer"
+              style={{
+                background: 'rgba(13, 15, 20, 0.88)',
+                color: '#DDDDDD',
+                border: '1px solid #2A2A2A',
+              }}
             >
-              [TACTICAL BRIEFING]
+              [ TACTICAL BRIEFING ]
             </button>
           )}
         </div>
