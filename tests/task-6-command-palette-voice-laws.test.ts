@@ -235,7 +235,7 @@ describe('Task 6: Tauz Acoustic DSP, 7 Laws of Voice/Multi-Model & Ctrl+K Comman
     expect(topRightSrc).toContain('1px solid #2A2A2A');
 
     const indexCss = fs.readFileSync(path.resolve(process.cwd(), 'src/index.css'), 'utf-8');
-    expect(indexCss).toContain('top: 44px;');
+    expect(indexCss).toContain('vision-b-workspace');
     expect(indexCss).toContain('-webkit-app-region: no-drag;');
     expect(indexCss).toContain('color: var(--ds-text-primary, #DDDDDD);');
 
@@ -255,16 +255,17 @@ describe('Task 6: Tauz Acoustic DSP, 7 Laws of Voice/Multi-Model & Ctrl+K Comman
       'utf-8'
     );
     expect(hudColSrc).toContain('rgba(13, 15, 20, 0.88)');
-    expect(hudColSrc).toContain('[ ENABLE MIC ]');
-    expect(hudColSrc).toContain('[ TACTICAL BRIEFING ]');
+    expect(hudColSrc).toContain('[ OUVIR PT-BR ]');
+    expect(hudColSrc).toContain('[ BRIEFING ]');
+    expect(hudColSrc).toContain('[ SILENCIAR ]');
 
     const rightColSrc = fs.readFileSync(
       path.resolve(process.cwd(), 'src/components/hud/RightSingularityColumn.tsx'),
       'utf-8'
     );
-    expect(rightColSrc).toContain('rgba(13, 15, 20, 0.88)');
+    expect(rightColSrc).toContain('rgba(7, 8, 10, 0.92)');
     expect(rightColSrc).toContain("color: '#DDDDDD'");
-    expect(rightColSrc).toContain("border: '1px solid #2A2A2A'");
+    expect(rightColSrc).toContain("border: '1px solid #1F232E'");
   });
 });
 

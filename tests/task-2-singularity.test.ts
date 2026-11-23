@@ -64,11 +64,11 @@ describe('TASK 2 SELF-AUDIT: KALINAR SINGULARITY CORE & 50K INSTANCED GALAXY', (
     expect(() => beams.dispose()).not.toThrow();
   });
 
-  it('verifies HUD column plus-lighter style and zero emoji enforcement', () => {
+  it('verifies HUD column Vision B style (no washed-out plus-lighter) and zero emoji enforcement', () => {
     const hudColPath = path.resolve(process.cwd(), 'src/components/ui/SingularityHudColumn.tsx');
     const content = fs.readFileSync(hudColPath, 'utf-8');
-    expect(content).toContain('mixBlendMode');
-    expect(content).toContain('plus-lighter');
+    expect(content).toContain('data-slot="singularity-hud-root"');
+    expect(content).toContain("overflowWrap: 'break-word'");
 
     const emojiRegex = /[\uD83C-\uDBFF\uDC00-\uDFFF]/;
     const galaxyFiles = [

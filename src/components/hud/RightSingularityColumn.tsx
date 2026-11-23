@@ -70,8 +70,19 @@ function parseWarRoomPointerLine(raw: string, index: number): WarRoomHandoffEntr
 }
 
 export function RightSingularityColumn() {
-  const { singularity, agents, selectedAgentId, isInspectorDrawerOpen, cortexNoteCount, secondBrainNotes, systemState } =
-    useKalinarStore();
+  const {
+    singularity,
+    agents,
+    selectedAgentId,
+    selectedNoteId,
+    isInspectorDrawerOpen,
+    isRightInspectorCollapsed,
+    toggleRightInspector,
+    setInspectorDrawerOpen,
+    cortexNoteCount,
+    secondBrainNotes,
+    systemState,
+  } = useKalinarStore();
   const [isMicActive, setIsMicActive] = useState(false);
   const [bands, setBands] = useState<TauzFrequencyBands>({
     subBass: 0,
@@ -193,6 +204,11 @@ export function RightSingularityColumn() {
     await kalinarVoiceService.speakDirective(briefing);
   };
 
+  const handleSilenceRequest = async () => {
+    setIsMicActive(false);
+    await kalinarVoiceService.triggerEmergencyKillSwitch();
+  };
+
   const handleWikilinkPull = (pos?: [number, number, number]) => {
     if (typeof window !== 'undefined' && typeof (window as any).__triggerGravitationalRAG === 'function') {
       const target = pos || agents.find((a) => a.id === selectedAgentId)?.position3D || [120, 80, 0];
@@ -200,137 +216,260 @@ export function RightSingularityColumn() {
     }
   };
 
-  const activeAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
+  const activeAgent = agents.find((a) => a.id === selectedAgentId) || null;
+  const selectedNote = secondBrainNotes.find((n) => n.id === selectedNoteId) || null;
 
   return (
     <aside
-      data-slot="right-singularity-column"
-      className={`fixed right-[48px] w-[360px] pointer-events-none z-[15] transition-opacity duration-300 ${
-        isInspectorDrawerOpen ? 'opacity-0' : 'opacity-100'
-      }`}
+      data-slot="vision-b-right-inspector"
+      data-collapsed={isRightInspectorCollapsed}
       style={{
-        right: '48px',
-        top: '96px',
-        bottom: '48px',
-        maxHeight: 'calc(100vh - 144px)',
-        overflowY: 'auto',
-        transform: 'none',
-        width: '360px',
-        mixBlendMode: 'plus-lighter',
-        pointerEvents: 'none',
-        zIndex: 15,
-        opacity: isInspectorDrawerOpen ? 0 : 1,
-      }}
+        width: isRightInspectorCollapsed ? '44px' : 'clamp(300px, 24vw, 360px)',
+        height: '100vh',
+        paddingTop: '40px',
+        background: 'rgba(7, 8, 10, 0.92)',
+        backdropFilter: 'blur(12px)',
+        borderLeft: '1px solid #1F232E',
+        zIndex: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0,
+        overflow: 'hidden',
+        pointerEvents: 'auto',
+        WebkitAppRegion: 'no-drag',
+      } as React.CSSProperties}
     >
-      <SingularityHudColumn.Root isDrawerOpen={isInspectorDrawerOpen}>
-        {/* 1. [singularity_core] */}
-        <SingularityHudColumn.CoreBlock
-          voiceState={singularity.voiceState}
-          transcript={singularity.liveTranscript}
-          zenLatencyMs={singularity.zenLatencyMs}
-          onMicToggle={handleMicToggle}
-          onBriefingRequest={handleBriefingRequest}
-          isMicActive={isMicActive}
-          frequencyBands={bands}
-        />
+      {/* Top Collapse Bar */}
+      <div
+        style={{
+          height: '36px',
+          minHeight: '36px',
+          padding: '0 8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isRightInspectorCollapsed ? 'center' : 'space-between',
+          borderBottom: '1px solid #1F232E',
+        }}
+      >
+        {!isRightInspectorCollapsed && (
+          <span style={{ color: '#AA88FF', fontWeight: 700, fontSize: '11px' }}>
+            INSPETOR // TAUZ DSP
+          </span>
+        )}
+        <button
+          type="button"
+          data-slot="right-inspector-collapse-btn"
+          onClick={toggleRightInspector}
+          style={{
+            backgroundColor: '#0D0F14',
+            color: '#DDDDDD',
+            border: '1px solid #1F232E',
+            padding: '2px 6px',
+            fontSize: '11px',
+            cursor: 'pointer',
+          }}
+        >
+          {isRightInspectorCollapsed ? '[ < ]' : '[ > ]'}
+        </button>
+      </div>
 
-        {/* 2. [active_directive] */}
-        <SingularityHudColumn.Block tag="active_directive">
-          <div className="p-2.5 bg-[rgba(13,15,20,0.55)] border border-[#1A1D26] text-[11px] leading-tight flex flex-col gap-1.5 tabular-nums">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[#34D399] font-semibold truncate">
-                {singularity.activeDirective}
-              </span>
-              <span className="text-[10px] text-[#00F0FF] shrink-0">
-                {singularity.lastAckBadge || '[ACK_VERIFIED]'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-[10px] text-[#9A9A9A]">
-              <span>
-                SWARM: {activeAgent?.filename || systemState}
-              </span>
-              <span className="text-[#DDDDDD]">
-                ZEN LATENCY: {singularity.zenLatencyMs.toFixed(2)}MS (&lt; 0.45MS)
-              </span>
-            </div>
-            <span className="text-[#9A9A9A] text-[10.5px] truncate">
-              {activeAgent?.currentObjective || 'Aguardando diretriz em modo STANDBY_READY'}
-            </span>
-          </div>
-        </SingularityHudColumn.Block>
+      {!isRightInspectorCollapsed && (
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: '10px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          {/* Modulo A: Voz Soberana Tauz & DSP ([singularity_core]) */}
+          <SingularityHudColumn.Root isDrawerOpen={false}>
+            <SingularityHudColumn.CoreBlock
+              voiceState={singularity.voiceState}
+              transcript={singularity.liveTranscript}
+              zenLatencyMs={singularity.zenLatencyMs}
+              onMicToggle={handleMicToggle}
+              onBriefingRequest={handleBriefingRequest}
+              onSilenceRequest={handleSilenceRequest}
+              isMicActive={isMicActive}
+              frequencyBands={bands}
+            />
 
-        {/* 3. [gravitational_rag] */}
-        <SingularityHudColumn.Block tag="gravitational_rag">
-          <div className="p-2.5 bg-[rgba(13,15,20,0.55)] border border-[#1A1D26] text-[10.5px] leading-relaxed flex flex-col gap-1.5 tabular-nums">
-            <div className="flex justify-between text-[10px]">
-              <span className="text-[#9A9A9A]">CORPUS / TURB:</span>
-              <span className="text-[#DDDDDD]">
-                {cortexNoteCount.toLocaleString('en-US')} DOCS · {(singularity.accretionTurbulence * 100).toFixed(1)}%
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {(activeWikilinks.length > 0
-                ? activeWikilinks
-                : secondBrainNotes.slice(0, 5).map((n) => ({
-                    wikilink: n.wikilink,
-                    domain: n.domain,
-                    position3D: undefined as [number, number, number] | undefined,
-                  }))
-              ).map((item) => (
-                <button
-                  key={item.wikilink}
-                  type="button"
-                  onClick={() => handleWikilinkPull(item.position3D)}
-                  className="pointer-events-auto cursor-pointer text-[10px] font-mono text-[#DDDDDD] hover:text-[#AA88FF] bg-[rgba(13,15,20,0.88)] border border-[#2A2A2A] hover:border-[#AA88FF] px-1.5 py-0.5 transition-colors normal-case"
-                  style={{
-                    pointerEvents: 'auto',
-                    background: 'rgba(13, 15, 20, 0.88)',
-                    color: '#DDDDDD',
-                    border: '1px solid #2A2A2A',
-                    padding: '2px 6px',
-                    textAlign: 'left',
-                    maxWidth: '100%',
-                  }}
-                  title={`Pull ${item.wikilink} (${item.domain}) into Event Horizon`}
-                >
-                  {item.wikilink}
-                </button>
-              ))}
-              {activeWikilinks.length === 0 && secondBrainNotes.length === 0 && (
-                <span className="text-[10px] text-[#9A9A9A]">[STANDBY_READY] Nenhuma nota indexada</span>
-              )}
-            </div>
-          </div>
-        </SingularityHudColumn.Block>
-
-        {/* 4. [synaptic_feed] — Latest 4 Graph Pointer handoffs from WAR_ROOM.md */}
-        <SingularityHudColumn.Block tag="synaptic_feed">
-          <div className="p-2.5 bg-[rgba(13,15,20,0.55)] border border-[#1A1D26] text-[10px] flex flex-col gap-1.5 font-mono tabular-nums">
-            {warRoomHandoffs.length === 0 ? (
-              <span className="text-[#9A9A9A]">[STANDBY_READY] Nenhum handoff ativo</span>
-            ) : (
-              warRoomHandoffs.slice(-4).map((handoff) => (
-                <div
-                  key={handoff.id}
-                  className="flex flex-col gap-0.5 border-l border-[#8B5CF6] pl-2"
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[#00F0FF] truncate">
-                      {handoff.from} -&gt; {handoff.to}
+            {/* Modulo B: Inspetor Contextual */}
+            <SingularityHudColumn.Block tag="contextual_inspector">
+              <div
+                data-slot="contextual-inspector-body"
+                style={{
+                  padding: '10px',
+                  backgroundColor: '#000000',
+                  border: '1px solid #1F232E',
+                  fontSize: '11.5px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  overflowWrap: 'break-word',
+                }}
+              >
+                {activeAgent ? (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#AA88FF', fontWeight: 700 }}>
+                        {activeAgent.filename}
+                      </span>
+                      <span style={{ color: '#34D399' }}>{activeAgent.status}</span>
+                    </div>
+                    <span style={{ color: '#9A9A9A', textTransform: 'none' }}>
+                      {activeAgent.currentObjective}
                     </span>
-                    <span className="text-[#9A9A9A] shrink-0 uppercase">
-                      [{handoff.domain}]
+                    <pre
+                      style={{
+                        margin: 0,
+                        padding: '6px',
+                        backgroundColor: '#07080A',
+                        border: '1px solid #1F232E',
+                        color: '#DDDDDD',
+                        fontSize: '10.5px',
+                        whiteSpace: 'pre-wrap',
+                        overflowWrap: 'break-word',
+                        maxHeight: '140px',
+                        overflowY: 'auto',
+                        textTransform: 'none',
+                      }}
+                    >
+                      {activeAgent.livePreviewStream || '[SEM DIFF EM ANDAMENTO]'}
+                    </pre>
+                    <button
+                      type="button"
+                      onClick={() => setInspectorDrawerOpen(!isInspectorDrawerOpen)}
+                      style={{
+                        backgroundColor: '#0D0F14',
+                        color: '#AA88FF',
+                        border: '1px solid #1F232E',
+                        padding: '4px 8px',
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      [ ABRIR DIFF INSPECTOR COMPLETO ]
+                    </button>
+                  </>
+                ) : selectedNote ? (
+                  <>
+                    <span style={{ color: '#AA88FF', fontWeight: 700 }}>{selectedNote.title}</span>
+                    <span style={{ color: '#9A9A9A', fontSize: '10px' }}>
+                      {selectedNote.wikilink} · {selectedNote.domain}
                     </span>
-                  </div>
-                  <span className="text-[#DDDDDD] truncate opacity-85 normal-case">
-                    {handoff.action}
+                    <span style={{ color: '#DDDDDD', textTransform: 'none' }}>
+                      {selectedNote.excerpt}
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ color: '#9A9A9A' }}>
+                    [STANDBY: SELECIONE UM NO OU AGENTE]
+                  </span>
+                )}
+              </div>
+            </SingularityHudColumn.Block>
+
+            {/* 2. [active_directive] */}
+            <SingularityHudColumn.Block tag="active_directive">
+              <div className="p-2.5 bg-[#000000] border border-[#1F232E] text-[11px] leading-tight flex flex-col gap-1.5 tabular-nums">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[#34D399] font-semibold truncate">
+                    {singularity.activeDirective}
+                  </span>
+                  <span className="text-[10px] text-[#00F0FF] shrink-0">
+                    {singularity.lastAckBadge || '[ACK_VERIFIED]'}
                   </span>
                 </div>
-              ))
-            )}
-          </div>
-        </SingularityHudColumn.Block>
-      </SingularityHudColumn.Root>
+                <div className="flex items-center justify-between text-[10px] text-[#9A9A9A]">
+                  <span>SWARM: {activeAgent?.filename || systemState}</span>
+                  <span className="text-[#DDDDDD]">
+                    ZEN LATENCY: {singularity.zenLatencyMs.toFixed(2)}MS (&lt; 0.45MS)
+                  </span>
+                </div>
+              </div>
+            </SingularityHudColumn.Block>
+
+            {/* 3. [gravitational_rag] */}
+            <SingularityHudColumn.Block tag="gravitational_rag">
+              <div className="p-2.5 bg-[#000000] border border-[#1F232E] text-[10.5px] leading-relaxed flex flex-col gap-1.5 tabular-nums">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-[#9A9A9A]">CORPUS / TURB:</span>
+                  <span className="text-[#DDDDDD]">
+                    {cortexNoteCount.toLocaleString('en-US')} DOCS ·{' '}
+                    {(singularity.accretionTurbulence * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {(activeWikilinks.length > 0
+                    ? activeWikilinks
+                    : secondBrainNotes.slice(0, 5).map((n) => ({
+                        wikilink: n.wikilink,
+                        domain: n.domain,
+                        position3D: undefined as [number, number, number] | undefined,
+                      }))
+                  ).map((item) => (
+                    <button
+                      key={item.wikilink}
+                      type="button"
+                      onClick={() => handleWikilinkPull(item.position3D)}
+                      className="pointer-events-auto cursor-pointer text-[10px] font-mono text-[#DDDDDD] hover:text-[#AA88FF] bg-[#0D0F14] border border-[#1F232E] hover:border-[#AA88FF] px-1.5 py-0.5 transition-colors normal-case"
+                      style={{
+                        background: '#0D0F14',
+                        color: '#DDDDDD',
+                        border: '1px solid #1F232E',
+                        padding: '2px 6px',
+                        textAlign: 'left',
+                        maxWidth: '100%',
+                      }}
+                      title={`Pull ${item.wikilink} (${item.domain}) into Event Horizon`}
+                    >
+                      {item.wikilink}
+                    </button>
+                  ))}
+                  {activeWikilinks.length === 0 && secondBrainNotes.length === 0 && (
+                    <span className="text-[10px] text-[#9A9A9A]">
+                      [STANDBY_READY] Nenhuma nota indexada
+                    </span>
+                  )}
+                </div>
+              </div>
+            </SingularityHudColumn.Block>
+
+            {/* 4. [synaptic_feed] */}
+            <SingularityHudColumn.Block tag="synaptic_feed">
+              <div className="p-2.5 bg-[#000000] border border-[#1F232E] text-[10px] flex flex-col gap-1.5 font-mono tabular-nums">
+                {warRoomHandoffs.length === 0 ? (
+                  <span className="text-[#9A9A9A]">[STANDBY_READY] Nenhum handoff ativo</span>
+                ) : (
+                  warRoomHandoffs.slice(-4).map((handoff) => (
+                    <div
+                      key={handoff.id}
+                      className="flex flex-col gap-0.5 border-l border-[#8B5CF6] pl-2"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[#00F0FF] truncate">
+                          {handoff.from} -&gt; {handoff.to}
+                        </span>
+                        <span className="text-[#9A9A9A] shrink-0 uppercase">
+                          [{handoff.domain}]
+                        </span>
+                      </div>
+                      <span className="text-[#DDDDDD] truncate opacity-85 normal-case">
+                        {handoff.action}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </SingularityHudColumn.Block>
+          </SingularityHudColumn.Root>
+        </div>
+      )}
     </aside>
   );
 }

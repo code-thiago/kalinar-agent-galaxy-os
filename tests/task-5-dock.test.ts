@@ -89,7 +89,7 @@ describe('Task 5: Retractable IDE Bottom Dock, Step Matrix & Evolution Charts', 
       expect(dockContent).toContain('rgba(7, 8, 10, 0.94)');
       expect(dockContent).toContain('1px solid #1A1D26');
       expect(dockContent).toContain("pointerEvents: 'auto'");
-      expect(dockContent).toContain("height: '36px'");
+      expect(dockContent).toContain("height: '32px'");
       expect(dockContent).toContain("'350px'");
       expect(dockContent).toContain("'75vh'");
       expect(dockContent).toContain('ACTIVE SWARM:');

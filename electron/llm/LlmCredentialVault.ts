@@ -69,6 +69,14 @@ const DEFAULT_PROVIDER_METADATA: Record<string, { label: string; models: string[
     label: 'Anthropic Claude BYOK',
     models: ['claude-sonnet-4', 'claude-3.7-sonnet'],
   },
+  deepseek: {
+    label: 'DeepSeek BYOK',
+    models: ['deepseek-r1', 'deepseek-chat'],
+  },
+  nvidia: {
+    label: 'NVIDIA NIM BYOK',
+    models: ['llama-3.3-70b-instruct', 'nemotron-70b'],
+  },
   openai: {
     label: 'OpenAI BYOK',
     models: ['gpt-4o', 'o3-mini'],
@@ -76,6 +84,10 @@ const DEFAULT_PROVIDER_METADATA: Record<string, { label: string; models: string[
   openrouter: {
     label: 'OpenRouter BYOK',
     models: ['argon', 'claude-sonnet-4', 'gemini-4-pro'],
+  },
+  ollama: {
+    label: 'Ollama Local Runtime',
+    models: ['argon'],
   },
 };
 

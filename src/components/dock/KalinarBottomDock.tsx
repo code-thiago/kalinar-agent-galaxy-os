@@ -161,28 +161,28 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
   };
 
   const dockHeightClass = !isBottomDockExpanded
-    ? 'h-[36px]'
+    ? 'h-[32px]'
     : isMaximized
     ? 'h-[75vh]'
     : 'h-[350px]';
 
-  const dockHeightValue = !isBottomDockExpanded ? '36px' : isMaximized ? '75vh' : '350px';
+  const dockHeightValue = !isBottomDockExpanded ? '32px' : isMaximized ? '75vh' : '350px';
 
   return (
     <div
       data-slot="dock-root"
       data-expanded={isBottomDockExpanded}
       data-active-tab={activeTab}
-      className={`fixed bottom-0 inset-x-0 flex flex-col pointer-events-auto select-none tabular-nums ${dockHeightClass}`}
+      className={`absolute bottom-0 inset-x-0 flex flex-col pointer-events-auto select-none tabular-nums ${dockHeightClass}`}
       style={{
-        position: 'fixed',
+        position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
         zIndex: 20,
         height: dockHeightValue,
         background: 'rgba(7, 8, 10, 0.94)',
-        borderTop: '1px solid #1A1D26',
+        borderTop: '1px solid #1F232E',
         pointerEvents: 'auto',
         display: 'flex',
         flexDirection: 'column',
@@ -193,14 +193,14 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
       }}
     >
       {/* -------------------------------------------------------------
-          COLLAPSED TACTICAL BAR (36px DEFAULT)
+          COLLAPSED TACTICAL BAR (32px DEFAULT)
           ------------------------------------------------------------- */}
       <div
         data-slot="dock-status-bar"
         onClick={toggleBottomDock}
         style={{
-          height: '36px',
-          minHeight: '36px',
+          height: '32px',
+          minHeight: '32px',
           padding: '0 12px',
           display: 'flex',
           alignItems: 'center',
@@ -210,12 +210,17 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
           textTransform: 'uppercase',
           cursor: 'pointer',
           backgroundColor: 'rgba(7, 8, 10, 0.94)',
-          borderBottom: isBottomDockExpanded ? '1px solid #1A1D26' : 'none',
+          borderBottom: isBottomDockExpanded ? '1px solid #1F232E' : 'none',
           overflowX: 'auto',
           overflowY: 'hidden',
         }}
       >
-        {/* Left: 4 Quick Tab Triggers */}
+        {/* Left: Collapsed label or 4 Quick Tab Triggers */}
+        {!isBottomDockExpanded ? (
+          <span style={{ color: '#AA88FF', fontWeight: 700, fontSize: '10.5px', whiteSpace: 'nowrap' }}>
+            [ TELEMETRIA &amp; GRAFICOS SQLITE ]
+          </span>
+        ) : (
         <nav
           aria-label="Dock workspace tabs"
           style={{
@@ -236,7 +241,7 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
                 onClick={(e) => handleTabClick(tab.id, e)}
                 style={{
                   minWidth: '44px',
-                  height: '36px',
+                  height: '32px',
                   padding: '0 10px',
                   display: 'flex',
                   alignItems: 'center',
@@ -259,6 +264,7 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
             );
           })}
         </nav>
+        )}
 
         {/* Right: Global Counters + Height Controls + Expand/Collapse Toggle */}
         <div

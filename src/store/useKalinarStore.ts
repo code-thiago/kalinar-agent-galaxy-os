@@ -8,17 +8,51 @@ import { create } from 'zustand';
 import {
   AgentNode,
   AgentStatus,
+  DiscoveredLlmProvider,
   FifoQueueItem,
   LlmModelId,
+  LlmProviderId,
+  SaveLlmProviderKeyInput,
   SCHEMA_VERSION,
   SecondBrainQueryResult,
   SecondBrainVaultNote,
   SecondBrainVaultQueryParams,
   SingularityCoreState,
   SynapticBeam,
+  VaultOperationResult,
   VoiceState,
   WorkspaceScanResult,
 } from '../types/kalinar.js';
+
+export type VisionBSidebarTab = 'AGENTS' | 'SECOND_BRAIN' | 'LLM_HUB' | 'FIREWALL';
+
+export interface MiniCliHistoryEntry {
+  id: string;
+  timestamp: number;
+  route: 'SHELL_IPC' | 'AGENT_FIFO';
+  input: string;
+  output: string;
+  exitCode?: number;
+  blockedByFirewall?: boolean;
+}
+
+export interface VisionBWorkspaceSlice {
+  activeSidebarTab: VisionBSidebarTab;
+  isLeftSidebarCollapsed: boolean;
+  isRightInspectorCollapsed: boolean;
+  isOnboardingDismissed: boolean;
+  activeCliPid: number | null;
+  cliHistory: MiniCliHistoryEntry[];
+  setActiveSidebarTab: (tab: VisionBSidebarTab) => void;
+  toggleLeftSidebar: () => void;
+  toggleRightInspector: () => void;
+  dismissOnboarding: () => void;
+  refreshLlmDiscovery: () => Promise<void>;
+  saveProviderCredential: (input: SaveLlmProviderKeyInput) => Promise<VaultOperationResult>;
+  removeProviderCredential: (providerId: LlmProviderId) => Promise<VaultOperationResult>;
+  dispatchMiniCliInput: (rawInput: string) => Promise<void>;
+  killActiveCliProcess: () => Promise<void>;
+}
 
 export type SystemGroundTruthState = 'STANDBY_READY' | 'ACTIVE_EXECUTION' | 'HALTED';
 
@@ -55,6 +89,31 @@ export interface KalinarGroundTruthApi {
     targetAgentId?: string;
     itemId?: string;
   }) => Promise<{ items?: FifoQueueItem[] }>;
+  discoverLlmProviders?: () => Promise<{
+    providers: DiscoveredLlmProvider[];
+    discoveredModels: string[];
+    activeLocalModels: string[];
+    probedAt: number;
+    latencyMs: number;
+  }>;
+}
+
+function getKalinarBridge(): any {
+  if (typeof window === 'undefined') return null;
+  return (window as any).kalinarApi ?? (window as any).kalinar ?? null;
+}
+
+export function computeHasAnyConfiguredEngine(providers: DiscoveredLlmProvider[]): boolean {
+  return providers.some((p) => {
+    if (!p.available) return false;
+    if (p.source === 'OLLAMA_LOCAL' || p.source === 'LM_STUDIO_LOCAL') {
+      return Array.isArray(p.models) && p.models.length > 0;
+    }
+    if (p.source === 'CLI_PATH') {
+      return Array.isArray(p.models) && p.models.length > 0;
+    }
+    return true;
+  });
 }
 
 const ACTIVE_AGENT_STATUSES: ReadonlySet<AgentStatus> = new Set([
@@ -174,7 +233,7 @@ function createInitialStandbySnapshot(): {
   };
 }
 
-interface KalinarStoreState {
+interface KalinarStoreState extends VisionBWorkspaceSlice {
   systemState: SystemGroundTruthState;
   activeAgentsCount: number;
   sessionTokens: number;
@@ -191,7 +250,13 @@ interface KalinarStoreState {
   isInspectorDrawerOpen: boolean;
   isCommandPaletteOpen: boolean;
   selectedAgentId: string | null;
+  selectedNoteId: string | null;
   inspectedFilePath: string;
+  discoveredProviders: DiscoveredLlmProvider[];
+  discoveredModels: string[];
+  activeLocalModels: string[];
+  isDiscoveringLlms: boolean;
+  hasAnyConfiguredEngine: boolean;
 
   setFilter: (filter: string) => void;
   toggleBottomDock: () => void;
@@ -242,14 +307,268 @@ interface KalinarStoreState {
   clearFifoQueueInStore: (agentId?: string) => void;
   updateAgentStep: (agentId: string, step: number, preview: string) => void;
   addAgent: (agent: AgentNode) => void;
+  selectNote: (noteId: string | null) => void;
 }
 
-export const useKalinarStore = create<KalinarStoreState>((set) => ({
+export const useKalinarStore = create<KalinarStoreState>((set, get) => ({
   ...createInitialStandbySnapshot(),
   activeFilter: 'ALL',
   isBottomDockExpanded: false,
   isInspectorDrawerOpen: false,
   isCommandPaletteOpen: false,
+  selectedNoteId: null,
+  activeSidebarTab: 'AGENTS',
+  isLeftSidebarCollapsed: false,
+  isRightInspectorCollapsed: false,
+  isOnboardingDismissed: false,
+  activeCliPid: null,
+  cliHistory: [],
+  discoveredProviders: [],
+  discoveredModels: [],
+  activeLocalModels: [],
+  isDiscoveringLlms: false,
+  hasAnyConfiguredEngine: false,
+
+  setActiveSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
+  toggleLeftSidebar: () =>
+    set((state) => ({ isLeftSidebarCollapsed: !state.isLeftSidebarCollapsed })),
+  toggleRightInspector: () =>
+    set((state) => ({ isRightInspectorCollapsed: !state.isRightInspectorCollapsed })),
+  dismissOnboarding: () => set({ isOnboardingDismissed: true }),
+  selectNote: (selectedNoteId) => set({ selectedNoteId }),
+
+  refreshLlmDiscovery: async () => {
+    const bridge = getKalinarBridge();
+    if (!bridge || typeof bridge.discoverLlmProviders !== 'function') {
+      set({ isDiscoveringLlms: false });
+      return;
+    }
+    set({ isDiscoveringLlms: true });
+    try {
+      const report = await bridge.discoverLlmProviders();
+      const providers = Array.isArray(report?.providers) ? report.providers : [];
+      const discoveredModels = Array.isArray(report?.discoveredModels)
+        ? report.discoveredModels
+        : [];
+      const activeLocalModels = Array.isArray(report?.activeLocalModels)
+        ? report.activeLocalModels
+        : [];
+      set({
+        discoveredProviders: providers,
+        discoveredModels,
+        activeLocalModels,
+        hasAnyConfiguredEngine: computeHasAnyConfiguredEngine(providers),
+        isDiscoveringLlms: false,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'DISCOVERY_FAILED';
+      set((state) => ({
+        isDiscoveringLlms: false,
+        commandLogs: [
+          {
+            id: `llm-disc-err-${Date.now()}`,
+            taskId: 'SYSTEM',
+            eventType: 'LLM_DISCOVERY_ERROR',
+            agentName: 'system',
+            payload: JSON.stringify({ error: msg }),
+            latencyMs: 0,
+            timestamp: new Date().toISOString(),
+          },
+          ...state.commandLogs,
+        ].slice(0, 100),
+      }));
+    }
+  },
+
+  saveProviderCredential: async (input) => {
+    const bridge = getKalinarBridge();
+    if (!bridge || typeof bridge.saveLlmProviderKey !== 'function') {
+      return {
+        success: false,
+        providerId: String(input.providerId),
+        error: '[IPC_UNAVAILABLE] Bridge Kalinar indisponivel.',
+      };
+    }
+    try {
+      const res: VaultOperationResult = await bridge.saveLlmProviderKey(input);
+      if (Array.isArray(res?.providers)) {
+        set({
+          discoveredProviders: res.providers,
+          hasAnyConfiguredEngine: computeHasAnyConfiguredEngine(res.providers),
+        });
+      }
+      if (res?.success) {
+        await get().refreshLlmDiscovery();
+      }
+      return res;
+    } catch (err: unknown) {
+      return {
+        success: false,
+        providerId: String(input.providerId),
+        error: err instanceof Error ? err.message : '[VAULT_ERROR] Falha ao salvar chave.',
+      };
+    }
+  },
+
+  removeProviderCredential: async (providerId) => {
+    const bridge = getKalinarBridge();
+    if (!bridge || typeof bridge.removeLlmProviderKey !== 'function') {
+      return {
+        success: false,
+        providerId: String(providerId),
+        error: '[IPC_UNAVAILABLE] Bridge Kalinar indisponivel.',
+      };
+    }
+    try {
+      const res: VaultOperationResult = await bridge.removeLlmProviderKey(providerId);
+      if (Array.isArray(res?.providers)) {
+        set({
+          discoveredProviders: res.providers,
+          hasAnyConfiguredEngine: computeHasAnyConfiguredEngine(res.providers),
+        });
+      }
+      if (res?.success) {
+        await get().refreshLlmDiscovery();
+      }
+      return res;
+    } catch (err: unknown) {
+      return {
+        success: false,
+        providerId: String(providerId),
+        error: err instanceof Error ? err.message : '[VAULT_ERROR] Falha ao remover chave.',
+      };
+    }
+  },
+
+  dispatchMiniCliInput: async (rawInput) => {
+    const trimmed = rawInput.trim();
+    if (!trimmed) return;
+
+    const bridge = getKalinarBridge();
+    const entryId = `cli-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    if (trimmed.startsWith('@agent-')) {
+      const match = trimmed.match(/^(@agent-[a-z0-9-]+)\s*(.*)$/i);
+      const targetAgentId = match ? match[1] : '@agent-orchestrator';
+      const instruction = (match && match[2] ? match[2].trim() : '') || 'status';
+
+      let output = `[FIFO_QUEUED] -> ${targetAgentId}: ${instruction}`;
+      if (bridge && typeof bridge.enqueueAgentFifo === 'function') {
+        try {
+          const res = await bridge.enqueueAgentFifo({ targetAgentId, instruction });
+          if (res?.error) {
+            output = `[FIFO_ERROR] ${String(res.error)}`;
+          }
+        } catch (err: unknown) {
+          output = `[FIFO_ERROR] ${err instanceof Error ? err.message : 'IPC failure'}`;
+        }
+      }
+
+      set((state) => ({
+        cliHistory: [
+          {
+            id: entryId,
+            timestamp: Date.now(),
+            route: 'AGENT_FIFO' as const,
+            input: trimmed,
+            output,
+            exitCode: 0,
+            blockedByFirewall: false,
+          },
+          ...state.cliHistory,
+        ].slice(0, 100),
+      }));
+      return;
+    }
+
+    if (!bridge || typeof bridge.executeShellCommand !== 'function') {
+      set((state) => ({
+        activeCliPid: null,
+        cliHistory: [
+          {
+            id: entryId,
+            timestamp: Date.now(),
+            route: 'SHELL_IPC' as const,
+            input: trimmed,
+            output: '[IPC_UNAVAILABLE] executeShellCommand indisponivel.',
+            exitCode: 1,
+            blockedByFirewall: false,
+          },
+          ...state.cliHistory,
+        ].slice(0, 100),
+      }));
+      return;
+    }
+
+    try {
+      const res = await bridge.executeShellCommand(trimmed, undefined, 'UI_CLI');
+      const blocked = res?.allowed === false;
+      const outputText = blocked
+        ? `[FIREWALL BLOCKED] ${res?.stderr || 'Comando bloqueado por os-execution-firewall.jdm.json'}`
+        : (res?.stdout || res?.stderr || '[OK]').trim();
+
+      set((state) => ({
+        activeCliPid: null,
+        cliHistory: [
+          {
+            id: entryId,
+            timestamp: Date.now(),
+            route: 'SHELL_IPC' as const,
+            input: trimmed,
+            output: outputText,
+            exitCode: typeof res?.exitCode === 'number' ? res.exitCode : blocked ? 126 : 0,
+            blockedByFirewall: blocked,
+          },
+          ...state.cliHistory,
+        ].slice(0, 100),
+      }));
+    } catch (err: unknown) {
+      set((state) => ({
+        activeCliPid: null,
+        cliHistory: [
+          {
+            id: entryId,
+            timestamp: Date.now(),
+            route: 'SHELL_IPC' as const,
+            input: trimmed,
+            output: `[SHELL_ERROR] ${err instanceof Error ? err.message : 'Execution failed'}`,
+            exitCode: 1,
+            blockedByFirewall: false,
+          },
+          ...state.cliHistory,
+        ].slice(0, 100),
+      }));
+    }
+  },
+
+  killActiveCliProcess: async () => {
+    const pid = get().activeCliPid;
+    if (pid === null) return;
+    const bridge = getKalinarBridge();
+    try {
+      if (bridge && typeof bridge.controlProcessPid === 'function') {
+        await bridge.controlProcessPid({ pid, action: 'KILL' });
+      } else if (bridge && typeof bridge.killProcess === 'function') {
+        await bridge.killProcess(pid);
+      }
+    } catch (err: unknown) {
+      set((state) => ({
+        cliHistory: [
+          {
+            id: `cli-kill-err-${Date.now()}`,
+            timestamp: Date.now(),
+            route: 'SHELL_IPC' as const,
+            input: `[KILL PID ${pid}]`,
+            output: `[KILL_ERROR] ${err instanceof Error ? err.message : 'Failed'}`,
+            exitCode: 1,
+          },
+          ...state.cliHistory,
+        ].slice(0, 100),
+      }));
+    } finally {
+      set({ activeCliPid: null });
+    }
+  },
 
   setFilter: (activeFilter) => set({ activeFilter }),
   toggleBottomDock: () => set((state) => ({ isBottomDockExpanded: !state.isBottomDockExpanded })),
@@ -403,18 +722,18 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
 
   hydrateFromGroundTruth: async (apiOverride) => {
     const api: KalinarGroundTruthApi | null =
-      apiOverride ??
-      (typeof window !== 'undefined' ? ((window as any).kalinarApi as KalinarGroundTruthApi) : null);
+      apiOverride ?? (getKalinarBridge() as KalinarGroundTruthApi | null);
     if (!api) {
       set({ isHydrated: true });
       return;
     }
 
-    const [scanRes, vaultRes, telemetryRes, fifoRes] = await Promise.allSettled([
+    const [scanRes, vaultRes, telemetryRes, fifoRes, llmRes] = await Promise.allSettled([
       api.scanWorkspaceNodes ? api.scanWorkspaceNodes() : Promise.resolve(null),
       api.querySecondBrainVault ? api.querySecondBrainVault({ maxResults: 50 }) : Promise.resolve(null),
       api.getHistoricalTelemetry ? api.getHistoricalTelemetry(50) : Promise.resolve([]),
       api.manageFifoQueue ? api.manageFifoQueue({ action: 'LIST' }) : Promise.resolve(null),
+      api.discoverLlmProviders ? api.discoverLlmProviders() : Promise.resolve(null),
     ]);
 
     set((state) => {
@@ -459,6 +778,20 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
         zenLatencyMs: latestLatency,
       };
 
+      const llmReport = llmRes.status === 'fulfilled' ? llmRes.value : null;
+      const nextProviders =
+        llmReport && Array.isArray(llmReport.providers)
+          ? llmReport.providers
+          : state.discoveredProviders;
+      const nextDiscoveredModels =
+        llmReport && Array.isArray(llmReport.discoveredModels)
+          ? llmReport.discoveredModels
+          : state.discoveredModels;
+      const nextActiveLocalModels =
+        llmReport && Array.isArray(llmReport.activeLocalModels)
+          ? llmReport.activeLocalModels
+          : state.activeLocalModels;
+
       return {
         isHydrated: true,
         agents: nextAgents,
@@ -467,6 +800,10 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
         synapticBeams: buildActiveSynapticBeams(nextAgents),
         commandLogs: nextLogs,
         fifoQueueItems: nextFifo,
+        discoveredProviders: nextProviders,
+        discoveredModels: nextDiscoveredModels,
+        activeLocalModels: nextActiveLocalModels,
+        hasAnyConfiguredEngine: computeHasAnyConfiguredEngine(nextProviders),
         selectedAgentId:
           state.selectedAgentId && nextAgents.some((a) => a.id === state.selectedAgentId)
             ? state.selectedAgentId
@@ -483,6 +820,18 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       isBottomDockExpanded: false,
       isInspectorDrawerOpen: false,
       isCommandPaletteOpen: false,
+      selectedNoteId: null,
+      activeSidebarTab: 'AGENTS',
+      isLeftSidebarCollapsed: false,
+      isRightInspectorCollapsed: false,
+      isOnboardingDismissed: false,
+      activeCliPid: null,
+      cliHistory: [],
+      discoveredProviders: [],
+      discoveredModels: [],
+      activeLocalModels: [],
+      isDiscoveringLlms: false,
+      hasAnyConfiguredEngine: false,
     }),
 
   setAgentModel: (agentId, activeModelId, lastAckBadge) =>

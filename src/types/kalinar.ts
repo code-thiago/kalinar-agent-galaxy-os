@@ -365,3 +365,35 @@ export interface SecondBrainInjectResult {
   error?: string;
 }
 
+/* =====================================================================
+   VISION B WORKSPACE, ONBOARDING & LLM HUB CONTRACTS (v2.2.0)
+   ===================================================================== */
+
+export type LlmProviderId =
+  | 'gemini'
+  | 'anthropic'
+  | 'deepseek'
+  | 'nvidia'
+  | 'openai'
+  | 'openrouter'
+  | 'ollama'
+  | (string & {});
+
+export interface SaveLlmProviderKeyInput {
+  providerId: LlmProviderId;
+  apiKey: string;
+  label?: string;
+  models?: string[];
+  baseUrl?: string;
+}
+
+export interface VaultOperationResult {
+  success: boolean;
+  providerId: string;
+  available?: boolean;
+  removed?: boolean;
+  vaultFilePath?: string;
+  providers?: import('@kalinar/contracts').DiscoveredLlmProvider[];
+  error?: string;
+}
+

@@ -33,13 +33,9 @@ describe('Task 4: 160px Left Agent Preview Cards, Right Plus-Lighter HUD & 480px
       const leftColPath = path.resolve(process.cwd(), 'src/components/hud/LeftAgentCardsColumn.tsx');
       const content = fs.readFileSync(leftColPath, 'utf-8');
 
-      expect(content).toContain("left: '24px'");
-      expect(content).toContain("top: '24px'");
-      expect(content).toContain("bottom: '52px'");
-      expect(content).toContain("width: '320px'");
-      expect(content).toContain('zIndex: 15');
-      expect(content).toContain('KALINAR // SINGULARITY OS');
-      expect(content).toContain('stroke="#AA88FF"');
+      expect(content).toContain('data-slot="left-agent-cards-column"');
+      expect(content).toContain('data-slot="domain-filter-chips"');
+      expect(content).toContain('data-slot="agent-cards-scroll-list"');
       expect(content).toContain("backgroundColor: '#E6E6E6'");
       expect(content).toContain("color: '#000000'");
       expect(content).toContain('setInspectorDrawerOpen(true)');
@@ -78,20 +74,17 @@ describe('Task 4: 160px Left Agent Preview Cards, Right Plus-Lighter HUD & 480px
       expect(resolveAcousticStateBadge('[SPEAKING]')).toBe('[KALINAR_SPEAKING]');
     });
 
-    it('enforces right: 48px, width: 360px, plus-lighter, pointer-events: none and 4 canonical blocks', () => {
+    it('enforces Vision B right inspector (paddingTop >= 40px, obsidian surface, no plus-lighter) and canonical blocks', () => {
       const rightColPath = path.resolve(process.cwd(), 'src/components/hud/RightSingularityColumn.tsx');
       const rightContent = fs.readFileSync(rightColPath, 'utf-8');
 
-      expect(rightContent).toContain("right: '48px'");
-      expect(rightContent).toContain("width: '360px'");
-      expect(rightContent).toContain("mixBlendMode: 'plus-lighter'");
-      expect(rightContent).toContain("pointerEvents: 'none'");
-      expect(rightContent).toContain('zIndex: 15');
+      expect(rightContent).toContain('data-slot="vision-b-right-inspector"');
+      expect(rightContent).toContain("paddingTop: '40px'");
+      expect(rightContent).toContain('zIndex: 20');
       expect(rightContent).toContain('tag="active_directive"');
       expect(rightContent).toContain('tag="gravitational_rag"');
       expect(rightContent).toContain('tag="synaptic_feed"');
       expect(rightContent).toContain('&lt; 0.45MS');
-      expect(rightContent).toContain("pointerEvents: 'auto'");
       expect(rightContent).toContain('__triggerGravitationalRAG');
 
       expect(DEFAULT_WAR_ROOM_HANDOFFS).toHaveLength(4);

@@ -19,13 +19,9 @@ export const SingularityHudColumnRoot = React.memo(function SingularityHudColumn
     <div
       data-slot="singularity-hud-root"
       data-drawer-open={isDrawerOpen}
-      className={`w-[360px] flex flex-col gap-5 text-[12px] leading-relaxed transition-all duration-300 pointer-events-none select-none ${
-        isDrawerOpen ? 'translate-x-6 opacity-0' : 'translate-x-0 opacity-100'
-      } ${className}`}
+      className={`w-full flex flex-col gap-4 text-[12px] leading-relaxed transition-all duration-300 select-none ${className}`}
       style={{
-        mixBlendMode: 'plus-lighter',
-        pointerEvents: 'none',
-        opacity: isDrawerOpen ? 0 : 1,
+        pointerEvents: 'auto',
         ...style,
       }}
       {...props}
@@ -67,6 +63,7 @@ export interface SingularityCoreBlockProps extends React.HTMLAttributes<HTMLDivE
   zenLatencyMs?: number;
   onMicToggle?: () => void;
   onBriefingRequest?: () => void;
+  onSilenceRequest?: () => void;
   isMicActive?: boolean;
   frequencyBands?: TauzFrequencyBands;
 }
@@ -93,6 +90,7 @@ export const SingularityCoreBlock = React.memo(function SingularityCoreBlock({
   zenLatencyMs = 0.38,
   onMicToggle,
   onBriefingRequest,
+  onSilenceRequest,
   isMicActive = false,
   frequencyBands,
   className = '',
@@ -142,6 +140,7 @@ export const SingularityCoreBlock = React.memo(function SingularityCoreBlock({
       <div
         data-slot="singularity-voice-transcript"
         className="font-mono text-[13px] text-[#AA88FF] leading-snug min-h-[44px] normal-case"
+        style={{ overflowWrap: 'break-word', color: '#AA88FF' }}
       >
         {streamedText}
       </div>
@@ -171,43 +170,55 @@ export const SingularityCoreBlock = React.memo(function SingularityCoreBlock({
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-[10px] text-[#9A9A9A] font-mono tabular-nums pt-1.5 border-t border-[rgba(170,136,255,0.25)]">
-        <div className="flex items-center gap-2">
-          <span>SOVEREIGN PT-BR</span>
+      <div className="flex flex-wrap justify-between items-center gap-1.5 text-[10px] text-[#9A9A9A] font-mono tabular-nums pt-1.5 border-t border-[rgba(170,136,255,0.25)]">
+        <div className="flex flex-wrap items-center gap-1.5">
           {onMicToggle && (
             <button
               type="button"
               onClick={onMicToggle}
-              className={`pointer-events-auto px-1.5 py-0.5 border text-[9.5px] transition-colors cursor-pointer ${
-                isMicActive
-                  ? 'border-[#AA88FF] text-[#AA88FF] bg-[rgba(13,15,20,0.88)]'
-                  : 'border-[#2A2A2A] text-[#DDDDDD] bg-[rgba(13,15,20,0.88)] hover:text-[#AA88FF] hover:border-[#AA88FF]'
-              }`}
+              className="pointer-events-auto px-1.5 py-0.5 border text-[9.5px] transition-colors cursor-pointer"
               style={{
                 background: 'rgba(13, 15, 20, 0.88)',
                 color: isMicActive ? '#AA88FF' : '#DDDDDD',
-                border: isMicActive ? '1px solid #AA88FF' : '1px solid #2A2A2A',
+                border: isMicActive ? '1px solid #AA88FF' : '1px solid #1F232E',
                 whiteSpace: 'nowrap',
-                padding: '2px 6px',
+                padding: '3px 6px',
               }}
             >
-              {isMicActive ? '[ MIC ACTIVE ]' : '[ ENABLE MIC ]'}
+              {isMicActive ? '[ ESCUTANDO PT-BR ]' : '[ OUVIR PT-BR ]'}
             </button>
           )}
           {onBriefingRequest && (
             <button
               type="button"
               onClick={onBriefingRequest}
-              className="pointer-events-auto px-1.5 py-0.5 border border-[#2A2A2A] bg-[rgba(13,15,20,0.88)] text-[9.5px] text-[#DDDDDD] hover:text-[#AA88FF] hover:border-[#AA88FF] transition-colors cursor-pointer"
+              className="pointer-events-auto px-1.5 py-0.5 border text-[9.5px] transition-colors cursor-pointer"
               style={{
                 background: 'rgba(13, 15, 20, 0.88)',
                 color: '#DDDDDD',
-                border: '1px solid #2A2A2A',
+                border: '1px solid #1F232E',
                 whiteSpace: 'nowrap',
-                padding: '2px 6px',
+                padding: '3px 6px',
               }}
             >
-              [ TACTICAL BRIEFING ]
+              [ BRIEFING ]
+            </button>
+          )}
+          {onSilenceRequest && (
+            <button
+              type="button"
+              data-slot="singularity-silence-btn"
+              onClick={onSilenceRequest}
+              className="pointer-events-auto px-1.5 py-0.5 border text-[9.5px] transition-colors cursor-pointer"
+              style={{
+                background: 'rgba(248, 113, 113, 0.12)',
+                color: '#F87171',
+                border: '1px solid #F87171',
+                whiteSpace: 'nowrap',
+                padding: '3px 6px',
+              }}
+            >
+              [ SILENCIAR ]
             </button>
           )}
         </div>

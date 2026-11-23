@@ -1035,5 +1035,5 @@ export function KalinarGalaxyCanvas() {
     }
   }, [isInspectorDrawerOpen, agents, selectedAgentId]);
 
-  return <div ref={containerRef} className="fixed inset-0 w-full h-full z-0 overflow-hidden" />;
+  return <div ref={containerRef} className="absolute inset-0 w-full h-full z-0 overflow-hidden" />;
 }
