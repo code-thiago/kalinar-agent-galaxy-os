@@ -49,6 +49,8 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
     toggleBottomDock,
     setBottomDockExpanded,
     agents,
+    activeAgentsCount,
+    sessionTokens,
     singularity,
     selectedAgentId,
     selectAgent,
@@ -92,15 +94,9 @@ export const KalinarBottomDock = memo(function KalinarBottomDock() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [toggleBottomDock]);
 
-  // Global counters
-  const operationalSwarmCount = agents.filter(
-    (a) => a.status !== '[HALTED]' && a.status !== '[PAUSED]' && a.status !== '[ERROR]'
-  ).length;
-
-  const totalTokens = agents.reduce(
-    (acc, curr) => acc + (curr.tokensPrompt || 0) + (curr.tokensCompletion || 0),
-    0
-  );
+  // Global ground-truth counters
+  const operationalSwarmCount = activeAgentsCount;
+  const totalTokens = sessionTokens;
 
   const handleTabClick = (tab: DockTabId, e: React.MouseEvent) => {
     e.stopPropagation();

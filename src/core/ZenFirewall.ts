@@ -435,7 +435,11 @@ export class ZenFirewall {
       }
     }
 
-    if (this.zenEngineInstance && !input.errorCode && (input.retryCount ?? 0) === 0) {
+    if (
+      this.zenEngineInstance &&
+      (!input.errorCode || input.errorCode === 'NONE') &&
+      (input.retryCount ?? 0) === 0
+    ) {
       try {
         const rawDomain = (input.taskDomain || 'ARCHITECTURE').toUpperCase();
         const canonicalDomain =
@@ -479,7 +483,7 @@ export class ZenFirewall {
   private fallbackEvaluateLlmModelRouter(input: LlmModelRouterInput): LlmModelRouterOutput {
     const domain = (input.taskDomain || 'ARCHITECTURE').toUpperCase();
     let primary: LlmModelId = 'argon';
-    let fallback: LlmModelId = 'claude-sonnet';
+    let fallback: LlmModelId = 'claude-sonnet-4';
 
     if (
       domain.includes('UI') ||
@@ -487,26 +491,26 @@ export class ZenFirewall {
       domain.includes('SHADER') ||
       domain.includes('FRONTEND')
     ) {
-      primary = 'claude-sonnet';
+      primary = 'claude-sonnet-4';
       fallback = 'argon';
     } else if (
       domain.includes('RAG') ||
       domain.includes('DATA') ||
       domain.includes('AUDIT')
     ) {
-      primary = 'gemini-pro';
+      primary = 'gemini-4-pro';
       fallback = 'argon';
     } else if (
       domain.includes('TELEMETRY') ||
       domain.includes('TRIAGE') ||
       domain.includes('FAST')
     ) {
-      primary = 'gemini-flash';
-      fallback = 'gemini-pro';
+      primary = 'gemini-4-flash';
+      fallback = 'gemini-4-pro';
     } else {
       // ARCHITECTURE, FULLSTACK, SOVEREIGN_REASONING, default
       primary = 'argon';
-      fallback = 'claude-sonnet';
+      fallback = 'claude-sonnet-4';
     }
 
     if (input.currentModelId) {
@@ -537,12 +541,12 @@ export class ZenFirewall {
       // retryCount >= 1: promote fallbackModelId to activeModelId and return ATOMIC_ROLLBACK_AND_HOTSWAP
       const nextFallback: LlmModelId =
         fallback === 'argon'
-          ? 'claude-sonnet'
-          : fallback === 'claude-sonnet'
-          ? 'gemini-pro'
-          : fallback === 'gemini-pro'
+          ? 'claude-sonnet-4'
+          : fallback === 'claude-sonnet-4' || fallback === 'claude-sonnet'
+          ? 'gemini-4-pro'
+          : fallback === 'gemini-4-pro' || fallback === 'gemini-pro'
           ? 'argon'
-          : 'gemini-pro';
+          : 'gemini-4-pro';
 
       return {
         activeModelId: fallback,

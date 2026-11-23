@@ -554,7 +554,7 @@ describe('Task 10 (v1.3.0): Obsidian Canvas Sync, Live Second Brain Vault & Cort
       });
       expect(t5.result).toBeDefined();
       expect(t5.result.activeModelId).toBe('argon');
-      expect(t5.result.fallbackModelId).toBe('claude-sonnet');
+      expect(t5.result.fallbackModelId).toBe('claude-sonnet-4');
       expect(t5.latencyMs).toBeLessThan(1.0);
     });
   });

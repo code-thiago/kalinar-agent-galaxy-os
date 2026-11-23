@@ -121,7 +121,25 @@ describe('Task 5: Retractable IDE Bottom Dock, Step Matrix & Evolution Charts', 
       expect(
         extractFilePathFromDiff('@@ -42,2 +42,4 @@ src/services/kalinarVoiceService.ts\n+gain')
       ).toBe('src/services/kalinarVoiceService.ts');
-      const agents = useKalinarStore.getState().agents;
+      const agents = [
+        {
+          id: 'agent-orchestrator-01',
+          filename: '@agent-orchestrator',
+          pid: 0,
+          status: '[IDLE]' as const,
+          executionMode: 'STEP_BY_STEP_GATE' as const,
+          currentObjective: 'Standby',
+          totalSteps: 0,
+          currentStep: 0,
+          stepDescription: 'Standby - nenhuma tarefa ativa',
+          tokensPrompt: 0,
+          tokensCompletion: 0,
+          tokenVelocity: 0,
+          etaSeconds: 0,
+          position3D: [0, 0, 0] as [number, number, number],
+          livePreviewStream: '',
+        },
+      ];
       expect(findAgentByIdentifier(agents, '@agent-orchestrator')?.id).toBe(
         'agent-orchestrator-01'
       );

@@ -57,6 +57,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
     selectedAgentId,
     selectAgent,
     singularity,
+    cortexNoteCount,
     updateSingularityTranscript,
     updateAgentStatus,
     updateAgentStep,
@@ -67,7 +68,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
 
   const [query, setQuery] = useState('');
   const [targetAgentId, setTargetAgentId] = useState<string>(
-    selectedAgentId || agents[0]?.id || 'agent-orchestrator-01'
+    selectedAgentId || agents[0]?.id || ''
   );
   const [activeIndex, setActiveIndex] = useState(0);
   const [statusFeedback, setStatusFeedback] = useState<string>(
@@ -109,7 +110,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
     return () => window.removeEventListener('keydown', onGlobalKeyDown);
   }, [isCommandPaletteOpen, setCommandPaletteOpen, toggleCommandPalette]);
 
-  const targetAgent: AgentNode = useMemo(() => {
+  const targetAgent: AgentNode | undefined = useMemo(() => {
     return (
       agents.find((a) => a.id === targetAgentId || a.filename === targetAgentId) || agents[0]
     );
@@ -204,6 +205,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
   };
 
   const handleModelHotSwap = async (modelId: LlmModelId) => {
+    if (!targetAgent) return;
     const res = await kalinarVoiceService.switchLlmModel(targetAgent.id, modelId);
     const msg = `Thiago, hot-swap [MODEL_HOTSWAP] concluido para ${targetAgent.filename} em [${res.activeModelId.toUpperCase()}] (${res.latencyMs.toFixed(2)}ms).`;
     updateSingularityTranscript(msg);
@@ -213,7 +215,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
 
   const handleTriggerSecondBrainRag = async (ragQuery?: string) => {
     if (typeof window !== 'undefined' && typeof (window as any).__triggerGravitationalRAG === 'function') {
-      (window as any).__triggerGravitationalRAG(targetAgent.position3D || [120, 80, 0]);
+      (window as any).__triggerGravitationalRAG(targetAgent?.position3D || [120, 80, 0]);
     }
     const api = typeof window !== 'undefined' ? (window as any).kalinarApi : null;
     let ragSummary = 'Horizonte gravitacional absorveu notas do Second Brain.';
@@ -278,7 +280,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
     const trimmed = query.trim();
     const list: PaletteCommandItem[] = [];
 
-    if (trimmed.length > 0) {
+    if (trimmed.length > 0 && targetAgent) {
       list.push({
         id: 'cmd-dispatch-custom',
         category: 'DISPATCH',
@@ -296,7 +298,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
       list.push({
         id: `cmd-model-${modelOpt.id}`,
         category: 'MODEL_HOTSWAP',
-        label: `HOT-SWAP ${targetAgent.filename} -> ${modelOpt.label}`,
+        label: `HOT-SWAP ${targetAgent?.filename || 'STANDBY'} -> ${modelOpt.label}`,
         hint: 'LAW 7 // GIT CHECKPOINT',
         accent: modelOpt.accent,
         execute: () => handleModelHotSwap(modelOpt.id),
@@ -309,7 +311,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
       label: trimmed
         ? `GRAVITATIONAL RAG PULL: "${trimmed}"`
         : 'TRIGGER SECOND BRAIN GRAVITATIONAL RAG',
-      hint: '1,113,033 DOCS // #E879F9',
+      hint: `${cortexNoteCount.toLocaleString('en-US')} DOCS // #E879F9`,
       accent: '#E879F9',
       execute: () => handleTriggerSecondBrainRag(trimmed),
     });
@@ -346,11 +348,13 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
     list.push({
       id: 'cmd-open-inspector',
       category: 'SYSTEM',
-      label: `OPEN LIVE DIFF INSPECTOR (${targetAgent.filename})`,
+      label: `OPEN LIVE DIFF INSPECTOR (${targetAgent?.filename || 'STANDBY'})`,
       hint: '480PX DRAWER',
       accent: '#34D399',
       execute: async () => {
-        selectAgent(targetAgent.id);
+        if (targetAgent) {
+          selectAgent(targetAgent.id);
+        }
         setInspectorDrawerOpen(true);
         setCommandPaletteOpen(false);
       },
@@ -369,7 +373,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
     });
 
     return list;
-  }, [query, targetAgent, isVoiceLinked, agents, singularity.activeDirective]);
+  }, [query, targetAgent, isVoiceLinked, agents, singularity.activeDirective, cortexNoteCount]);
 
   const filteredCommands = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -410,7 +414,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
         const matched =
           agents.find((a) => a.filename.toLowerCase() === agentToken.toLowerCase()) || targetAgent;
         const directive = rest.join(' ');
-        if (directive) {
+        if (directive && matched) {
           await dispatchOrderToAgent(matched, directive);
           return;
         }
@@ -513,7 +517,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
           }}
         >
           {agents.map((agent) => {
-            const isSelected = agent.id === targetAgent.id;
+            const isSelected = agent.id === targetAgent?.id;
             return (
               <button
                 key={agent.id}
@@ -560,7 +564,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
               setActiveIndex(0);
             }}
             onKeyDown={handleInputKeyDown}
-            placeholder={`ORDEM PARA ${targetAgent.filename}, HOT-SWAP MODELO, RAG OU VOICE...`}
+            placeholder={`ORDEM PARA ${targetAgent?.filename || 'STANDBY'}, HOT-SWAP MODELO, RAG OU VOICE...`}
             style={{
               flex: 1,
               backgroundColor: 'transparent',
@@ -572,7 +576,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
               textTransform: 'none',
             }}
           />
-          {query.trim().length > 0 && (
+          {query.trim().length > 0 && targetAgent && (
             <button
               type="button"
               onClick={() => void dispatchOrderToAgent(targetAgent, query)}
@@ -604,7 +608,7 @@ export const KalinarCommandPalette = React.memo(function KalinarCommandPalette()
           }}
         >
           {HOTSWAP_MODEL_OPTIONS.map((opt) => {
-            const isActive = (targetAgent.activeModelId || 'argon') === opt.id;
+            const isActive = (targetAgent?.activeModelId || 'argon') === opt.id;
             return (
               <button
                 key={opt.id}

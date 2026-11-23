@@ -49,13 +49,6 @@ export const DEFAULT_WAR_ROOM_HANDOFFS: WarRoomHandoffEntry[] = [
   },
 ];
 
-const DEFAULT_ACTIVE_WIKILINKS: Array<{ wikilink: string; domain: string; position3D?: [number, number, number] }> = [
-  { wikilink: '[[00_INDEX]]', domain: '05_AGENTS' },
-  { wikilink: '[[04_BRIEFING_AND_DESIGN_SYSTEM]]', domain: '02_PADROES' },
-  { wikilink: '[[ADR-001-Seguranca-Sessao-Server-Side-Auth]]', domain: '02_PADROES' },
-  { wikilink: '[[Stack-Principal-Thiago]]', domain: '04_STACK' },
-];
-
 function parseWarRoomPointerLine(raw: string, index: number): WarRoomHandoffEntry | null {
   const fromToMatch = raw.match(/\[FROM:\s*([^\]]+)\]\s*->\s*\[TO:\s*([^\]]+)\]/i);
   if (!fromToMatch) return null;
@@ -77,7 +70,8 @@ function parseWarRoomPointerLine(raw: string, index: number): WarRoomHandoffEntr
 }
 
 export function RightSingularityColumn() {
-  const { singularity, agents, selectedAgentId, isInspectorDrawerOpen } = useKalinarStore();
+  const { singularity, agents, selectedAgentId, isInspectorDrawerOpen, cortexNoteCount, secondBrainNotes, systemState } =
+    useKalinarStore();
   const [isMicActive, setIsMicActive] = useState(false);
   const [bands, setBands] = useState<TauzFrequencyBands>({
     subBass: 0,
@@ -85,10 +79,10 @@ export function RightSingularityColumn() {
     highPresence: 0,
     compositePulse: 0,
   });
-  const [activeWikilinks, setActiveWikilinks] = useState(DEFAULT_ACTIVE_WIKILINKS);
-  const [warRoomHandoffs, setWarRoomHandoffs] = useState<WarRoomHandoffEntry[]>(
-    DEFAULT_WAR_ROOM_HANDOFFS
-  );
+  const [activeWikilinks, setActiveWikilinks] = useState<
+    Array<{ wikilink: string; domain: string; position3D?: [number, number, number] }>
+  >([]);
+  const [warRoomHandoffs, setWarRoomHandoffs] = useState<WarRoomHandoffEntry[]>([]);
 
   useEffect(() => {
     let rafId = 0;
@@ -211,11 +205,16 @@ export function RightSingularityColumn() {
   return (
     <aside
       data-slot="right-singularity-column"
-      className={`fixed right-[48px] top-1/2 -translate-y-1/2 w-[360px] pointer-events-none z-[15] transition-opacity duration-300 ${
+      className={`fixed right-[48px] w-[360px] pointer-events-none z-[15] transition-opacity duration-300 ${
         isInspectorDrawerOpen ? 'opacity-0' : 'opacity-100'
       }`}
       style={{
         right: '48px',
+        top: '96px',
+        bottom: '48px',
+        maxHeight: 'calc(100vh - 144px)',
+        overflowY: 'auto',
+        transform: 'none',
         width: '360px',
         mixBlendMode: 'plus-lighter',
         pointerEvents: 'none',
@@ -248,14 +247,14 @@ export function RightSingularityColumn() {
             </div>
             <div className="flex items-center justify-between text-[10px] text-[#9A9A9A]">
               <span>
-                SWARM: {activeAgent?.filename || '@agent-orchestrator'}
+                SWARM: {activeAgent?.filename || systemState}
               </span>
               <span className="text-[#DDDDDD]">
                 ZEN LATENCY: {singularity.zenLatencyMs.toFixed(2)}MS (&lt; 0.45MS)
               </span>
             </div>
             <span className="text-[#9A9A9A] text-[10.5px] truncate">
-              {activeAgent?.currentObjective || 'Orquestracao de fila e sincronizacao de blueprint'}
+              {activeAgent?.currentObjective || 'Aguardando diretriz em modo STANDBY_READY'}
             </span>
           </div>
         </SingularityHudColumn.Block>
@@ -266,11 +265,18 @@ export function RightSingularityColumn() {
             <div className="flex justify-between text-[10px]">
               <span className="text-[#9A9A9A]">CORPUS / TURB:</span>
               <span className="text-[#DDDDDD]">
-                1,113,033 DOCS · {(singularity.accretionTurbulence * 100).toFixed(1)}%
+                {cortexNoteCount.toLocaleString('en-US')} DOCS · {(singularity.accretionTurbulence * 100).toFixed(1)}%
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {activeWikilinks.map((item) => (
+              {(activeWikilinks.length > 0
+                ? activeWikilinks
+                : secondBrainNotes.slice(0, 5).map((n) => ({
+                    wikilink: n.wikilink,
+                    domain: n.domain,
+                    position3D: undefined as [number, number, number] | undefined,
+                  }))
+              ).map((item) => (
                 <button
                   key={item.wikilink}
                   type="button"
@@ -281,12 +287,18 @@ export function RightSingularityColumn() {
                     background: 'rgba(13, 15, 20, 0.88)',
                     color: '#DDDDDD',
                     border: '1px solid #2A2A2A',
+                    padding: '2px 6px',
+                    textAlign: 'left',
+                    maxWidth: '100%',
                   }}
                   title={`Pull ${item.wikilink} (${item.domain}) into Event Horizon`}
                 >
                   {item.wikilink}
                 </button>
               ))}
+              {activeWikilinks.length === 0 && secondBrainNotes.length === 0 && (
+                <span className="text-[10px] text-[#9A9A9A]">[STANDBY_READY] Nenhuma nota indexada</span>
+              )}
             </div>
           </div>
         </SingularityHudColumn.Block>
@@ -294,24 +306,28 @@ export function RightSingularityColumn() {
         {/* 4. [synaptic_feed] — Latest 4 Graph Pointer handoffs from WAR_ROOM.md */}
         <SingularityHudColumn.Block tag="synaptic_feed">
           <div className="p-2.5 bg-[rgba(13,15,20,0.55)] border border-[#1A1D26] text-[10px] flex flex-col gap-1.5 font-mono tabular-nums">
-            {warRoomHandoffs.slice(-4).map((handoff) => (
-              <div
-                key={handoff.id}
-                className="flex flex-col gap-0.5 border-l border-[#8B5CF6] pl-2"
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[#00F0FF] truncate">
-                    {handoff.from} -&gt; {handoff.to}
-                  </span>
-                  <span className="text-[#9A9A9A] shrink-0 uppercase">
-                    [{handoff.domain}]
+            {warRoomHandoffs.length === 0 ? (
+              <span className="text-[#9A9A9A]">[STANDBY_READY] Nenhum handoff ativo</span>
+            ) : (
+              warRoomHandoffs.slice(-4).map((handoff) => (
+                <div
+                  key={handoff.id}
+                  className="flex flex-col gap-0.5 border-l border-[#8B5CF6] pl-2"
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[#00F0FF] truncate">
+                      {handoff.from} -&gt; {handoff.to}
+                    </span>
+                    <span className="text-[#9A9A9A] shrink-0 uppercase">
+                      [{handoff.domain}]
+                    </span>
+                  </div>
+                  <span className="text-[#DDDDDD] truncate opacity-85 normal-case">
+                    {handoff.action}
                   </span>
                 </div>
-                <span className="text-[#DDDDDD] truncate opacity-85 normal-case">
-                  {handoff.action}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </SingularityHudColumn.Block>
       </SingularityHudColumn.Root>

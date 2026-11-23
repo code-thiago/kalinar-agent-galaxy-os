@@ -34,13 +34,7 @@ export function NodeInspectorDrawer() {
   const [gateLatency, setGateLatency] = useState<number>(0.28);
   const [gateReason, setGateReason] = useState<string>('STEP_BY_STEP_GATE_LOCKED');
   const [processStatus, setProcessStatus] = useState<'RUNNING' | 'SUSPENDED' | 'TERMINATED'>('RUNNING');
-  const [diffLines, setDiffLines] = useState<StructuredDiffLine[]>([
-    { type: 'header', lineNumber: 1, content: `--- a/${inspectedFilePath}` },
-    { type: 'header', lineNumber: 1, content: `+++ b/${inspectedFilePath}` },
-    { type: '-', lineNumber: 12, content: '-  const legacyBypass = true;' },
-    { type: '+', lineNumber: 12, content: '+  const isValid = zenFirewall.evaluate();' },
-    { type: '+', lineNumber: 13, content: '+  return isValid;' },
-  ]);
+  const [diffLines, setDiffLines] = useState<StructuredDiffLine[]>([]);
   const [lastCheckpointHash, setLastCheckpointHash] = useState<string>('HEAD-WAL-SYNC');
 
   const agentFifoList = fifoQueueItems.filter(
@@ -160,6 +154,7 @@ export function NodeInspectorDrawer() {
   };
 
   const handleProcessAction = async (action: 'SUSPEND' | 'RESUME' | 'KILL') => {
+    if (!selectedAgent) return;
     if (action === 'SUSPEND') setProcessStatus('SUSPENDED');
     if (action === 'RESUME') setProcessStatus('RUNNING');
     if (action === 'KILL') setProcessStatus('TERMINATED');
@@ -270,7 +265,7 @@ export function NodeInspectorDrawer() {
             CONTROLE DE PROCESSO OS:
           </span>
           <span className="text-[10px] text-[var(--ds-primitive-white-500)] tabular-nums">
-            PID: {selectedAgent?.pid || 14201} · [{processStatus}]
+            PID: {selectedAgent?.pid || 0} · [{processStatus}]
           </span>
         </div>
         <div className="grid grid-cols-3 gap-2">
@@ -377,24 +372,30 @@ export function NodeInspectorDrawer() {
           data-slot="inspector-diff-lines"
           className="flex-1 overflow-y-auto bg-black border border-[var(--ds-border-subtle)] p-2 flex flex-col gap-0.5 font-mono text-[10px]"
         >
-          {diffLines.map((line, idx) => {
-            const colorClass =
-              line.type === '+'
-                ? 'text-[#34D399] bg-[rgba(52,211,153,0.06)]'
-                : line.type === '-'
-                ? 'text-[#F87171] bg-[rgba(248,113,113,0.06)]'
-                : line.type === 'header'
-                ? 'text-[var(--ds-accent-singularity)]'
-                : 'text-[var(--ds-text-secondary)]';
-            return (
-              <div key={idx} className={`px-1 py-0.5 whitespace-pre-wrap ${colorClass}`}>
-                <span className="inline-block w-8 text-[#555] select-none tabular-nums">
-                  {line.lineNumber}
-                </span>
-                {line.content}
-              </div>
-            );
-          })}
+          {diffLines.length === 0 ? (
+            <div className="text-[10px] text-[var(--ds-text-secondary)] py-2">
+              [NO_ACTIVE_DIFF] Nenhum diff em buffer para {inspectedFilePath || 'STANDBY'}.
+            </div>
+          ) : (
+            diffLines.map((line, idx) => {
+              const colorClass =
+                line.type === '+'
+                  ? 'text-[#34D399] bg-[rgba(52,211,153,0.06)]'
+                  : line.type === '-'
+                  ? 'text-[#F87171] bg-[rgba(248,113,113,0.06)]'
+                  : line.type === 'header'
+                  ? 'text-[var(--ds-accent-singularity)]'
+                  : 'text-[var(--ds-text-secondary)]';
+              return (
+                <div key={idx} className={`px-1 py-0.5 whitespace-pre-wrap ${colorClass}`}>
+                  <span className="inline-block w-8 text-[#555] select-none tabular-nums">
+                    {line.lineNumber}
+                  </span>
+                  {line.content}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

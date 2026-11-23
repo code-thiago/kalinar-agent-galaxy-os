@@ -126,10 +126,38 @@ describe('Task 3: 50k Logarithmic Spiral Galaxy, 7-Agent Orbits & Gravitational 
       });
     });
 
-    it('hydrates all 7 canonical agents in the reactive Zustand store with activeAgentCount === 7', () => {
+    it('initializes the reactive Zustand store in ground-truth STANDBY_READY and hydrates 7 [IDLE] agents without fake active counts', () => {
+      useKalinarStore.getState().resetToStandby();
+      const initial = useKalinarStore.getState();
+      expect(initial.systemState).toBe('STANDBY_READY');
+      expect(initial.activeAgentsCount).toBe(0);
+      expect(initial.singularity.activeAgentCount).toBe(0);
+      expect(initial.sessionTokens).toBe(0);
+      expect(initial.agents).toEqual([]);
+
+      const canonicalAgents = CANONICAL_SWARM_CONFIGS.map((cfg) => ({
+        id: cfg.id,
+        filename: cfg.filename,
+        pid: 0,
+        status: '[IDLE]' as const,
+        executionMode: 'STEP_BY_STEP_GATE' as const,
+        currentObjective: 'Canonical Swarm Hub',
+        totalSteps: 0,
+        currentStep: 0,
+        stepDescription: 'Standby - nenhuma tarefa ativa',
+        tokensPrompt: 0,
+        tokensCompletion: 0,
+        tokenVelocity: 0,
+        etaSeconds: 0,
+        position3D: [0, 0, 0] as [number, number, number],
+        livePreviewStream: '',
+      }));
+      useKalinarStore.getState().setAgents(canonicalAgents);
+
       const state = useKalinarStore.getState();
-      expect(state.agents.length).toBeGreaterThanOrEqual(7);
-      expect(state.singularity.activeAgentCount).toBe(7);
+      expect(state.agents).toHaveLength(7);
+      expect(state.activeAgentsCount).toBe(0);
+      expect(state.singularity.activeAgentCount).toBe(0);
 
       const storeFilenames = state.agents.map((a) => a.filename);
       expect(storeFilenames).toContain('@agent-orchestrator');
@@ -139,6 +167,8 @@ describe('Task 3: 50k Logarithmic Spiral Galaxy, 7-Agent Orbits & Gravitational 
       expect(storeFilenames).toContain('@agent-data');
       expect(storeFilenames).toContain('@agent-cybersecurity');
       expect(storeFilenames).toContain('@agent-qa');
+
+      useKalinarStore.getState().resetToStandby();
     });
   });
 

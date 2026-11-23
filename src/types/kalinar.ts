@@ -339,6 +339,7 @@ export interface SecondBrainQueryResult {
   success: boolean;
   notes: SecondBrainVaultNote[];
   total: number;
+  cortexCacheCount?: number;
   searchLatencyMs: number;
   error?: string;
 }

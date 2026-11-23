@@ -18,6 +18,7 @@ import {
   CanvasSyncResult,
   IKalinarAgentConnector,
   LiveGitDiffResult,
+  LlmModelId,
   ObsidianCanvasDocument,
   SCHEMA_VERSION,
   SecondBrainInjectPayload,
@@ -266,17 +267,17 @@ export function deserializeCanvasToWorkspace(
       agents.push({
         id: node.id,
         filename: filenameMatch,
-        pid: 14200 + agents.length + 1,
-        status: '[ACTIVE]',
+        pid: 0,
+        status: '[IDLE]',
         executionMode: 'STEP_BY_STEP_GATE',
         currentObjective: `Imported from canvas card ${node.id}`,
-        totalSteps: 6,
-        currentStep: 1,
-        stepDescription: 'Imported topology node',
-        tokensPrompt: 3000,
-        tokensCompletion: 700,
-        tokenVelocity: 75,
-        etaSeconds: 20,
+        totalSteps: 0,
+        currentStep: 0,
+        stepDescription: 'Standby - nenhuma tarefa ativa',
+        tokensPrompt: 0,
+        tokensCompletion: 0,
+        tokenVelocity: 0,
+        etaSeconds: 0,
         position3D: pos3D,
         livePreviewStream: '',
       });
@@ -399,6 +400,37 @@ export interface ShadowCacheQueryStore {
   querySecondBrainShadowCache(params?: SecondBrainVaultQueryParams): SecondBrainVaultNote[];
 }
 
+export interface WorkspaceScanRuntimeContext {
+  sqliteStore?: {
+    getActiveTasks?: () => Array<{
+      id: string;
+      title: string;
+      status: string;
+      current_agent: string;
+      action_instruction?: string;
+      total_turns?: number;
+    }>;
+    getAgentFifoQueue?: (targetAgentId?: string) => Array<{
+      id: string;
+      targetAgentId: string;
+      instruction: string;
+      modelId: string;
+      status: string;
+      createdAt: number;
+    }>;
+    queryCortexNoteCache?: (filter?: { domain?: string; limit?: number }) => Array<{
+      note_id: string;
+      relative_path: string;
+      title: string;
+      domain: string;
+      excerpt: string;
+    }>;
+  } | null;
+  activeAgentStatuses?: Map<string, AgentStatus>;
+  activeAgentPids?: Map<string, number>;
+  activeAgentModels?: Map<string, LlmModelId>;
+}
+
 export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
   public readonly id = 'connector-local-vault-md';
   public readonly schemaVersion = SCHEMA_VERSION;
@@ -511,6 +543,10 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
    */
   public scanLocalAgentDefinitions(): Array<{ filename: string; role: string; fullPath: string }> {
     const candidates: Array<{ filename: string; role: string; fullPath: string }> = [];
+    if (isOneDriveVaultPath(this.vaultRoot)) {
+      return candidates;
+    }
+
     const rootFiles = ['AGENTS.md', 'CLAUDE.md', 'GEMINI.md'];
 
     for (const file of rootFiles) {
@@ -526,15 +562,15 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
 
     const agentsDir = path.resolve(this.vaultRoot, '05_AGENTS');
     if (fs.existsSync(agentsDir)) {
-      const entries = fs.readdirSync(agentsDir);
-      for (const entry of entries) {
-        if (entry.endsWith('.md')) {
-          candidates.push({
-            filename: entry,
-            role: 'Specialist Hub Persona',
-            fullPath: path.resolve(agentsDir, entry),
-          });
-        }
+      const entries = fs.readdirSync(agentsDir).filter((e) => e.endsWith('.md'));
+      const prefixed = entries.filter((e) => /^@agent-.*\.md$/i.test(e));
+      const targetEntries = prefixed.length > 0 ? prefixed : entries;
+      for (const entry of targetEntries) {
+        candidates.push({
+          filename: entry,
+          role: 'Specialist Hub Persona',
+          fullPath: path.resolve(agentsDir, entry),
+        });
       }
     }
 
@@ -561,17 +597,41 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
   /**
    * Scans 05_AGENTS/@agent-*.md, project markdown files, and WAR_ROOM.md pointers
    * to hydrate real AgentNode, SecondBrainNode, and ArtifactSatelliteNode coordinates on the logarithmic spiral.
+   * Defaults every discovered agent to [IDLE] with 0 tokens unless an active task or FIFO entry exists in SQLite.
    */
-  public scanWorkspaceNodes(): WorkspaceScanResult {
-    const defs = this.scanLocalAgentDefinitions();
+  public scanWorkspaceNodes(runtimeCtx?: WorkspaceScanRuntimeContext): WorkspaceScanResult {
+    let defs = this.scanLocalAgentDefinitions();
     const agents: AgentNode[] = [];
     const secondBrainNodes: SecondBrainNode[] = [];
     const artifactSatellites: ArtifactSatelliteNode[] = [];
     const warRoomPointers: string[] = [];
 
+    if (defs.filter((d) => d.filename.startsWith('@agent-')).length === 0 && runtimeCtx?.sqliteStore?.queryCortexNoteCache) {
+      const cachedAgents = runtimeCtx.sqliteStore.queryCortexNoteCache({
+        domain: '05_AGENTS',
+        limit: 50,
+      });
+      for (const row of cachedAgents) {
+        const base = path.posix.basename(row.relative_path.replace(/\\/g, '/'));
+        if (/^@?agent-.*\.md$/i.test(base)) {
+          defs.push({
+            filename: base.startsWith('@') ? base : `@${base}`,
+            role: row.title || 'Specialist Hub Persona',
+            fullPath: row.relative_path,
+          });
+        }
+      }
+    }
+
+    const normalizeAgentKey = (raw: string): string =>
+      (raw || '').trim().replace(/^@/, '').replace(/\.md$/i, '').toLowerCase();
+
+    const activeTasks = runtimeCtx?.sqliteStore?.getActiveTasks?.() ?? [];
+    const fifoQueue = runtimeCtx?.sqliteStore?.getAgentFifoQueue?.() ?? [];
+
     // 1. Parse WAR_ROOM.md pointers if present
     const warRoomPath = path.resolve(this.vaultRoot, '.antigravity', 'comms', 'WAR_ROOM.md');
-    if (fs.existsSync(warRoomPath)) {
+    if (!isOneDriveVaultPath(this.vaultRoot) && fs.existsSync(warRoomPath)) {
       const rawWarRoom = fs.readFileSync(warRoomPath, 'utf-8');
       for (const line of rawWarRoom.split(/\r?\n/)) {
         const trimmed = line.trim();
@@ -581,33 +641,89 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
       }
     }
 
-    // 2. Hydrate AgentNodes on logarithmic spiral
-    const defaultModels: Array<'argon' | 'claude-3.7-sonnet' | 'gemini-2.5-pro'> = [
-      'argon',
-      'claude-3.7-sonnet',
-      'gemini-2.5-pro',
-    ];
+    // 2. Hydrate AgentNodes strictly from real definitions and SQLite/daemon state
     defs.forEach((def, idx) => {
       const pos = this.computeLogarithmicSpiralPosition(idx, 4, 120, 0.14);
-      const id = def.filename.replace(/^@/, '').replace(/\.md$/i, '') + `-0${idx + 1}`;
+      const baseSlug = def.filename.replace(/^@/, '').replace(/\.md$/i, '');
+      const normalizedKey = normalizeAgentKey(def.filename);
+      const id = `${baseSlug}-0${idx + 1}`;
+      const displayFilename = `@${baseSlug}`;
+
+      const matchingTask = activeTasks.find((t) => {
+        const taskAgentKey = normalizeAgentKey(t.current_agent);
+        return (
+          (taskAgentKey === normalizedKey || taskAgentKey === id.toLowerCase()) &&
+          (t.status === 'RUNNING' || t.status === 'PENDING')
+        );
+      });
+
+      const agentFifoItems = fifoQueue.filter((item) => {
+        const itemKey = normalizeAgentKey(item.targetAgentId);
+        return (
+          (itemKey === normalizedKey || itemKey === id.toLowerCase()) &&
+          (item.status === 'FIFO_QUEUED' || item.status === 'DISPATCHED')
+        );
+      });
+      const queuedOnlyCount = agentFifoItems.filter((i) => i.status === 'FIFO_QUEUED').length;
+      const dispatchedFifoItem = agentFifoItems.find((i) => i.status === 'DISPATCHED');
+
+      const mapStatus =
+        runtimeCtx?.activeAgentStatuses?.get(normalizedKey) ??
+        runtimeCtx?.activeAgentStatuses?.get(`@${normalizedKey}`) ??
+        runtimeCtx?.activeAgentStatuses?.get(id);
+
+      const mapPid =
+        runtimeCtx?.activeAgentPids?.get(normalizedKey) ??
+        runtimeCtx?.activeAgentPids?.get(`@${normalizedKey}`) ??
+        runtimeCtx?.activeAgentPids?.get(id) ??
+        0;
+
+      const mapModel =
+        runtimeCtx?.activeAgentModels?.get(normalizedKey) ??
+        runtimeCtx?.activeAgentModels?.get(`@${normalizedKey}`) ??
+        runtimeCtx?.activeAgentModels?.get(id) ??
+        'argon';
+
+      let status: AgentStatus = '[IDLE]';
+      let currentObjective = def.role;
+      let totalSteps = 0;
+      let currentStep = 0;
+      let stepDescription = 'Standby - nenhuma tarefa ativa';
+
+      if (matchingTask?.status === 'RUNNING' || dispatchedFifoItem) {
+        status = mapStatus && mapStatus !== '[IDLE]' ? mapStatus : '[RUNNING]';
+        currentObjective = matchingTask?.title || dispatchedFifoItem?.instruction || def.role;
+        currentStep = matchingTask?.total_turns ?? 1;
+        totalSteps = Math.max(1, currentStep);
+        stepDescription = matchingTask?.action_instruction || currentObjective;
+      } else if (mapStatus && mapStatus !== '[IDLE]') {
+        status = mapStatus;
+        stepDescription = `Status: ${mapStatus}`;
+      } else if (queuedOnlyCount > 0 || matchingTask?.status === 'PENDING') {
+        status = '[FIFO_QUEUED]';
+        currentObjective = matchingTask?.title || agentFifoItems[0]?.instruction || def.role;
+        stepDescription = matchingTask?.action_instruction || agentFifoItems[0]?.instruction || 'Queued in FIFO';
+      }
+
       agents.push({
         id,
-        filename: def.filename.startsWith('@') ? def.filename : `@${def.filename.replace(/\.md$/i, '')}`,
-        pid: 14200 + idx + 1,
-        status: idx === 0 ? '[ACTIVE]' : '[IDLE]',
+        filename: displayFilename,
+        pid: status === '[IDLE]' ? 0 : mapPid,
+        status,
         executionMode: 'STEP_BY_STEP_GATE',
-        activeModelId: defaultModels[idx % defaultModels.length],
-        fifoQueueDepth: 0,
-        currentObjective: def.role,
-        totalSteps: 6,
-        currentStep: Math.min(6, (idx % 6) + 1),
-        stepDescription: `Monitorando contrato ${def.filename}`,
-        tokensPrompt: 3200 + idx * 450,
-        tokensCompletion: 780 + idx * 120,
-        tokenVelocity: 78 + idx * 4,
-        etaSeconds: 18 + idx * 5,
+        activeModelId: mapModel,
+        fifoQueueCount: queuedOnlyCount,
+        fifoQueueDepth: queuedOnlyCount,
+        currentObjective,
+        totalSteps,
+        currentStep,
+        stepDescription,
+        tokensPrompt: 0,
+        tokensCompletion: 0,
+        tokenVelocity: 0,
+        etaSeconds: 0,
         position3D: pos,
-        livePreviewStream: `@@ -1,3 +1,4 @@\n context: ${def.filename}\n-legacy_pipeline: true\n+tauz_dsp_pipeline: active\n+zero_trust_exec_file: enabled`,
+        livePreviewStream: '',
       });
     });
 
@@ -623,7 +739,7 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
 
     mdFiles.forEach((item, idx) => {
       const full = path.resolve(this.vaultRoot, item.rel);
-      if (fs.existsSync(full)) {
+      if (!isOneDriveVaultPath(this.vaultRoot) && fs.existsSync(full)) {
         const stat = fs.statSync(full);
         const sbArm = idx % 5;
         const sbPos = this.computeLogarithmicSpiralPosition(idx, sbArm, 140, 0.13);
@@ -645,11 +761,11 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
 
         artifactSatellites.push({
           id: `sat-node-${idx + 1}`,
-          associatedAgentId: associatedAgent?.id || 'agent-software-engineer-01',
+          associatedAgentId: associatedAgent?.id || '',
           artifactPath: item.rel,
           fileHash: `sha256-${idx + 1}`,
           title: path.basename(item.rel),
-          status: idx === 0 ? 'VERIFIED' : 'COMMITTED',
+          status: 'COMMITTED',
           byteSize: stat.size,
           lastModified: stat.mtime.toISOString(),
           position3D: satPos,
@@ -735,22 +851,10 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
       };
     }
 
-    // Fallback: read live file buffer on disk and emit structured preview diff
-    let fallbackRaw = `--- a/${check.relativePath}\n+++ b/${check.relativePath}\n@@ -1,4 +1,5 @@\n`;
-    if (fs.existsSync(check.resolvedPath)) {
-      const fileSnippet = fs
-        .readFileSync(check.resolvedPath, 'utf-8')
-        .split(/\r?\n/)
-        .slice(0, 6);
-      fallbackRaw += fileSnippet.map((l, idx) => (idx === 0 ? ` ${l}` : `+${l}`)).join('\n');
-    } else {
-      fallbackRaw += `-legacy_buffer_state\n+synchronized_singularity_buffer`;
-    }
-
     return {
       filePath: check.relativePath,
-      lines: parseUnifiedDiffLines(fallbackRaw),
-      rawDiff: fallbackRaw,
+      lines: [],
+      rawDiff: '',
       latencyMs: Number((performance.now() - start).toFixed(2)),
     };
   }

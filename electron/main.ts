@@ -25,7 +25,6 @@ import { eventBus } from '../src/core/KalinarEventBus.js';
 import { ZenFirewall } from '../src/core/ZenFirewall.js';
 import {
   SingularityCoreState,
-  AgentNode,
   SCHEMA_VERSION,
   LlmModelId,
   ExecutionMode,
@@ -71,11 +70,11 @@ const activeShellLeases = new Map<
 const initialSingularityState: SingularityCoreState = {
   schemaVersion: SCHEMA_VERSION,
   voiceState: '[STANDBY]',
-  liveTranscript: 'Aguardando diretriz tática. O núcleo gravitacional permanece ativo.',
-  accretionTurbulence: 0.15,
-  activeDirective: 'MANTER_ORBITA_E_MONITORAR_WORKSPACE',
-  zenLatencyMs: 0.38,
-  activeAgentCount: 1,
+  liveTranscript: 'Nucleo em prontidao [STANDBY_READY]. Aguardando diretriz.',
+  accretionTurbulence: 0.08,
+  activeDirective: 'STANDBY_READY',
+  zenLatencyMs: 0,
+  activeAgentCount: 0,
 };
 
 function createWindow(): void {
@@ -146,30 +145,29 @@ function createWindow(): void {
 
 function setupIpcHandlers(): void {
   ipcMain.handle('kalinar:get_singularity_state', async () => {
-    return initialSingularityState;
+    if (!daemon && sqliteStore) {
+      daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+    }
+    const scannedAgents = daemon ? daemon.scanWorkspaceNodes().agents : [];
+    const activeCount = scannedAgents.filter(
+      (a) => a.status === '[ACTIVE]' || a.status === '[RUNNING]' || a.status === '[STREAM]'
+    ).length;
+
+    return {
+      ...initialSingularityState,
+      activeAgentCount: activeCount,
+      activeDirective: activeCount > 0 ? 'ACTIVE_EXECUTION' : 'STANDBY_READY',
+    };
   });
 
   ipcMain.handle('kalinar:get_active_agents', async () => {
-    const defaultAgents: AgentNode[] = [
-      {
-        id: 'agent-orchestrator-01',
-        filename: '@agent-orchestrator',
-        pid: 14201,
-        status: '[ACTIVE]',
-        executionMode: 'AUTO_PILOT',
-        currentObjective: 'Orquestracao de fila e sincronizacao de blueprint',
-        totalSteps: 6,
-        currentStep: 4,
-        stepDescription: 'Verificando invariantes de integridade do cofre Obsidian',
-        tokensPrompt: 4120,
-        tokensCompletion: 840,
-        tokenVelocity: 82,
-        etaSeconds: 14,
-        position3D: [0, 120, 0],
-        livePreviewStream: '[TASK_EXECUTION: @agent-orchestrator]\n- Verificando regras no cofre Obsidian\n- Sincronizando TASK_LOCK.json\n- Status: Operacao nominal',
-      },
-    ];
-    return defaultAgents;
+    if (!daemon && sqliteStore) {
+      daemon = new KalinarDaemon({}, sqliteStore, eventBus);
+    }
+    if (!daemon) {
+      daemon = new KalinarDaemon();
+    }
+    return daemon.scanWorkspaceNodes().agents;
   });
 
   ipcMain.handle('kalinar:invoke_task_action', async (_event, { taskId, action }) => {
@@ -655,15 +653,6 @@ app.whenReady().then(async () => {
       readOnly: true,
       daemonClient,
     });
-    if (sqliteStore.getEvolutionSummary().totalEvents === 0) {
-      sqliteStore.insertTelemetry({
-        task_id: 'SYSTEM',
-        event_type: 'TURN_START',
-        agent_name: 'agent-orchestrator',
-        payload: JSON.stringify({ event: 'SINGULARITY_WAL_BOOT', zenMs: 0.38, step: 4 }),
-        latency_ms: 0.38,
-      });
-    }
     daemon = new KalinarDaemon({}, sqliteStore, eventBus);
     await daemon.start();
 
@@ -681,6 +670,30 @@ app.whenReady().then(async () => {
       mainWindow?.webContents.send('telemetry:stream', {
         type: 'MODEL_HOTSWAP',
         checkpoint,
+      });
+    });
+    eventBus.on('agent:status_changed', (evt) => {
+      mainWindow?.webContents.send('telemetry:stream', {
+        type: 'AGENT_STATUS_CHANGED',
+        ...evt,
+      });
+    });
+    eventBus.on('agent:step_updated', (evt) => {
+      mainWindow?.webContents.send('telemetry:stream', {
+        type: 'AGENT_STEP_UPDATED',
+        ...evt,
+      });
+    });
+    eventBus.on('agent:metric_updated', (evt) => {
+      mainWindow?.webContents.send('telemetry:stream', {
+        type: 'AGENT_METRIC_UPDATED',
+        ...evt,
+      });
+    });
+    eventBus.on('agent:fifo_queued', (item) => {
+      mainWindow?.webContents.send('telemetry:stream', {
+        type: 'AGENT_FIFO_QUEUED',
+        item,
       });
     });
   } catch (err) {

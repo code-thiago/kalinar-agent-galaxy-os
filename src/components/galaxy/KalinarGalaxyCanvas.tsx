@@ -922,11 +922,14 @@ export function KalinarGalaxyCanvas() {
           }
         }
 
+        const liveStoreAgent = storeSnapshot.agents.find(
+          (a) => a.id === cfg.id || a.filename === cfg.filename
+        );
         updatedAgentPositions.push({
           id: cfg.id,
           filename: cfg.filename,
           position: [ox, oy, oz],
-          status: '[ACTIVE]',
+          status: liveStoreAgent?.status || '[IDLE]',
         });
       });
 

@@ -59,9 +59,10 @@ export const StepDivisionCell = memo(function StepDivisionCell({
   stepDescription,
   status,
 }: StepDivisionCellProps) {
-  const safeTotal = Math.max(1, totalSteps || 6);
-  const safeCurrent = Math.min(safeTotal, Math.max(0, currentStep || 1));
+  const safeTotal = Math.max(0, totalSteps || 0);
+  const safeCurrent = safeTotal === 0 ? 0 : Math.min(safeTotal, Math.max(0, currentStep || 0));
   const barColor = resolveStepBarColor(status);
+  const progressPct = safeTotal === 0 ? 0 : Math.round((safeCurrent / safeTotal) * 100);
 
   return (
     <div
@@ -91,7 +92,7 @@ export const StepDivisionCell = memo(function StepDivisionCell({
           STEP {String(safeCurrent).padStart(2, '0')}/{String(safeTotal).padStart(2, '0')}
         </span>
         <span style={{ fontSize: '10px', color: '#9A9A9A' }}>
-          {Math.round((safeCurrent / safeTotal) * 100)}%
+          {progressPct}%
         </span>
       </div>
 
@@ -109,7 +110,7 @@ export const StepDivisionCell = memo(function StepDivisionCell({
           border: '1px solid #1A1D26',
         }}
       >
-        {Array.from({ length: safeTotal }).map((_, idx) => (
+        {Array.from({ length: Math.max(1, safeTotal) }).map((_, idx) => (
           <div
             key={idx}
             style={{
@@ -150,8 +151,19 @@ export const TelemetryMatrixTable = memo(function TelemetryMatrixTable({
 }: TelemetryMatrixTableProps) {
   const [elapsedOffsets, setElapsedOffsets] = useState<Record<string, number>>({});
 
-  // Deterministic 1s ETA countdown for running/active agents only
+  // Deterministic 1s ETA countdown for running/active agents only (zero timers when idle)
   useEffect(() => {
+    const hasRunningCountdown = agents.some((agent) => {
+      const isRunning =
+        agent.status === '[ACTIVE]' ||
+        agent.status === '[RUNNING]' ||
+        agent.status === '[STREAM]';
+      return isRunning && (agent.etaSeconds || 0) > 0;
+    });
+    if (!hasRunningCountdown) {
+      return;
+    }
+
     const timer = setInterval(() => {
       setElapsedOffsets((prev) => {
         let changed = false;

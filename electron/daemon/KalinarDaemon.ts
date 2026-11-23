@@ -948,8 +948,15 @@ export class KalinarDaemon {
   }
 
   public scanWorkspaceNodes(): WorkspaceScanResult {
-    const connector = new LocalVaultAndMdConnector(this.config.workspacePath);
-    return connector.scanWorkspaceNodes();
+    const connector = new LocalVaultAndMdConnector(this.config.workspacePath, {
+      shadowStore: this.store,
+    });
+    return connector.scanWorkspaceNodes({
+      sqliteStore: this.store,
+      activeAgentStatuses: this.agentStatuses,
+      activeAgentPids: this.agentActivePids,
+      activeAgentModels: this.agentActiveModels,
+    });
   }
 
   public async switchAgentModelInteractive(params: {

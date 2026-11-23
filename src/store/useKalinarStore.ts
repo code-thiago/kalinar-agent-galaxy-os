@@ -1,5 +1,6 @@
 /**
- * KALINAR ZUSTAND REACTIVE STORE (v1.2.0)
+ * KALINAR ZUSTAND REACTIVE STORE (v2.2.0-step2)
+ * Ground-Truth Standby & Real IPC/SQLite Hydration
  * Strict Zero Emojis
  */
 
@@ -9,14 +10,181 @@ import {
   AgentStatus,
   FifoQueueItem,
   LlmModelId,
-  SingularityCoreState,
-  VoiceState,
   SCHEMA_VERSION,
+  SecondBrainQueryResult,
+  SecondBrainVaultNote,
+  SecondBrainVaultQueryParams,
+  SingularityCoreState,
+  SynapticBeam,
+  VoiceState,
+  WorkspaceScanResult,
 } from '../types/kalinar.js';
 
-interface KalinarStoreState {
+export type SystemGroundTruthState = 'STANDBY_READY' | 'ACTIVE_EXECUTION' | 'HALTED';
+
+export interface CommandLogEntry {
+  id: string | number;
+  taskId: string;
+  eventType: string;
+  agentName: string;
+  payload: string;
+  latencyMs: number;
+  timestamp: string;
+}
+
+export interface KalinarGroundTruthApi {
+  scanWorkspaceNodes?: () => Promise<WorkspaceScanResult>;
+  querySecondBrainVault?: (params?: SecondBrainVaultQueryParams) => Promise<SecondBrainQueryResult>;
+  getHistoricalTelemetry?: (limit?: number) => Promise<
+    Array<{
+      id?: string | number;
+      task_id?: string;
+      taskId?: string;
+      event_type?: string;
+      eventType?: string;
+      agent_name?: string;
+      agentName?: string;
+      payload?: string;
+      latency_ms?: number;
+      latencyMs?: number;
+      timestamp?: string;
+    }>
+  >;
+  manageFifoQueue?: (payload: {
+    action: 'LIST' | 'PROMOTE' | 'CLEAR';
+    targetAgentId?: string;
+    itemId?: string;
+  }) => Promise<{ items?: FifoQueueItem[] }>;
+}
+
+const ACTIVE_AGENT_STATUSES: ReadonlySet<AgentStatus> = new Set([
+  '[ACTIVE]',
+  '[RUNNING]',
+  '[STREAM]',
+]);
+
+const HALTED_AGENT_STATUSES: ReadonlySet<AgentStatus> = new Set([
+  '[HALTED]',
+  '[ERROR]',
+]);
+
+function normalizeAgentRef(value: string): string {
+  return (value || '').trim().replace(/^@/, '').replace(/\.md$/i, '').toLowerCase();
+}
+
+function matchesAgentId(agent: AgentNode, targetId: string): boolean {
+  if (!targetId) return false;
+  if (agent.id === targetId || agent.filename === targetId) return true;
+  const normAgentId = normalizeAgentRef(agent.id);
+  const normFilename = normalizeAgentRef(agent.filename);
+  const normTarget = normalizeAgentRef(targetId);
+  return normAgentId === normTarget || normFilename === normTarget;
+}
+
+function buildActiveSynapticBeams(agents: AgentNode[]): SynapticBeam[] {
+  return agents
+    .filter((a) => ACTIVE_AGENT_STATUSES.has(a.status))
+    .map((a) => ({
+      id: `beam-pulse-${a.id}`,
+      sourceId: 'singularity-event-horizon',
+      targetId: a.filename,
+      beamType: 'SINGULARITY_PULSE',
+      intensity: 0.85,
+      colorToken: '#AA88FF',
+    }));
+}
+
+function deriveGroundTruthMetrics(
+  agents: AgentNode[],
+  currentSingularity: SingularityCoreState
+): {
+  systemState: SystemGroundTruthState;
+  activeAgentsCount: number;
+  sessionTokens: number;
+  singularity: SingularityCoreState;
+} {
+  const activeAgentsCount = agents.filter((a) => ACTIVE_AGENT_STATUSES.has(a.status)).length;
+  const sessionTokens = agents.reduce(
+    (acc, a) => acc + (a.tokensPrompt || 0) + (a.tokensCompletion || 0),
+    0
+  );
+  const hasHalted = agents.some((a) => HALTED_AGENT_STATUSES.has(a.status));
+  const systemState: SystemGroundTruthState =
+    activeAgentsCount > 0 ? 'ACTIVE_EXECUTION' : hasHalted ? 'HALTED' : 'STANDBY_READY';
+
+  const nextDirective =
+    activeAgentsCount > 0
+      ? currentSingularity.activeDirective === 'STANDBY_READY'
+        ? 'ACTIVE_EXECUTION'
+        : currentSingularity.activeDirective
+      : 'STANDBY_READY';
+
+  return {
+    systemState,
+    activeAgentsCount,
+    sessionTokens,
+    singularity: {
+      ...currentSingularity,
+      activeAgentCount: activeAgentsCount,
+      activeDirective: nextDirective,
+    },
+  };
+}
+
+function createInitialStandbySnapshot(): {
+  systemState: SystemGroundTruthState;
+  activeAgentsCount: number;
+  sessionTokens: number;
+  cortexNoteCount: number;
+  isHydrated: boolean;
   singularity: SingularityCoreState;
   agents: AgentNode[];
+  secondBrainNotes: SecondBrainVaultNote[];
+  synapticBeams: SynapticBeam[];
+  commandLogs: CommandLogEntry[];
+  fifoQueueItems: FifoQueueItem[];
+  selectedAgentId: string | null;
+  inspectedFilePath: string;
+} {
+  return {
+    systemState: 'STANDBY_READY',
+    activeAgentsCount: 0,
+    sessionTokens: 0,
+    cortexNoteCount: 0,
+    isHydrated: false,
+    singularity: {
+      schemaVersion: SCHEMA_VERSION,
+      voiceState: '[STANDBY]',
+      liveTranscript: 'Nucleo em prontidao [STANDBY_READY]. Aguardando diretriz.',
+      accretionTurbulence: 0.08,
+      activeDirective: 'STANDBY_READY',
+      zenLatencyMs: 0,
+      activeAgentCount: 0,
+      activeModelId: 'argon',
+      lastAckBadge: '[ACK_VERIFIED]',
+      pendingVoiceQueueCount: 0,
+    },
+    agents: [],
+    secondBrainNotes: [],
+    synapticBeams: [],
+    commandLogs: [],
+    fifoQueueItems: [],
+    selectedAgentId: null,
+    inspectedFilePath: '',
+  };
+}
+
+interface KalinarStoreState {
+  systemState: SystemGroundTruthState;
+  activeAgentsCount: number;
+  sessionTokens: number;
+  cortexNoteCount: number;
+  isHydrated: boolean;
+  singularity: SingularityCoreState;
+  agents: AgentNode[];
+  secondBrainNotes: SecondBrainVaultNote[];
+  synapticBeams: SynapticBeam[];
+  commandLogs: CommandLogEntry[];
   fifoQueueItems: FifoQueueItem[];
   activeFilter: string;
   isBottomDockExpanded: boolean;
@@ -41,6 +209,21 @@ interface KalinarStoreState {
   ) => void;
   setActiveModelId: (modelId: LlmModelId) => void;
   setPendingVoiceQueueCount: (count: number) => void;
+  setAgents: (agents: AgentNode[]) => void;
+  setSecondBrainNotes: (notes: SecondBrainVaultNote[], cortexNoteCount?: number) => void;
+  setSynapticBeams: (beams: SynapticBeam[]) => void;
+  setCommandLogs: (logs: CommandLogEntry[]) => void;
+  appendCommandLog: (entry: CommandLogEntry) => void;
+  updateAgentMetrics: (
+    agentId: string,
+    tokensPrompt: number,
+    tokensCompletion: number,
+    tokenVelocity?: number,
+    etaSeconds?: number
+  ) => void;
+  applyDaemonEvent: (payload: Record<string, unknown>) => void;
+  hydrateFromGroundTruth: (apiOverride?: KalinarGroundTruthApi) => Promise<void>;
+  resetToStandby: () => void;
   setAgentModel: (
     agentId: string,
     modelId: LlmModelId,
@@ -62,211 +245,11 @@ interface KalinarStoreState {
 }
 
 export const useKalinarStore = create<KalinarStoreState>((set) => ({
-  singularity: {
-    schemaVersion: SCHEMA_VERSION,
-    voiceState: '[STANDBY]',
-    liveTranscript: 'Aguardando comando tático. Núcleo gravitacional Kalinar em operação nominal.',
-    accretionTurbulence: 0.12,
-    activeDirective: 'MANTER_ORBITA_E_MONITORAR_WORKSPACE',
-    zenLatencyMs: 0.38,
-    activeAgentCount: 7,
-    activeModelId: 'argon',
-    lastAckBadge: '[ACK_VERIFIED]',
-    pendingVoiceQueueCount: 0,
-  },
-  agents: [
-    {
-      id: 'agent-orchestrator-01',
-      filename: '@agent-orchestrator',
-      pid: 14201,
-      status: '[ACTIVE]',
-      executionMode: 'AUTO_PILOT',
-      currentObjective: 'Orquestracao de fila e sincronizacao de blueprint',
-      totalSteps: 6,
-      currentStep: 4,
-      stepDescription: 'Verificando integridade de lock de fila e regras JDM',
-      tokensPrompt: 4120,
-      tokensCompletion: 840,
-      tokenVelocity: 82,
-      etaSeconds: 14,
-      position3D: [0, 120, 0],
-      livePreviewStream: [
-        '@@ -14,3 +14,4 @@ .antigravity/comms/WAR_ROOM.md',
-        '- [LOCK_STATE]: PENDING_VERIFICATION',
-        '+ [LOCK_STATE]: UNLOCKED_ZERO_TRUST',
-        '+ [MODEL_ROUTER]: ARGON -> CLAUDE_SONNET',
-      ].join('\n'),
-      activeModelId: 'argon',
-      fifoQueueCount: 1,
-      lastAckBadge: '[ACK_DISPATCHED]',
-    },
-    {
-      id: 'agent-software-engineer-01',
-      filename: '@agent-software-engineer',
-      pid: 14202,
-      status: '[RUNNING]',
-      executionMode: 'STEP_BY_STEP_GATE',
-      currentObjective: 'Scaffolding do daemon chokidar e firewall zen',
-      totalSteps: 8,
-      currentStep: 5,
-      stepDescription: 'Compilando TypeScript e vinculando SQLite WAL',
-      tokensPrompt: 7850,
-      tokensCompletion: 1420,
-      tokenVelocity: 94,
-      etaSeconds: 22,
-      position3D: [120, 80, 0],
-      livePreviewStream: [
-        '@@ -42,2 +42,4 @@ src/services/kalinarVoiceService.ts',
-        '- const gain = 0.0;',
-        '+ lowShelf.frequency.value = 110;',
-        '+ lowShelf.gain.value = 7.5;',
-      ].join('\n'),
-      activeModelId: 'claude-sonnet',
-      fifoQueueCount: 1,
-      lastAckBadge: '[ACK_VERIFIED]',
-    },
-    {
-      id: 'agent-design-01',
-      filename: '@agent-design',
-      pid: 14203,
-      status: '[ACTIVE]',
-      executionMode: 'AUTO_PILOT',
-      currentObjective: 'Design System Anti-Slop WCAG AAA e 50k galaxy shaders',
-      totalSteps: 6,
-      currentStep: 3,
-      stepDescription: 'Renderizando shader circular radial-gradient para estrelas instanciadas',
-      tokensPrompt: 3840,
-      tokensCompletion: 920,
-      tokenVelocity: 88,
-      etaSeconds: 12,
-      position3D: [-120, 60, 90],
-      livePreviewStream: [
-        '@@ -1,4 +1,5 @@ src/styles/design-tokens.css',
-        '+ --ds-accent-singularity: #aa88ff;',
-        '+ --ds-arc-cyan: #00f0ff;',
-      ].join('\n'),
-      activeModelId: 'claude-3.7-sonnet',
-      fifoQueueCount: 0,
-      lastAckBadge: '[ACK_VERIFIED]',
-    },
-    {
-      id: 'agent-content-01',
-      filename: '@agent-content',
-      pid: 14204,
-      status: '[IDLE]',
-      executionMode: 'AUTO_PILOT',
-      currentObjective: 'Sovereign Tauz voice persona e sintese pt-BR',
-      totalSteps: 5,
-      currentStep: 2,
-      stepDescription: 'Modulando respostas de voz taticas soberanas sem emoticons',
-      tokensPrompt: 2900,
-      tokensCompletion: 650,
-      tokenVelocity: 74,
-      etaSeconds: 18,
-      position3D: [140, 50, -80],
-      livePreviewStream: [
-        '@@ -10,3 +10,4 @@ .antigravity/blueprint/03_APP_FLOW.md',
-        '+ # Sovereign Tauz persona active in pt-BR',
-      ].join('\n'),
-      activeModelId: 'gemini-flash',
-      fifoQueueCount: 0,
-      lastAckBadge: '[ACK_VERIFIED]',
-    },
-    {
-      id: 'agent-data-01',
-      filename: '@agent-data',
-      pid: 14205,
-      status: '[IDLE]',
-      executionMode: 'STEP_BY_STEP_GATE',
-      currentObjective: 'Avaliacao deterministica de regras GoRules ZEN JDM',
-      totalSteps: 7,
-      currentStep: 3,
-      stepDescription: 'Executando grafos JDM com latencia < 0.45ms no SQLite WAL',
-      tokensPrompt: 5120,
-      tokensCompletion: 1100,
-      tokenVelocity: 86,
-      etaSeconds: 15,
-      position3D: [-100, 70, -110],
-      livePreviewStream: [
-        '@@ -22,2 +22,3 @@ src/rules/daemon-event-router.jdm.json',
-        '+ "riskLevel": "LOW",',
-        '+ "allowed": true',
-      ].join('\n'),
-      activeModelId: 'gemini-2.5-pro',
-      fifoQueueCount: 0,
-      lastAckBadge: '[ACK_VERIFIED]',
-    },
-    {
-      id: 'agent-cybersecurity-01',
-      filename: '@agent-cybersecurity',
-      pid: 14206,
-      status: '[IDLE]',
-      executionMode: 'STEP_BY_STEP_GATE',
-      currentObjective: 'Auditoria DevSecOps e firewall de execucao PID',
-      totalSteps: 6,
-      currentStep: 2,
-      stepDescription: 'Validando isolamento de PID > 100 e prevencao de path traversal',
-      tokensPrompt: 4400,
-      tokensCompletion: 890,
-      tokenVelocity: 79,
-      etaSeconds: 20,
-      position3D: [90, 90, 110],
-      livePreviewStream: [
-        '@@ -8,3 +8,4 @@ src/core/ZenFirewall.ts',
-        '+ if (pid <= 100) return { safe: false };',
-      ].join('\n'),
-      activeModelId: 'argon',
-      fifoQueueCount: 0,
-      lastAckBadge: '[ACK_VERIFIED]',
-    },
-    {
-      id: 'agent-qa-01',
-      filename: '@agent-qa',
-      pid: 14207,
-      status: '[IDLE]',
-      executionMode: 'STEP_BY_STEP_GATE',
-      currentObjective: 'Garantia deterministica de testes e suites vitest',
-      totalSteps: 6,
-      currentStep: 4,
-      stepDescription: 'Verificando determinismo e culling do Spatial Octree LOD',
-      tokensPrompt: 6300,
-      tokensCompletion: 1350,
-      tokenVelocity: 92,
-      etaSeconds: 10,
-      position3D: [-60, 100, 120],
-      livePreviewStream: [
-        '@@ -30,3 +30,4 @@ tests/task-10-canvas-sync-live-cortex.test.ts',
-        '+ expect(octree.evaluateLOD(camera).executionTimeMs).toBeLessThan(4.0);',
-      ].join('\n'),
-      activeModelId: 'claude-sonnet',
-      fifoQueueCount: 0,
-      lastAckBadge: '[ACK_VERIFIED]',
-    },
-  ],
-  fifoQueueItems: [
-    {
-      id: 'fifo-init-01',
-      targetAgentId: '@agent-orchestrator',
-      instruction: 'Sincronizar rastreabilidade Task 9 no WAR_ROOM.md',
-      modelId: 'argon',
-      status: 'FIFO_QUEUED',
-      createdAt: Date.now() - 12000,
-    },
-    {
-      id: 'fifo-init-02',
-      targetAgentId: '@agent-software-engineer',
-      instruction: 'Auditar pipeline DSP Tauz 110Hz e 2400Hz com Vitest',
-      modelId: 'claude-sonnet',
-      status: 'FIFO_QUEUED',
-      createdAt: Date.now() - 6000,
-    },
-  ],
+  ...createInitialStandbySnapshot(),
   activeFilter: 'ALL',
   isBottomDockExpanded: false,
   isInspectorDrawerOpen: false,
   isCommandPaletteOpen: false,
-  selectedAgentId: 'agent-orchestrator-01',
-  inspectedFilePath: 'src/services/kalinarVoiceService.ts',
 
   setFilter: (activeFilter) => set({ activeFilter }),
   toggleBottomDock: () => set((state) => ({ isBottomDockExpanded: !state.isBottomDockExpanded })),
@@ -289,50 +272,273 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
     set((state) => ({ singularity: { ...state.singularity, activeModelId } })),
   setPendingVoiceQueueCount: (pendingVoiceQueueCount) =>
     set((state) => ({ singularity: { ...state.singularity, pendingVoiceQueueCount } })),
+
+  setAgents: (agents) =>
+    set((state) => ({
+      agents,
+      synapticBeams: buildActiveSynapticBeams(agents),
+      selectedAgentId:
+        state.selectedAgentId && agents.some((a) => a.id === state.selectedAgentId)
+          ? state.selectedAgentId
+          : agents[0]?.id ?? null,
+      ...deriveGroundTruthMetrics(agents, state.singularity),
+    })),
+
+  setSecondBrainNotes: (secondBrainNotes, cortexNoteCount) =>
+    set((state) => ({
+      secondBrainNotes,
+      cortexNoteCount:
+        typeof cortexNoteCount === 'number'
+          ? cortexNoteCount
+          : Math.max(state.cortexNoteCount, secondBrainNotes.length),
+    })),
+
+  setSynapticBeams: (synapticBeams) => set({ synapticBeams }),
+  setCommandLogs: (commandLogs) => set({ commandLogs }),
+  appendCommandLog: (entry) =>
+    set((state) => ({
+      commandLogs: [entry, ...state.commandLogs].slice(0, 100),
+    })),
+
+  updateAgentMetrics: (agentId, tokensPrompt, tokensCompletion, tokenVelocity, etaSeconds) =>
+    set((state) => {
+      const nextAgents = state.agents.map((a) =>
+        matchesAgentId(a, agentId)
+          ? {
+              ...a,
+              tokensPrompt,
+              tokensCompletion,
+              tokenVelocity: tokenVelocity ?? a.tokenVelocity,
+              etaSeconds: etaSeconds ?? a.etaSeconds,
+            }
+          : a
+      );
+      return {
+        agents: nextAgents,
+        ...deriveGroundTruthMetrics(nextAgents, state.singularity),
+      };
+    }),
+
+  applyDaemonEvent: (payload) => {
+    if (!payload || typeof payload !== 'object') return;
+    const evtType = String(payload.type || payload.event_type || 'DAEMON_EVENT');
+    const targetAgentId = String(payload.targetAgentId || payload.agentId || payload.agent_name || '');
+
+    set((state) => {
+      let nextAgents = state.agents;
+
+      if (targetAgentId) {
+        nextAgents = state.agents.map((a) => {
+          if (!matchesAgentId(a, targetAgentId)) return a;
+          const nextStatus =
+            (payload.agentStatus as AgentStatus | undefined) ||
+            (payload.current as AgentStatus | undefined) ||
+            (evtType === 'STEP_COMPLETED'
+              ? '[VERIFIED]'
+              : evtType === 'AGENT_HALTED' || evtType === 'HARD_BLOCK'
+              ? '[HALTED]'
+              : a.status);
+          const nextStep =
+            typeof payload.step === 'number' ? payload.step : a.currentStep;
+          const nextPreview =
+            typeof payload.preview === 'string'
+              ? payload.preview
+              : typeof payload.summaryText === 'string'
+              ? payload.summaryText
+              : a.livePreviewStream;
+          const nextPrompt =
+            typeof payload.tokensPrompt === 'number' ? payload.tokensPrompt : a.tokensPrompt;
+          const nextCompletion =
+            typeof payload.tokensCompletion === 'number'
+              ? payload.tokensCompletion
+              : a.tokensCompletion;
+          const nextEta =
+            typeof payload.eta === 'number'
+              ? payload.eta
+              : typeof payload.etaSeconds === 'number'
+              ? payload.etaSeconds
+              : a.etaSeconds;
+
+          return {
+            ...a,
+            status: nextStatus,
+            currentStep: nextStep,
+            livePreviewStream: nextPreview,
+            tokensPrompt: nextPrompt,
+            tokensCompletion: nextCompletion,
+            etaSeconds: nextEta,
+            pid: typeof payload.pid === 'number' ? payload.pid : a.pid,
+          };
+        });
+      }
+
+      const logEntry: CommandLogEntry = {
+        id: `evt-${Date.now()}-${state.commandLogs.length + 1}`,
+        taskId: String(payload.taskId || payload.task_id || 'DAEMON'),
+        eventType: evtType,
+        agentName: targetAgentId || 'kalinar-daemon',
+        payload: JSON.stringify(payload),
+        latencyMs:
+          typeof payload.zenLatencyMs === 'number'
+            ? payload.zenLatencyMs
+            : typeof payload.latencyMs === 'number'
+            ? payload.latencyMs
+            : 0,
+        timestamp: new Date().toISOString(),
+      };
+
+      const nextSingularity: SingularityCoreState =
+        typeof payload.zenLatencyMs === 'number'
+          ? { ...state.singularity, zenLatencyMs: payload.zenLatencyMs }
+          : state.singularity;
+
+      return {
+        agents: nextAgents,
+        synapticBeams: buildActiveSynapticBeams(nextAgents),
+        commandLogs: [logEntry, ...state.commandLogs].slice(0, 100),
+        ...deriveGroundTruthMetrics(nextAgents, nextSingularity),
+      };
+    });
+  },
+
+  hydrateFromGroundTruth: async (apiOverride) => {
+    const api: KalinarGroundTruthApi | null =
+      apiOverride ??
+      (typeof window !== 'undefined' ? ((window as any).kalinarApi as KalinarGroundTruthApi) : null);
+    if (!api) {
+      set({ isHydrated: true });
+      return;
+    }
+
+    const [scanRes, vaultRes, telemetryRes, fifoRes] = await Promise.allSettled([
+      api.scanWorkspaceNodes ? api.scanWorkspaceNodes() : Promise.resolve(null),
+      api.querySecondBrainVault ? api.querySecondBrainVault({ maxResults: 50 }) : Promise.resolve(null),
+      api.getHistoricalTelemetry ? api.getHistoricalTelemetry(50) : Promise.resolve([]),
+      api.manageFifoQueue ? api.manageFifoQueue({ action: 'LIST' }) : Promise.resolve(null),
+    ]);
+
+    set((state) => {
+      const nextAgents: AgentNode[] =
+        scanRes.status === 'fulfilled' && scanRes.value && Array.isArray(scanRes.value.agents)
+          ? scanRes.value.agents
+          : state.agents;
+
+      const vaultData = vaultRes.status === 'fulfilled' ? vaultRes.value : null;
+      const nextNotes: SecondBrainVaultNote[] =
+        vaultData && Array.isArray(vaultData.notes) ? vaultData.notes : state.secondBrainNotes;
+      const nextCortexCount: number = vaultData
+        ? typeof vaultData.cortexCacheCount === 'number'
+          ? vaultData.cortexCacheCount
+          : typeof vaultData.total === 'number'
+          ? vaultData.total
+          : nextNotes.length
+        : state.cortexNoteCount;
+
+      const rawTelemetry =
+        telemetryRes.status === 'fulfilled' && Array.isArray(telemetryRes.value)
+          ? telemetryRes.value
+          : [];
+      const nextLogs: CommandLogEntry[] = rawTelemetry.map((row, idx) => ({
+        id: row.id ?? idx + 1,
+        taskId: String(row.task_id || row.taskId || 'SYSTEM'),
+        eventType: String(row.event_type || row.eventType || 'TELEMETRY'),
+        agentName: String(row.agent_name || row.agentName || 'system'),
+        payload: String(row.payload || '{}'),
+        latencyMs: Number(row.latency_ms ?? row.latencyMs ?? 0),
+        timestamp: String(row.timestamp || new Date().toISOString()),
+      }));
+
+      const nextFifo: FifoQueueItem[] =
+        fifoRes.status === 'fulfilled' && fifoRes.value && Array.isArray(fifoRes.value.items)
+          ? fifoRes.value.items
+          : state.fifoQueueItems;
+
+      const latestLatency = nextLogs.length > 0 ? nextLogs[0].latencyMs : 0;
+      const baseSingularity: SingularityCoreState = {
+        ...state.singularity,
+        zenLatencyMs: latestLatency,
+      };
+
+      return {
+        isHydrated: true,
+        agents: nextAgents,
+        secondBrainNotes: nextNotes,
+        cortexNoteCount: nextCortexCount,
+        synapticBeams: buildActiveSynapticBeams(nextAgents),
+        commandLogs: nextLogs,
+        fifoQueueItems: nextFifo,
+        selectedAgentId:
+          state.selectedAgentId && nextAgents.some((a) => a.id === state.selectedAgentId)
+            ? state.selectedAgentId
+            : nextAgents[0]?.id ?? null,
+        ...deriveGroundTruthMetrics(nextAgents, baseSingularity),
+      };
+    });
+  },
+
+  resetToStandby: () =>
+    set({
+      ...createInitialStandbySnapshot(),
+      activeFilter: 'ALL',
+      isBottomDockExpanded: false,
+      isInspectorDrawerOpen: false,
+      isCommandPaletteOpen: false,
+    }),
+
   setAgentModel: (agentId, activeModelId, lastAckBadge) =>
     set((state) => ({
       agents: state.agents.map((a) =>
-        a.id === agentId || a.filename === agentId
+        matchesAgentId(a, agentId)
           ? { ...a, activeModelId, lastAckBadge: lastAckBadge || '[MODEL_HOTSWAP]' }
           : a
       ),
     })),
+
   updateAgentModel: (agentId, activeModelId, lastAckBadge) =>
     set((state) => ({
       agents: state.agents.map((a) =>
-        a.id === agentId || a.filename === agentId
+        matchesAgentId(a, agentId)
           ? { ...a, activeModelId, lastAckBadge: lastAckBadge || '[MODEL_HOTSWAP]' }
           : a
       ),
     })),
+
   updateAgentStatus: (agentId, status) =>
-    set((state) => ({
-      agents: state.agents.map((a) =>
-        a.id === agentId || a.filename === agentId ? { ...a, status } : a
-      ),
-    })),
+    set((state) => {
+      const nextAgents = state.agents.map((a) =>
+        matchesAgentId(a, agentId) ? { ...a, status } : a
+      );
+      return {
+        agents: nextAgents,
+        synapticBeams: buildActiveSynapticBeams(nextAgents),
+        ...deriveGroundTruthMetrics(nextAgents, state.singularity),
+      };
+    }),
+
   setAgentFifoCount: (agentId, fifoQueueCount) =>
     set((state) => ({
       agents: state.agents.map((a) =>
-        a.id === agentId || a.filename === agentId ? { ...a, fifoQueueCount } : a
+        matchesAgentId(a, agentId) ? { ...a, fifoQueueCount, fifoQueueDepth: fifoQueueCount } : a
       ),
     })),
+
   setFifoQueueItems: (fifoQueueItems) => set({ fifoQueueItems }),
+
   enqueueFifoItemInStore: (item) =>
     set((state) => ({
       fifoQueueItems: [...state.fifoQueueItems, item],
       agents: state.agents.map((a) =>
-        a.id === item.targetAgentId ||
-        a.filename === item.targetAgentId ||
-        a.filename.replace(/^@/, '') === item.targetAgentId.replace(/^@/, '')
+        matchesAgentId(a, item.targetAgentId)
           ? {
               ...a,
               fifoQueueCount: (a.fifoQueueCount ?? 0) + 1,
+              fifoQueueDepth: (a.fifoQueueDepth ?? a.fifoQueueCount ?? 0) + 1,
               lastAckBadge: '[FIFO_QUEUED]',
             }
           : a
       ),
     })),
+
   promoteFifoItemInStore: (itemId) =>
     set((state) => {
       const target = state.fifoQueueItems.find((i) => i.id === itemId);
@@ -341,6 +547,7 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       const promoted: FifoQueueItem = { ...target, status: 'DISPATCHED', createdAt: 0 };
       return { fifoQueueItems: [promoted, ...others] };
     }),
+
   clearFifoQueueInStore: (agentId) =>
     set((state) => {
       const remaining = agentId
@@ -351,17 +558,29 @@ export const useKalinarStore = create<KalinarStoreState>((set) => ({
       return {
         fifoQueueItems: remaining,
         agents: state.agents.map((a) =>
-          !agentId || a.id === agentId || a.filename === agentId ? { ...a, fifoQueueCount: 0 } : a
+          !agentId || matchesAgentId(a, agentId)
+            ? { ...a, fifoQueueCount: 0, fifoQueueDepth: 0 }
+            : a
         ),
       };
     }),
+
   updateAgentStep: (agentId, step, preview) =>
     set((state) => ({
       agents: state.agents.map((a) =>
-        a.id === agentId || a.filename === agentId
+        matchesAgentId(a, agentId)
           ? { ...a, currentStep: step, livePreviewStream: preview }
           : a
       ),
     })),
-  addAgent: (agent) => set((state) => ({ agents: [...state.agents, agent] })),
+
+  addAgent: (agent) =>
+    set((state) => {
+      const nextAgents = [...state.agents, agent];
+      return {
+        agents: nextAgents,
+        synapticBeams: buildActiveSynapticBeams(nextAgents),
+        ...deriveGroundTruthMetrics(nextAgents, state.singularity),
+      };
+    }),
 }));

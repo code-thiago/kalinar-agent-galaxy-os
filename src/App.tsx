@@ -15,6 +15,8 @@ export function App() {
   } = useKalinarStore();
 
   useEffect(() => {
+    void useKalinarStore.getState().hydrateFromGroundTruth();
+
     // Connect IPC listeners if running in Electron
     if (typeof window !== 'undefined' && (window as any).kalinarApi) {
       const api = (window as any).kalinarApi;
@@ -26,6 +28,9 @@ export function App() {
       const cleanupTelemetry =
         typeof api.onTelemetryStream === 'function'
           ? api.onTelemetryStream((payload: any) => {
+              if (payload) {
+                useKalinarStore.getState().applyDaemonEvent(payload);
+              }
               if (
                 payload &&
                 (payload.type === 'STEP_COMPLETED' ||
@@ -36,9 +41,24 @@ export function App() {
               }
             })
           : () => {};
+      const cleanupAgent =
+        typeof api.onAgentUpdate === 'function'
+          ? api.onAgentUpdate((agent: any) => {
+              if (agent?.id) {
+                const state = useKalinarStore.getState();
+                const exists = state.agents.some((a) => a.id === agent.id);
+                if (exists) {
+                  state.setAgents(state.agents.map((a) => (a.id === agent.id ? agent : a)));
+                } else {
+                  state.addAgent(agent);
+                }
+              }
+            })
+          : () => {};
       return () => {
         cleanupVoice();
         cleanupTelemetry();
+        cleanupAgent();
       };
     }
   }, [updateSingularityTranscript]);

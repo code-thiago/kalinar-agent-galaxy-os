@@ -112,11 +112,15 @@ export function handleQuerySecondBrainVault(
   const notes = deps.sqliteStore
     ? deps.sqliteStore.querySecondBrainShadowCache(effectiveParams)
     : [];
+  const cortexCacheCount = deps.sqliteStore
+    ? deps.sqliteStore.getCortexNoteCacheCount()
+    : 0;
 
   return {
     success: true,
     notes,
     total: notes.length,
+    cortexCacheCount,
     searchLatencyMs: Number((performance.now() - start).toFixed(4)),
   };
 }

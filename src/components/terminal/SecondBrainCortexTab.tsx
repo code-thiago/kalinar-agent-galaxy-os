@@ -25,89 +25,6 @@ export interface SecondBrainNoteItem {
   lastIngested?: string;
 }
 
-const VAULT_NOTES_BASELINE: SecondBrainNoteItem[] = [
-  {
-    id: 'note-00-index',
-    title: 'Master Router (00_INDEX)',
-    wikilink: '[[00_INDEX]]',
-    domain: '01_PROJETOS',
-    tags: ['#master', '#router', '#second-brain'],
-    summary: 'Roteador central zero-toque para ingestao pre-tarefa e registro pos-tarefa.',
-    filePath: '00_INDEX.md',
-    wikilinks: ['[[01_PROJETOS_INDEX]]', '[[02_PADROES_E_DECISOES_INDEX]]'],
-  },
-  {
-    id: 'note-adr-001',
-    title: 'ADR-001: Server-Side Session Auth',
-    wikilink: '[[ADR-001-Seguranca-Sessao-Server-Side-Auth]]',
-    domain: '02_PADROES',
-    tags: ['#seguranca', '#auth', '#padrao'],
-    summary: 'Extracao estrita de userId a partir de sessao validada no servidor.',
-    filePath: '02_PADROES_E_DECISOES/ADR-001.md',
-    wikilinks: ['[[00_INDEX]]'],
-  },
-  {
-    id: 'note-adr-002',
-    title: 'ADR-002: Rate Limiting Granular Upstash',
-    wikilink: '[[ADR-002-Rate-Limiting-Granular-Upstash]]',
-    domain: '02_PADROES',
-    tags: ['#rate-limit', '#redis', '#resiliencia'],
-    summary: 'Limitadores granulares por rota sem bloquear sessoes de autenticacao.',
-    filePath: '02_PADROES_E_DECISOES/ADR-002.md',
-    wikilinks: ['[[ADR-001]]'],
-  },
-  {
-    id: 'note-adr-003',
-    title: 'ADR-003: Validacao Dupla Camada e Recalculo Client',
-    wikilink: '[[ADR-003-Validacao-Dupla-Camada-e-Recalculo-Client]]',
-    domain: '02_PADROES',
-    tags: ['#validacao', '#zod', '#calculo'],
-    summary: 'Persistencia de parametros de entrada e recalculo de series temporais no client.',
-    filePath: '02_PADROES_E_DECISOES/ADR-003.md',
-    wikilinks: ['[[00_INDEX]]'],
-  },
-  {
-    id: 'note-design-system',
-    title: 'PADRAO: Design System Anti-Slop WCAG',
-    wikilink: '[[PADRAO-Design-System-Anti-Slop-WCAG]]',
-    domain: '02_PADROES',
-    tags: ['#design-system', '#wcag-aaa', '#anti-slop'],
-    summary: 'Paleta monocromatica, alvos de toque 44px, contraste AAA e zero emojis.',
-    filePath: '02_PADROES_E_DECISOES/PADRAO-Design-System-Anti-Slop-WCAG.md',
-    wikilinks: ['[[00_INDEX]]'],
-  },
-  {
-    id: 'note-stack-principal',
-    title: 'Stack Principal de Engenharia Thiago',
-    wikilink: '[[Stack-Principal-Thiago]]',
-    domain: '04_STACK',
-    tags: ['#stack', '#react19', '#typescript'],
-    summary: 'React 19, Electron 35, GoRules ZEN Engine, Three.js GPGPU, Vite, Node 24.',
-    filePath: '04_STACK_E_SKILLS/Stack-Principal-Thiago.md',
-    wikilinks: ['[[00_INDEX]]'],
-  },
-  {
-    id: 'note-galarphia',
-    title: 'Galarphia Brand Ecosystem',
-    wikilink: '[[Galarphia-Brand-Ecosystem]]',
-    domain: '03_PREFERENCIAS',
-    tags: ['#marca', '#galarphia', '#identidade'],
-    summary: 'Arquitetura SaaS de alta velocidade, elegancia minimalista e foco tecnico.',
-    filePath: '03_PREFERENCIAS/Galarphia-Brand-Ecosystem.md',
-    wikilinks: ['[[00_INDEX]]'],
-  },
-  {
-    id: 'note-exec-v130',
-    title: 'Registro de Execucao: Release v1.3.0',
-    wikilink: '[[05_HISTORICO_EXECUCOES_INDEX]]',
-    domain: '05_EXECUCOES',
-    tags: ['#execucoes', '#release', '#v1-3-0'],
-    summary: 'Sincronizacao bidirecional Obsidian Canvas e avaliador JDM interativo.',
-    filePath: '05_EXECUCOES/05_HISTORICO_EXECUCOES_INDEX.md',
-    wikilinks: ['[[00_INDEX]]'],
-  },
-];
-
 const DEFAULT_JDM_PAYLOADS: Record<string, string> = {
   'daemon-event-router.jdm.json': JSON.stringify(
     {
@@ -212,7 +129,24 @@ const INPUT_STYLE: React.CSSProperties = {
 };
 
 export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
-  const [notes, setNotes] = useState<SecondBrainNoteItem[]>(VAULT_NOTES_BASELINE);
+  const {
+    agents,
+    secondBrainNotes,
+    cortexNoteCount,
+    updateSingularityTranscript,
+  } = useKalinarStore();
+  const [notes, setNotes] = useState<SecondBrainNoteItem[]>(() =>
+    secondBrainNotes.map((n) => ({
+      id: n.id,
+      title: n.title,
+      wikilink: n.wikilink || `[[${n.title}]]`,
+      domain: n.domain || '01_PROJETOS',
+      tags: Array.isArray(n.tags) ? n.tags : ['#second-brain'],
+      summary: n.excerpt || n.title,
+      filePath: n.filePath,
+      wikilinks: n.wikilinks,
+    }))
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<string>('ALL');
   const [pulledNotes, setPulledNotes] = useState<Set<string>>(new Set());
@@ -250,8 +184,6 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
     }>
   >([]);
 
-  const { agents, updateSingularityTranscript } = useKalinarStore();
-
   // Live Vault RAG Query Hydration (re-runs on search/domain updates with debounce)
   useEffect(() => {
     let isMounted = true;
@@ -265,21 +197,17 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
           maxResults: 40,
         });
         if (isMounted && res?.success && Array.isArray(res.notes)) {
-          if (res.notes.length > 0) {
-            const mapped: SecondBrainNoteItem[] = res.notes.map((n: any) => ({
-              id: n.id,
-              title: n.title,
-              wikilink: n.wikilink || `[[${n.title}]]`,
-              domain: n.domain || '01_PROJETOS',
-              tags: Array.isArray(n.tags) ? n.tags : ['#second-brain'],
-              summary: n.excerpt || n.title,
-              filePath: n.filePath,
-              wikilinks: n.wikilinks,
-            }));
-            setNotes(mapped);
-          } else if (!searchQuery.trim() && selectedDomain === 'ALL') {
-            setNotes(VAULT_NOTES_BASELINE);
-          }
+          const mapped: SecondBrainNoteItem[] = res.notes.map((n: any) => ({
+            id: n.id,
+            title: n.title,
+            wikilink: n.wikilink || `[[${n.title}]]`,
+            domain: n.domain || '01_PROJETOS',
+            tags: Array.isArray(n.tags) ? n.tags : ['#second-brain'],
+            summary: n.excerpt || n.title,
+            filePath: n.filePath,
+            wikilinks: n.wikilinks,
+          }));
+          setNotes(mapped);
         }
       } catch {
         // Keep current notes on error
@@ -677,7 +605,10 @@ export const SecondBrainCortexTab = memo(function SecondBrainCortexTab() {
               [01 // SECOND BRAIN VAULT &amp; OBSIDIAN CANVAS 1.0]
             </span>
             <span style={{ color: '#34D399', fontSize: '10px' }}>
-              {filteredNotes.length} NOTAS INDEXADAS
+              {searchQuery.trim() || selectedDomain !== 'ALL'
+                ? filteredNotes.length
+                : cortexNoteCount || filteredNotes.length}{' '}
+              NOTAS INDEXADAS
             </span>
           </div>
 

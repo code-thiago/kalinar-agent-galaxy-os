@@ -1048,6 +1048,17 @@ export class KalinarSqliteStore {
     }
   }
 
+  public getCortexNoteCacheCount(): number {
+    try {
+      const row = this.db
+        .prepare(`SELECT COUNT(*) as count FROM cortex_note_cache`)
+        .get() as { count?: number } | undefined;
+      return Number(row?.count || 0);
+    } catch {
+      return 0;
+    }
+  }
+
   public querySecondBrainShadowCache(params?: SecondBrainVaultQueryParams): SecondBrainVaultNote[] {
     const normalizedTarget = params?.targetPath
       ? params.targetPath.replace(/\\/g, '/').replace(/^\/+/, '')

@@ -26,54 +26,6 @@ interface WiretapMessage {
   action: string;
 }
 
-const INITIAL_WIRETAP: WiretapMessage[] = [
-  {
-    id: 'wt-1',
-    timestamp: '18:10:04',
-    from: '@agent-orchestrator',
-    to: '@agent-software-engineer',
-    domain: '02_PADROES',
-    wikilinks: ['[[ADR-001]]'],
-    action: 'Verificar integridade de sessao server-side antes do build',
-  },
-  {
-    id: 'wt-2',
-    timestamp: '18:11:15',
-    from: '@agent-software-engineer',
-    to: '@agent-design',
-    domain: '04_STACK',
-    wikilinks: ['[[PADRAO-Design-System-Anti-Slop-WCAG]]'],
-    action: 'Ajustar alvos de toque 44px e isolamento React.memo',
-  },
-  {
-    id: 'wt-3',
-    timestamp: '18:12:40',
-    from: '@agent-design',
-    to: '@agent-data',
-    domain: '02_PADROES',
-    wikilinks: ['[[ADR-003]]'],
-    action: 'Renderizar graficos de evolucao sem bloquear threads WebGL',
-  },
-  {
-    id: 'wt-4',
-    timestamp: '18:14:22',
-    from: '@agent-data',
-    to: '@agent-cybersecurity',
-    domain: '04_STACK',
-    wikilinks: ['[[zen-engine]]'],
-    action: 'Auditar latencia deterministica < 0.45ms nas 5 tabelas JDM',
-  },
-  {
-    id: 'wt-5',
-    timestamp: '18:16:05',
-    from: '@agent-cybersecurity',
-    to: '@agent-orchestrator',
-    domain: '03_PREFERENCIAS',
-    wikilinks: ['[[Regras-Interacao-Escopo-e-Economia-Tokens]]'],
-    action: 'Confirmar zero emojis e bloqueio de comandos destrutivos',
-  },
-];
-
 const FALLBACK_RAG_INDEX = [
   {
     wikilink: '[[00_INDEX]]',
@@ -103,7 +55,33 @@ const FALLBACK_RAG_INDEX = [
 ];
 
 export const AntigravityCliTab = memo(function AntigravityCliTab() {
-  const [wiretapMsgs, setWiretapMsgs] = useState<WiretapMessage[]>(INITIAL_WIRETAP);
+  const {
+    agents,
+    activeAgentsCount,
+    sessionTokens,
+    cortexNoteCount,
+    systemState,
+    commandLogs,
+    fifoQueueItems,
+    singularity,
+    selectAgent,
+    updateSingularityTranscript,
+    updateAgentModel,
+    setInspectedFilePath,
+    setInspectorDrawerOpen,
+  } = useKalinarStore();
+
+  const [wiretapMsgs, setWiretapMsgs] = useState<WiretapMessage[]>(() =>
+    commandLogs.slice(0, 20).map((log) => ({
+      id: String(log.id),
+      timestamp: log.timestamp,
+      from: log.agentName,
+      to: '@agent-orchestrator',
+      domain: log.taskId,
+      wikilinks: [],
+      action: `${log.eventType}: ${log.payload.slice(0, 120)}`,
+    }))
+  );
   const [cliInput, setCliInput] = useState('');
   const [cmdHistory, setCmdHistory] = useState<string[]>([]);
   const [historyCursor, setHistoryCursor] = useState<number>(-1);
@@ -112,7 +90,7 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
   >([
     {
       type: 'output',
-      text: 'KALINAR SOVEREIGN DESKTOP OS [v1.4.0] - ANTIGRAVITY PTY CLI',
+      text: 'KALINAR SOVEREIGN DESKTOP OS [v2.2.0-step2] - ANTIGRAVITY PTY CLI',
     },
     {
       type: 'output',
@@ -125,16 +103,6 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
   ]);
 
   const cliTerminalEndRef = useRef<HTMLDivElement | null>(null);
-  const {
-    agents,
-    fifoQueueItems,
-    singularity,
-    selectAgent,
-    updateSingularityTranscript,
-    updateAgentModel,
-    setInspectedFilePath,
-    setInspectorDrawerOpen,
-  } = useKalinarStore();
 
   useEffect(() => {
     cliTerminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -248,20 +216,14 @@ export const AntigravityCliTab = memo(function AntigravityCliTab() {
       }
 
       case 'status': {
-        const operationalCount = agents.filter(
-          (a) => a.status !== '[HALTED]' && a.status !== '[PAUSED]' && a.status !== '[ERROR]'
-        ).length;
-        const totalTokens = agents.reduce(
-          (acc, a) => acc + (a.tokensPrompt || 0) + (a.tokensCompletion || 0),
-          0
-        );
         appendCliLines([
           {
             type: 'output',
             text: [
-              `[SINGULARITY]: Active (${singularity.voiceState}) | Zen: ${singularity.zenLatencyMs.toFixed(2)}ms`,
-              `[ACTIVE_SWARM]: ${operationalCount}/${agents.length} agents nominal`,
-              `[TOTAL_TOKENS]: ${totalTokens.toLocaleString('en-US')} tokens`,
+              `[SYSTEM_STATE]: ${systemState} (${singularity.voiceState}) | Zen: ${singularity.zenLatencyMs.toFixed(2)}ms`,
+              `[ACTIVE_SWARM]: ${activeAgentsCount}/${agents.length} active`,
+              `[SESSION_TOKENS]: ${sessionTokens.toLocaleString('en-US')} tokens`,
+              `[CORTEX_CACHE]: ${cortexNoteCount.toLocaleString('en-US')} docs`,
               `[FIFO_QUEUE]: ${fifoQueueItems.length} queued directive(s)`,
               `[FIREWALL]: os-execution-firewall.jdm.json ARMED (< 0.45ms)`,
             ].join('\n'),

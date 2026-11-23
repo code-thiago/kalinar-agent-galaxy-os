@@ -269,22 +269,22 @@ describe('Task 8: The 7 Laws of Voice & Multi-Model Orchestration (v1.1.0)', () 
     const archRoute = await firewall.evaluateLlmModelRouter({ taskDomain: 'ARCHITECTURE' });
     expect(archRoute.latencyMs).toBeLessThan(0.45);
     expect(archRoute.result.activeModelId).toBe('argon');
-    expect(archRoute.result.fallbackModelId).toBe('claude-sonnet');
+    expect(archRoute.result.fallbackModelId).toBe('claude-sonnet-4');
 
     const uiRoute = await firewall.evaluateLlmModelRouter({ taskDomain: 'WEBGL_SHADER' });
     expect(uiRoute.latencyMs).toBeLessThan(0.45);
-    expect(uiRoute.result.activeModelId).toBe('claude-sonnet');
+    expect(uiRoute.result.activeModelId).toBe('claude-sonnet-4');
     expect(uiRoute.result.fallbackModelId).toBe('argon');
 
     const ragRoute = await firewall.evaluateLlmModelRouter({ taskDomain: 'RAG_AUDIT' });
     expect(ragRoute.latencyMs).toBeLessThan(0.45);
-    expect(ragRoute.result.activeModelId).toBe('gemini-pro');
+    expect(ragRoute.result.activeModelId).toBe('gemini-4-pro');
     expect(ragRoute.result.fallbackModelId).toBe('argon');
 
     const fastRoute = await firewall.evaluateLlmModelRouter({ taskDomain: 'FAST_TRIAGE' });
     expect(fastRoute.latencyMs).toBeLessThan(0.45);
-    expect(fastRoute.result.activeModelId).toBe('gemini-flash');
-    expect(fastRoute.result.fallbackModelId).toBe('gemini-pro');
+    expect(fastRoute.result.activeModelId).toBe('gemini-4-flash');
+    expect(fastRoute.result.fallbackModelId).toBe('gemini-4-pro');
 
     // 2. Create Atomic Git Checkpoint before mutating a file
     const tempTrackedFile = path.resolve(process.cwd(), `test-dirty-${Date.now()}.tmp`);
@@ -299,7 +299,7 @@ describe('Task 8: The 7 Laws of Voice & Multi-Model Orchestration (v1.1.0)', () 
       );
       const validChk = LlmModelCheckpointSchema.parse(checkpoint);
       expect(validChk.activeModelId).toBe('argon');
-      expect(validChk.fallbackModelId).toBe('claude-sonnet');
+      expect(validChk.fallbackModelId).toBe('claude-sonnet-4');
       expect(validChk.status).toBe('CHECKPOINTED');
 
       // Simulate dirty partial file write before stream failure
@@ -317,7 +317,7 @@ describe('Task 8: The 7 Laws of Voice & Multi-Model Orchestration (v1.1.0)', () 
       expect(firstFail.retryCount).toBe(1);
       expect(firstFail.activeModelId).toBe('argon');
 
-      // Second TIMEOUT failure (retryCount === 1 -> ATOMIC_ROLLBACK_AND_HOTSWAP to claude-sonnet)
+      // Second TIMEOUT failure (retryCount === 1 -> ATOMIC_ROLLBACK_AND_HOTSWAP to claude-sonnet-4)
       const secondFail = await daemon.handleModelFailureAndHotSwap({
         checkpointId: checkpoint.id,
         taskDomain: 'ARCHITECTURE',
@@ -327,7 +327,7 @@ describe('Task 8: The 7 Laws of Voice & Multi-Model Orchestration (v1.1.0)', () 
       });
       expect(secondFail.verdict).toBe('ATOMIC_ROLLBACK_AND_HOTSWAP');
       expect(secondFail.badge).toBe('[MODEL_HOTSWAP]');
-      expect(secondFail.activeModelId).toBe('claude-sonnet');
+      expect(secondFail.activeModelId).toBe('claude-sonnet-4');
       expect(secondFail.rolledBackDirtyFiles).toBe(true);
       expect(secondFail.checkpoint.status).toBe('HOT_SWAPPED');
 

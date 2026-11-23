@@ -38,9 +38,7 @@ export const EvolutionChartsView = memo(function EvolutionChartsView({
 }: EvolutionChartsViewProps) {
   const [historicalRows, setHistoricalRows] = useState<HistoricalTelemetryRow[]>([]);
   const [sqliteSummary, setSqliteSummary] = useState<EvolutionSummaryData | null>(null);
-  const [liveZenLatencies, setLiveZenLatencies] = useState<number[]>([
-    0.24, 0.31, 0.28, 0.36, 0.22, 0.38,
-  ]);
+  const [liveZenLatencies, setLiveZenLatencies] = useState<number[]>([]);
   const [walSynced, setWalSynced] = useState<boolean>(true);
 
   const fetchSqliteTelemetry = useCallback(async () => {
@@ -135,12 +133,17 @@ export const EvolutionChartsView = memo(function EvolutionChartsView({
       };
     }
 
-    const baseSteps = Math.max(totalCompletedSteps, 6);
-    const baseline = [0.18, 0.35, 0.52, 0.71, 0.86, 1.0].map((ratio, idx, arr) => ({
-      label: idx === arr.length - 1 ? 'NOW' : `T${idx}`,
-      steps: Math.round(baseSteps * ratio),
-      velocity: Math.round(Math.max(40, avgTokS * (0.45 + ratio * 0.55))),
-    }));
+    const baseline =
+      totalCompletedSteps === 0
+        ? [
+            { label: 'STANDBY', steps: 0, velocity: 0 },
+            { label: 'NOW', steps: 0, velocity: 0 },
+          ]
+        : [0.18, 0.35, 0.52, 0.71, 0.86, 1.0].map((ratio, idx, arr) => ({
+            label: idx === arr.length - 1 ? 'NOW' : `T${idx}`,
+            steps: Math.round(totalCompletedSteps * ratio),
+            velocity: Math.round(avgTokS * (0.45 + ratio * 0.55)),
+          }));
 
     return {
       totalCompletedSteps,
