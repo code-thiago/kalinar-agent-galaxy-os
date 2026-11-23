@@ -1,4 +1,4 @@
 {
-  "currentMilestone": 2,
-  "completedMilestones": [1]
+  "currentMilestone": "COMPLETED",
+  "completedMilestones": [1, 2, 3, 4, 5]
 }

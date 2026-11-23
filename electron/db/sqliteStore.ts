@@ -13,6 +13,8 @@ import {
   LlmModelCheckpoint,
   LlmModelId,
   ObsidianCanvasDocument,
+  SecondBrainVaultNote,
+  SecondBrainVaultQueryParams,
   WorkspaceScanResult,
 } from '../../src/types/kalinar.js';
 import { DaemonClient, DaemonDispatchResult } from '../daemon/DaemonClient.js';
@@ -76,6 +78,18 @@ export interface SecondBrainNoteRecord {
   content: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface CortexNoteCacheRow {
+  note_id: string;
+  relative_path: string;
+  title: string;
+  domain: string;
+  frontmatter_json: string;
+  wikilinks_json: string;
+  excerpt: string;
+  content_hash: string;
+  updated_at: number;
 }
 
 export class KalinarSqliteStore {
@@ -448,6 +462,23 @@ export class KalinarSqliteStore {
       );
       CREATE INDEX IF NOT EXISTS idx_second_brain_domain ON second_brain_notes(domain);
       CREATE INDEX IF NOT EXISTS idx_second_brain_file_path ON second_brain_notes(file_path);
+    `);
+
+    // 11. Cortex Note Cache Table (Milestone 5 SQLite Shadow Cache for Second Brain)
+    targetDb.exec(`
+      CREATE TABLE IF NOT EXISTS cortex_note_cache (
+        note_id TEXT PRIMARY KEY NOT NULL,
+        relative_path TEXT UNIQUE NOT NULL,
+        title TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        frontmatter_json TEXT NOT NULL DEFAULT '{}',
+        wikilinks_json TEXT NOT NULL DEFAULT '[]',
+        excerpt TEXT NOT NULL DEFAULT '',
+        content_hash TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_cortex_note_cache_domain ON cortex_note_cache(domain);
+      CREATE INDEX IF NOT EXISTS idx_cortex_note_cache_updated ON cortex_note_cache(updated_at);
     `);
   }
 
@@ -974,6 +1005,180 @@ export class KalinarSqliteStore {
 
     const stmt = this.db.prepare(`DELETE FROM second_brain_notes WHERE id = ?`);
     stmt.run(id);
+  }
+
+  public queryCortexNoteCache(filter?: {
+    query?: string;
+    domain?: string;
+    relativePath?: string;
+    limit?: number;
+  }): CortexNoteCacheRow[] {
+    try {
+      let sql = `SELECT * FROM cortex_note_cache WHERE 1=1`;
+      const params: Array<string | number> = [];
+
+      if (filter?.relativePath) {
+        const normalizedRel = filter.relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+        sql += ` AND relative_path = ?`;
+        params.push(normalizedRel);
+      }
+
+      if (filter?.domain) {
+        sql += ` AND LOWER(domain) LIKE ?`;
+        params.push(`%${filter.domain.toLowerCase()}%`);
+      }
+
+      if (filter?.query) {
+        sql += ` AND (LOWER(title) LIKE ? OR LOWER(excerpt) LIKE ? OR LOWER(frontmatter_json) LIKE ? OR LOWER(wikilinks_json) LIKE ? OR LOWER(relative_path) LIKE ?)`;
+        const pattern = `%${filter.query.toLowerCase()}%`;
+        params.push(pattern, pattern, pattern, pattern, pattern);
+      }
+
+      sql += ` ORDER BY updated_at DESC, relative_path ASC`;
+
+      if (filter?.limit && filter.limit > 0) {
+        sql += ` LIMIT ?`;
+        params.push(filter.limit);
+      }
+
+      const stmt = this.db.prepare(sql);
+      return stmt.all(...params) as unknown as CortexNoteCacheRow[];
+    } catch {
+      return [];
+    }
+  }
+
+  public querySecondBrainShadowCache(params?: SecondBrainVaultQueryParams): SecondBrainVaultNote[] {
+    const normalizedTarget = params?.targetPath
+      ? params.targetPath.replace(/\\/g, '/').replace(/^\/+/, '')
+      : undefined;
+
+    const cortexRows = this.queryCortexNoteCache({
+      query: params?.query,
+      domain: params?.domain,
+      relativePath: normalizedTarget,
+      limit: params?.maxResults,
+    });
+
+    const byPath = new Map<string, SecondBrainVaultNote>();
+
+    const parseJsonSafe = <T>(raw: string, fallback: T): T => {
+      try {
+        return JSON.parse(raw) as T;
+      } catch {
+        return fallback;
+      }
+    };
+
+    const normalizeExcerpt = (rawExcerpt: string, title: string): string => {
+      let excerpt = (rawExcerpt || '').trim();
+      if (!excerpt) {
+        excerpt = `Second Brain note ${title}`;
+      }
+      if (excerpt.length >= 250) {
+        excerpt = excerpt.slice(0, 237) + '...';
+      }
+      return excerpt;
+    };
+
+    for (const row of cortexRows) {
+      const frontmatter = parseJsonSafe<Record<string, unknown>>(row.frontmatter_json, {});
+      const wikilinksRaw = parseJsonSafe<string[]>(row.wikilinks_json, []);
+      const wikilinks = Array.isArray(wikilinksRaw)
+        ? wikilinksRaw.map((w) => String(w)).slice(0, 2)
+        : [];
+      let tags: string[] = [];
+      if (Array.isArray(frontmatter.tags)) {
+        tags = frontmatter.tags.map((t) => String(t));
+      } else if (typeof frontmatter.tags === 'string') {
+        tags = frontmatter.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean);
+      }
+      if (tags.length === 0) {
+        tags = ['#second-brain'];
+      }
+      const isoTime = new Date(Number(row.updated_at) || Date.now()).toISOString();
+      const excerpt = normalizeExcerpt(row.excerpt, row.title);
+      const relPath = row.relative_path.replace(/\\/g, '/');
+
+      byPath.set(relPath, {
+        id: row.note_id,
+        title: row.title,
+        filePath: relPath,
+        wikilink: `[[${row.title}]]`,
+        domain: row.domain,
+        tags,
+        frontmatter,
+        wikilinks,
+        excerpt,
+        content: excerpt,
+        createdAt: isoTime,
+        updatedAt: isoTime,
+      });
+    }
+
+    // Merge any notes from second_brain_notes table not already present or enrich content
+    try {
+      const sbRows = this.getSecondBrainNotes({
+        domain: params?.domain,
+        query: params?.query,
+        limit: params?.maxResults,
+      });
+
+      for (const sb of sbRows) {
+        const relPath = (sb.file_path || '').replace(/\\/g, '/').replace(/^\/+/, '');
+        if (normalizedTarget && relPath !== normalizedTarget) {
+          continue;
+        }
+        if (params?.domain && !sb.domain.toLowerCase().includes(params.domain.toLowerCase())) {
+          continue;
+        }
+        const existing = byPath.get(relPath);
+        if (existing) {
+          if (sb.content && sb.content.length > (existing.content?.length ?? 0)) {
+            existing.content = sb.content;
+          }
+          continue;
+        }
+
+        const frontmatter = parseJsonSafe<Record<string, unknown>>(sb.frontmatter_json, {});
+        const wikilinksRaw = parseJsonSafe<string[]>(sb.wikilinks_json, []);
+        const wikilinks = Array.isArray(wikilinksRaw)
+          ? wikilinksRaw.map((w) => String(w)).slice(0, 2)
+          : [];
+        const tagsRaw = parseJsonSafe<string[]>(sb.tags, []);
+        const tags =
+          Array.isArray(tagsRaw) && tagsRaw.length > 0 ? tagsRaw.map((t) => String(t)) : ['#second-brain'];
+        const excerpt = normalizeExcerpt(sb.excerpt, sb.title);
+        const createdAt = sb.created_at || new Date().toISOString();
+        const updatedAt = sb.updated_at || createdAt;
+
+        byPath.set(relPath, {
+          id: sb.id,
+          title: sb.title,
+          filePath: relPath,
+          wikilink: sb.wikilink || `[[${sb.title}]]`,
+          domain: sb.domain,
+          tags,
+          frontmatter,
+          wikilinks,
+          excerpt,
+          content: sb.content || excerpt,
+          createdAt,
+          updatedAt,
+        });
+      }
+    } catch {
+      // Ignore if second_brain_notes is unavailable
+    }
+
+    const results = Array.from(byPath.values());
+    if (params?.maxResults && params.maxResults > 0) {
+      return results.slice(0, params.maxResults);
+    }
+    return results;
   }
 
   /* =====================================================================

@@ -69,7 +69,12 @@ describe('CYCLE 2 SELF-AUDIT: WCAG AAA, SECURITY & ZERO-EMOJI ENFORCEMENT', () =
           continue;
         }
         const fullPath = path.join(dir, file);
-        const stat = fs.statSync(fullPath);
+        let stat: fs.Stats | null = null;
+        try {
+          stat = fs.statSync(fullPath);
+        } catch {
+          continue;
+        }
         if (stat && stat.isDirectory()) {
           results = results.concat(walk(fullPath));
         } else if (file.endsWith('.ts') || file.endsWith('.tsx') || file.endsWith('.json') || file.endsWith('.css')) {

@@ -221,3 +221,24 @@ stateDiagram-v2
 | **Dock Tab 2: Evolution Charts (`EvolutionChartsView`)** | 3-column SVG grid skeleton on `#07080a`. | `[AWAITING_SAMPLES] Zero historical turns in SQLite.` | `[WAL_BUSY_TIMEOUT] Retrying getHistoricalTelemetry.` | Spike marker on firewall rejection counter. | Displays queued vs. completed step throughput curve. | Annotates latency chart with checkpoint rollback & hot-swap timestamp. |
 | **Dock Tab 3: ZEN Cortex (`CortexSecondBrainView`)** | Loading 5 pre-warmed JDM graphs into `jdmBufferCache`. | `[COFRES_SYNCED] Zero pending Obsidian diffs.` | `[LOCK_COLLISION] Enforcing .kalinar-lock single-writer.` | Displays triggered JDM rule row (`riskLevel: CRITICAL`, `< 0.45ms`). | Shows `WAR_ROOM.md` pointer queue (capped at max 2 `[[Wikilinks]]`). | Highlights `llm-model-router.jdm.json` active failover path. |
 | **Dock Tab 4: Native CLI (`AntigravityCliTab`)** | `kalinar@singularity:~$` prompt initializing IPC bridge. | `[READY] Protected by os-execution-firewall.jdm.json.` | `[SHELL_SPAWN_ERROR] Fallback to sandboxed evaluator.` | `[FIREWALL_HALT] Command rejected in < 0.45ms (exitCode: 1).` | Prints `[FIFO_ENQUEUED] Task scheduled after active @agent-* lock release.` | Prints `[CHECKPOINT_RESTORED] Switched LLM provider and resumed turn.` |
+
+---
+
+## 4. Unification v2.0.0-unified Cross-Process Flows (`FLOW-UNIFICATION-M1..M5`)
+
+```mermaid
+stateDiagram-v2
+    [*] --> ContractsValidated: M1 @kalinar/contracts Zod + 5 JDM Graphs (< 0.45ms)
+    ContractsValidated --> DaemonSingleWriter: M2 kalinar-daemon READWRITE WAL + Electron SQLITE_READONLY
+    DaemonSingleWriter --> PtyLeaseScoped: M3 EPHEMERAL_UI_BOUND vs DETACHED_DAEMON_SERVICE
+    PtyLeaseScoped --> SyncSentinelGuard: M4 .sync-in-progress PID + 30000ms TTL Mute Window
+    SyncSentinelGuard --> CortexShadowCache: M5 VaultShadowIndexer -> cortex_note_cache (Exponential Backoff)
+    CortexShadowCache --> ElectronReadOnlyQuery: kalinar:query_second_brain_vault (Zero OneDrive fs Reads)
+    CortexShadowCache --> DaemonIpcMutation: kalinar:inject_second_brain_note & kalinar:sync_obsidian_canvas via DaemonClient
+```
+
+* **`FLOW-UNIFICATION-M1` (`@kalinar/contracts`):** Shared package exporting canonical Zod schemas, `ELECTRON_IPC_CHANNELS`, `DAEMON_IPC_EVENTS`, and the 5 JDM rule resolvers to both `C:\Kalinar` and `C:\Dev\kalinar-daemon`.
+* **`FLOW-UNIFICATION-M2` (Single-Writer Daemon vs. Electron `READONLY`):** Electron queries `C:\Dev\kalinar-daemon\data\kalinar.db` with `readOnly: true` and forwards all mutations over `\\.\pipe\kalinar-daemon` (or `ws://127.0.0.1:4949` fallback) via `DaemonClient`.
+* **`FLOW-UNIFICATION-M3` (`node-pty` Process Lease Scopes):** `EPHEMERAL_UI_BOUND` shells are reaped automatically when the Electron UI disconnects; `DETACHED_DAEMON_SERVICE` background jobs continue uninterrupted under `kalinar-daemon` supervision.
+* **`FLOW-UNIFICATION-M4` (`.sync-in-progress` PID Sentinel Lock):** During `second-brain-cli.ps1 sync` Robocopy bursts, `.antigravity/.sync-in-progress` (`ttlMs: 30000`) activates `SYNC_MUTE_WINDOW`, coalesces file events, and auto-recovers if the holding PID crashes or exceeds TTL.
+* **`FLOW-UNIFICATION-M5` (`cortex_note_cache` SQLite Shadow Cache):** `VaultShadowIndexer` indexes Second Brain `.md` files in `kalinar-daemon` with exponential backoff on OneDrive locks; Electron reads `cortex_note_cache` via `READONLY` SQLite with zero direct OneDrive `fs.readFileSync` / `fs.readdirSync` calls and routes note/canvas writes through `DaemonClient`.

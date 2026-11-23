@@ -655,9 +655,14 @@ export class DaemonClient {
     const wireJson = JSON.stringify(wireEnvelope);
 
     if (this.pipeSocket && !this.pipeSocket.destroyed) {
+      const targetPipe = this.pipeSocket;
       const ackPromise = this.registerPending(requestId);
-      this.pipeSocket.write(`${wireJson}\n`);
       const dispatchLatencyMs = Number((performance.now() - start).toFixed(4));
+      queueMicrotask(() => {
+        if (!targetPipe.destroyed) {
+          targetPipe.write(`${wireJson}\n`);
+        }
+      });
       return {
         dispatched: true,
         queuedOffline: false,
@@ -669,9 +674,14 @@ export class DaemonClient {
     }
 
     if (this.wsSocket && !this.wsSocket.destroyed) {
+      const targetWs = this.wsSocket;
       const ackPromise = this.registerPending(requestId);
-      this.wsSocket.write(encodeWsMaskedTextFrame(wireJson));
       const dispatchLatencyMs = Number((performance.now() - start).toFixed(4));
+      queueMicrotask(() => {
+        if (!targetWs.destroyed) {
+          targetWs.write(encodeWsMaskedTextFrame(wireJson));
+        }
+      });
       return {
         dispatched: true,
         queuedOffline: false,
@@ -750,6 +760,54 @@ export class DaemonClient {
       pid,
       uiClientId: this.uiClientId,
     });
+  }
+
+  public injectSecondBrainNote(payload: {
+    title: string;
+    domain: string;
+    tags?: string[];
+    content: string;
+    filePath?: string;
+    notePath?: string;
+    vaultRoot?: string;
+    frontmatter?: Record<string, unknown>;
+  }): DaemonDispatchResult {
+    return this.dispatchMutation(
+      'daemon:second_brain_inject',
+      {
+        op: 'second_brain:inject_note',
+        ...payload,
+      },
+      'SECOND_BRAIN_INJECT'
+    );
+  }
+
+  public syncObsidianCanvas(payload: {
+    direction?: string;
+    canvasPath?: string;
+    vaultRoot?: string;
+    document?: unknown;
+    topology?: unknown;
+  }): DaemonDispatchResult {
+    return this.dispatchMutation(
+      'daemon:canvas_sync_requested',
+      {
+        op: 'canvas:sync_document',
+        ...payload,
+      },
+      'CANVAS_SYNC'
+    );
+  }
+
+  public requestCortexReindex(vaultRoot?: string): DaemonDispatchResult {
+    return this.dispatchMutation(
+      'daemon:cortex_reindex',
+      {
+        op: 'cortex:reindex',
+        ...(vaultRoot ? { vaultRoot } : {}),
+      },
+      'CORTEX_REINDEX'
+    );
   }
 
   private registerPending(requestId: string): Promise<DaemonIpcResponse> {

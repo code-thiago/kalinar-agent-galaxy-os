@@ -150,9 +150,26 @@ export type AllowedKalinarIpcChannel = (typeof ELECTRON_IPC_CHANNELS)[number];
 | `kalinar:control_process_pid` | `Renderer -> Main` | `validatePidSafety(pid)` (`PID > 100` integer check) | Pauses (`SIGSTOP`), resumes (`SIGCONT`), or kills (`SIGTERM`/`taskkill`) agent PID. |
 | `kalinar:enqueue_agent_fifo` | `Renderer -> Main` | Single-writer SQLite transaction + `execution-gate.jdm.json` | Enqueues task in FIFO order when target `@agent-*` is `[RUNNING]`. |
 | `kalinar:switch_llm_model` | `Renderer -> Main` | `llm-model-router.jdm.json` + Atomic Git Checkpoint check | Hot-swaps active LLM provider between **Argon**, **Claude**, and **Gemini**. |
-| `kalinar:sync_obsidian_canvas` | `Renderer <-> Main` | Obsidian Canvas 1.0 JSON format + loop suppression | Exports 3D topology to `KALINAR_GALAXY.canvas` or imports canvas changes to SQLite. |
-| `kalinar:query_second_brain_vault` | `Renderer -> Main` | Zero-trust path traversal (`sanitizeWorkspaceFilePath`) | Scans workspace/Second Brain `.md` files; extracts frontmatter, max 2 wikilinks, excerpt < 250 chars. |
-| `kalinar:inject_second_brain_note` | `Renderer -> Main` | Zero-trust path traversal + SQLite WAL transaction | Persists Markdown note to disk and `second_brain_notes` table; returns 3D logarithmic spiral coordinates. |
+| `kalinar:sync_obsidian_canvas` | `Renderer <-> Main` | Obsidian Canvas 1.0 JSON format + loop suppression | Routes canvas mutations through `DaemonClient` to `kalinar-daemon` (`daemon:canvas_sync_requested`). |
+| `kalinar:query_second_brain_vault` | `Renderer -> Main` | Zero-trust path traversal (`sanitizeWorkspaceFilePath`) + `SQLITE_READONLY` | Queries `cortex_note_cache` and `second_brain_notes` via Electron's `READONLY` SQLite connection with zero direct OneDrive `fs` reads. |
+| `kalinar:inject_second_brain_note` | `Renderer -> Main` | Zero-trust path traversal + `DaemonClient` IPC transaction | Routes Markdown note injection to `kalinar-daemon` (`daemon:second_brain_inject`), updating disk, `second_brain_notes`, and `cortex_note_cache`. |
+
+### 3.1 Unification v2.0.0-unified Architecture: `@kalinar/contracts`, Single-Writer Daemon, Lease Scopes, Sentinel Lock & Shadow Cache
+
+1. **Shared Contracts Package (`@kalinar/contracts` / `C:\Dev\kalinar-contracts`):**
+   - Canonical single source of truth for Zod schemas (`AgentTurnOutputSchema`, `AgentIdSchema`, `FifoQueueItemSchema`, `TaskRecordSchema`, `ProcessLeaseScopeSchema`, `SingularityCoreStateSchema`, `StreamDigestSchema`, `TwoPhaseVoiceAckSchema`, `LlmModelRouteSchema`, `SyncSentinelLockSchema`, `CortexNoteCacheRecordSchema`), `ELECTRON_IPC_CHANNELS`, `DAEMON_IPC_EVENTS` (`\\.\pipe\kalinar-daemon` primary / `ws://127.0.0.1:4949` fallback), and the 5 `.jdm.json` GoRules ZEN graphs (`resolveJdmRulePath`).
+2. **Daemon Single-Writer Authority vs. Electron `READONLY`:**
+   - `kalinar-daemon` (`C:\Dev\kalinar-daemon`) is the sole `READWRITE` owner of the canonical SQLite WAL database (`C:\Dev\kalinar-daemon\data\kalinar.db`).
+   - Electron (`C:\Kalinar`) opens `KalinarSqliteStore` in strict `SQLITE_OPEN_READONLY` (`readOnly: true`) mode for sub-millisecond `SELECT` queries and dispatches all state mutations over `DaemonClient` IPC.
+3. **`node-pty` Process Lease Scopes (`EPHEMERAL_UI_BOUND` vs. `DETACHED_DAEMON_SERVICE`):**
+   - `os-execution-firewall.jdm.json` assigns a deterministic `leaseScope` (`ProcessLeaseScopeSchema`) to every command.
+   - On Electron `window-all-closed` (`daemon:ui_client_disconnect`), `ProcessLeaseManager` terminates only `EPHEMERAL_UI_BOUND` PIDs while keeping `DETACHED_DAEMON_SERVICE` swarm tasks alive in the background.
+4. **`.antigravity/.sync-in-progress` PID Sentinel Lock (`ttlMs: 30000`):**
+   - Validated via `SyncSentinelLockSchema` (`{ pid, timestamp, ttlMs: 30000, source }`).
+   - Both `KalinarDaemon` and `kalinar-daemon` enter `SYNC_MUTE_WINDOW` during active Robocopy `/PURGE` mirror bursts, coalesce events into a single post-sync reconciliation pass, and automatically clean up orphaned locks when the lock holder PID is dead (`process.kill(pid, 0)`) or age exceeds `30000ms`.
+5. **SQLite Shadow Cache (`cortex_note_cache`) & Zero Direct OneDrive `fs` Reads in Electron:**
+   - `kalinar-daemon` (`VaultShadowIndexer`) indexes Second Brain `.md` files in the background into `cortex_note_cache` (respecting `.sync-in-progress` mute windows) with exponential backoff on transient OneDrive file locks (`EBUSY`, `EPERM`, `EACCES`).
+   - Electron (`VaultIpcRouter.ts`, `electron/main.ts`, `AgentConnectorRegistry.ts`) serves `kalinar:query_second_brain_vault` exclusively from `cortex_note_cache` and `second_brain_notes` via `READONLY` SQLite with zero `fs.readFileSync` / `fs.readdirSync` calls against OneDrive vault paths.
 
 ---
 

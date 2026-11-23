@@ -12,6 +12,7 @@
 ## 1. Executive Audit Summary
 
 The Kalinar Sovereign Desktop OS & 3D Agent Galaxy has satisfied 100% of all technical requirements, architectural decision records, and safety guardrails across all 11 tasks (Task 0 through Task 10):
+
 - Task 0: Six-Pillar Blueprint & Design System Co-Creation (v0.0.1-blueprint, v0.0.2-singularity)
 - Task 1: Desktop Core, Chokidar Watcher, SQLite WAL, ZEN Firewall & Singularity HUD (v0.1.0-alpha)
 - Task 2: Black Hole Singularity, GPGPU Accretion Disk, Navier-Stokes Fluid & 50k Galaxy Swarms (v0.2.0-alpha)
@@ -24,36 +25,37 @@ The Kalinar Sovereign Desktop OS & 3D Agent Galaxy has satisfied 100% of all tec
 - Task 9: Tauz Acoustic DSP Pipeline, Live Filesystem & Git Diff Connectors, and Interactive Multi-Model Hot-Swap (v1.2.0)
 - Task 10: Bidirectional Obsidian Canvas Synchronization, Live Second Brain Vault RAG Integration, and Cortex GoRules ZEN Evaluator (v1.3.0)
 
-| Audit Parameter | Target Constraint | Measured Result | Audit Verdict |
-| :--- | :---: | :---: | :---: |
-| **Orphan User Stories (`orphanUserStories`)** | `0` | `0` (`US-001`..`US-011`) | `PASS` |
-| **Unmapped Routes / Viewports (`unmappedRoutes`)** | `0` | `0` | `PASS` |
-| **Unprotected Endpoints / IPC Channels (`unprotectedEndpoints`)** | `0` | `0` | `PASS` |
-| **Untested Requirements (`untestedRequirements`)** | `0` | `0` | `PASS` |
-| **Agent Consensus Rate** | `100%` (7 / 7 agents) | `100%` (7 / 7 agents) | `APPROVED` |
-| **Visual Invariant (Zero-Emoji Compliance)** | `100%` (0 emojis) | `100%` (0 emojis found) | `COMPLIANT` |
-| **Persona Invariant (Zero-Prohibited-Terms Compliance)** | `100%` (0 occurrences) | `100%` (0 occurrences) | `COMPLIANT` |
-| **GoRules ZEN Engine Latency (5 JDM Graphs)** | `< 0.45ms` | `< 0.45ms` (Deterministic) | `PASS` |
-| **Vitest Test Suite Pass Rate** | `100%` | `100%` (`17 / 17` test suites, `122 / 122` tests passing) | `PASS` |
-| **WCAG 2.2 AAA Color Contrast** | `>= 7.0:1` | `7.67:1` (#AA88FF on #000000) | `PASS` |
+| Audit Parameter                                                   |   Target Constraint    |                      Measured Result                      | Audit Verdict |
+| :---------------------------------------------------------------- | :--------------------: | :-------------------------------------------------------: | :-----------: |
+| **Orphan User Stories (`orphanUserStories`)**                     |          `0`           |                 `0` (`US-001`..`US-011`)                  |    `PASS`     |
+| **Unmapped Routes / Viewports (`unmappedRoutes`)**                |          `0`           |                            `0`                            |    `PASS`     |
+| **Unprotected Endpoints / IPC Channels (`unprotectedEndpoints`)** |          `0`           |                            `0`                            |    `PASS`     |
+| **Untested Requirements (`untestedRequirements`)**                |          `0`           |                            `0`                            |    `PASS`     |
+| **Agent Consensus Rate**                                          | `100%` (7 / 7 agents)  |                   `100%` (7 / 7 agents)                   |  `APPROVED`   |
+| **Visual Invariant (Zero-Emoji Compliance)**                      |   `100%` (0 emojis)    |                  `100%` (0 emojis found)                  |  `COMPLIANT`  |
+| **Persona Invariant (Zero-Prohibited-Terms Compliance)**          | `100%` (0 occurrences) |                  `100%` (0 occurrences)                   |  `COMPLIANT`  |
+| **GoRules ZEN Engine Latency (5 JDM Graphs)**                     |       `< 0.45ms`       |                `< 0.45ms` (Deterministic)                 |    `PASS`     |
+| **Vitest Test Suite Pass Rate**                                   |         `100%`         | `100%` (`17 / 17` test suites, `122 / 122` tests passing) |    `PASS`     |
+| **WCAG 2.2 AAA Color Contrast**                                   |       `>= 7.0:1`       |               `7.67:1` (#AA88FF on #000000)               |    `PASS`     |
 
 ---
 
 ## 2. 7-Agent Swarm Final Delivery Ledger
 
-* **`@agent-orchestrator`:** 100% of all task queue locks satisfied; Task 10 deliverables, Traceability Matrix (`TRACE-08`), and Release v1.3.0 cut verified.
-* **`@agent-software-engineer`:** Bidirectional Obsidian Canvas 1.0 JSON serialization/deserialization, 3D [x,y,z] <-> 2D (x*4, z*4) coordinate transformation, SQLite `canvas_nodes` generic references, `second_brain_notes` CRUD, and IPC channels (`kalinar:sync_obsidian_canvas`, `kalinar:query_second_brain_vault`, `kalinar:inject_second_brain_note`).
-* **`@agent-design`:** Monospace tabular-nums DSP acoustic telemetry strip (SUB-110HZ, PRES-2.4KHZ, PULSE), 3D SecondBrainNode galaxy rendering, color tokens ("5" Cyan, "6" Purple, "3" Amber), and WCAG 2.2 AAA contrast standards.
-* **`@agent-data`:** Interactive 5-graph GoRules ZEN JDM evaluator in Second Brain Cortex tab (`< 0.45ms` execution), loop suppression (`.kalinar-lock` / `WATCH_VISUAL_ONLY`), and Markdown YAML frontmatter / wikilink capping ($\le 2$).
-* **`@agent-cybersecurity`:** Zero-trust path-traversal sanitization blocking `../` in vault query and note injection, Electron IPC whitelist enforcement, and append-only SQLite telemetry triggers.
-* **`@agent-qa`:** 12 Vitest test files passing deterministically with 100% test pass rate, zero compilation errors, and complete verification of all R1-R5 acceptance criteria.
-* **`@agent-content`:** Sovereign pt-BR voice directives (`SEARCH_SECOND_BRAIN`, `SYNC_OBSIDIAN_CANVAS`) with spoken tactical confirmations in Tauz cadence, strictly zero emojis, and zero prohibited terms.
+- **`@agent-orchestrator`:** 100% of all task queue locks satisfied; Task 10 deliverables, Traceability Matrix (`TRACE-08`), and Release v1.3.0 cut verified.
+- **`@agent-software-engineer`:** Bidirectional Obsidian Canvas 1.0 JSON serialization/deserialization, 3D [x,y,z] <-> 2D (x*4, z*4) coordinate transformation, SQLite `canvas_nodes` generic references, `second_brain_notes` CRUD, and IPC channels (`kalinar:sync_obsidian_canvas`, `kalinar:query_second_brain_vault`, `kalinar:inject_second_brain_note`).
+- **`@agent-design`:** Monospace tabular-nums DSP acoustic telemetry strip (SUB-110HZ, PRES-2.4KHZ, PULSE), 3D SecondBrainNode galaxy rendering, color tokens ("5" Cyan, "6" Purple, "3" Amber), and WCAG 2.2 AAA contrast standards.
+- **`@agent-data`:** Interactive 5-graph GoRules ZEN JDM evaluator in Second Brain Cortex tab (`< 0.45ms` execution), loop suppression (`.kalinar-lock` / `WATCH_VISUAL_ONLY`), and Markdown YAML frontmatter / wikilink capping ($\le 2$).
+- **`@agent-cybersecurity`:** Zero-trust path-traversal sanitization blocking `../` in vault query and note injection, Electron IPC whitelist enforcement, and append-only SQLite telemetry triggers.
+- **`@agent-qa`:** 12 Vitest test files passing deterministically with 100% test pass rate, zero compilation errors, and complete verification of all R1-R5 acceptance criteria.
+- **`@agent-content`:** Sovereign pt-BR voice directives (`SEARCH_SECOND_BRAIN`, `SYNC_OBSIDIAN_CANVAS`) with spoken tactical confirmations in Tauz cadence, strictly zero emojis, and zero prohibited terms.
 
 ---
 
 ## 3. Post-Review & Challenger Gate Remediation Ledger
 
 Following Gate 1 empirical evaluations by Challenger 1 and Challenger 2, surgical remediations were implemented:
+
 1. `AgentConnectorRegistry.ts`: URL-decoding and rejection of encoded traversal tokens (`%2e`, `%2f`, `%5c`, `%25`) before and after path resolution; `targetPath` lookup direct indexing; bounded fallback excerpt (`< 250` chars guarantee).
 2. `tests/task-10-canvas-sync-live-cortex.test.ts`: Aligned Test 5 assertions with canonical `ZenFirewall` interfaces (`result.allowed: true/false`, `result.requiresHumanApproval: true`); excluded internal agent metadata directories (`.agents`, `.antigravity`) from Test 9 emoji scanner.
 3. Acceptance Verification: All 18 tests in `tests/task-10-canvas-sync-live-cortex.test.ts`, all 14 tests in `tests/task-10-challenger-empirical.test.ts`, and all security/performance benchmarks in `tests/task-10-challenger-2-empirical.test.ts` pass with 100% success.
@@ -63,7 +65,19 @@ Following Gate 1 empirical evaluations by Challenger 1 and Challenger 2, surgica
 ## 4. Release `v1.4.0-singularity-verified` (`13ca02f`) Hardening & Repair Closure Ledger
 
 Following the 6-step repair sequence (`.antigravity/comms/REPAIR_QUEUE.json` -> `COMPLETED`):
+
 1. **Frameless Electron Shell & `SpatialOctreeLOD.ts`:** Enforced `Menu.setApplicationMenu(null)`, `titleBarStyle: 'hidden'`, and `titleBarOverlay: { color: '#000000', symbolColor: '#AA88FF', height: 32 }` in `electron/main.ts`, paired with `SpatialOctreeLOD.ts` (`< 4ms` frustum culling and 3-level LOD across 50,000 `THREE.InstancedMesh` nodes) verified by `tests/task-3-galaxy-spiral-rag.test.ts` (`9 tests`).
 2. **HUD & Dock Isolation:** Verified `160px` opaque `AgentLivePreviewCard` and `plus-lighter` `RightSingularityColumn` (`tests/task-4-hud-preview-ethereal.test.ts`, `6 tests`) plus `36px -> 350px / 75vh` `KalinarBottomDock` (`tests/task-5-dock.test.ts`, `9 tests`).
 3. **Tauz 60 FPS DSP, 7 Laws Server-Push & `Ctrl+K` Command Palette:** Mounted `KalinarCommandPalette.tsx` (`Ctrl+K` / `Cmd+K` and `[ CTRL+K ]` trigger in `TopRightTrigger.tsx`) with HUD/palette click isolation from the central Singularity `< 10ms` kill-switch, wired `daemon:server_push_alert` -> `telemetry:stream` proactive voice notifications, and verified all **17 test suites and 122 passing tests** (`npx vitest run`, including `tests/task-6-command-palette-voice-laws.test.ts`, `5 tests`) alongside clean `tsc` and `npm run desktop:build`.
 
+---
+
+## 5. Unification Release `v2.0.0-unified` (Milestones 1 through 5) Audit Closure Ledger
+
+Following sequential execution of `.antigravity/comms/UNIFICATION_LOCK.json` (`"currentMilestone": "COMPLETED"`, `"completedMilestones": [1, 2, 3, 4, 5]`):
+
+1. **Milestone 1 (`v1.5.0-alpha` - `@kalinar/contracts`):** Centralized Zod runtime contracts (`AgentTurnOutputSchema`, `ProcessLeaseScopeSchema`, `SyncSentinelLockSchema`, `CortexNoteCacheRecordSchema`), `ELECTRON_IPC_CHANNELS`, `DAEMON_IPC_EVENTS`, and the 5 canonical `.jdm.json` GoRules ZEN graphs into `C:\Dev\kalinar-contracts` (`@kalinar/contracts`), linked into both `C:\Kalinar` and `C:\Dev\kalinar-daemon`.
+2. **Milestone 2 (`v1.6.0-alpha` - Daemon Single-Writer vs. Electron `READONLY`):** Established `C:\Dev\kalinar-daemon\data\kalinar.db` as the sole `READWRITE` SQLite WAL store owned by `kalinar-daemon`, refactored Electron `KalinarSqliteStore` to `SQLITE_OPEN_READONLY` (`readOnly: true`), and routed mutations over `DaemonClient` (`\\.\pipe\kalinar-daemon` primary / `ws://127.0.0.1:4949` fallback).
+3. **Milestone 3 (`v1.7.0-beta` - `node-pty` Process Lease Scopes):** Implemented `ProcessLeaseScope` (`EPHEMERAL_UI_BOUND` vs. `DETACHED_DAEMON_SERVICE`) in `os-execution-firewall.jdm.json` and `ProcessLeaseManager`, ensuring Electron UI closure reaps only ephemeral UI shells while detached daemon jobs continue running.
+4. **Milestone 4 (`v1.8.0-rc1` - `.sync-in-progress` PID Sentinel Lock):** Hardened `second-brain-cli.ps1` and `SyncSentinelGuard` with PID-bound `.antigravity/.sync-in-progress` sentinel locks (`ttlMs: 30000`), activating `SYNC_MUTE_WINDOW` during Robocopy `/PURGE` bursts with final-state coalescing and automatic dead-PID / expired-TTL recovery.
+5. **Milestone 5 (`v2.0.0-unified` - `cortex_note_cache` SQLite Shadow Cache & Unified Release):** Added `cortex_note_cache` table and `VaultShadowIndexer` in `kalinar-daemon` (with `.sync-in-progress` mute-window deferral and exponential backoff on transient OneDrive locks), refactored Electron (`VaultIpcRouter.ts`, `electron/main.ts`, `AgentConnectorRegistry.ts`) for sub-millisecond `READONLY` SQLite queries with zero direct OneDrive `fs` reads, and routed `kalinar:inject_second_brain_note` and `kalinar:sync_obsidian_canvas` writes through `DaemonClient`.

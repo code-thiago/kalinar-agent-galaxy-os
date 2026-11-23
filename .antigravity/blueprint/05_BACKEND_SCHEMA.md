@@ -196,9 +196,26 @@ CREATE TABLE IF NOT EXISTS llm_model_checkpoints (
   status TEXT NOT NULL CHECK (status IN ('CHECKPOINT_ACTIVE', 'COMMITTED', 'ROLLED_BACK', 'HOT_SWAPPED')),
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
+
+-- 8. Cortex Note Cache Table (Milestone 5 SQLite Shadow Cache for Second Brain)
+CREATE TABLE IF NOT EXISTS cortex_note_cache (
+  note_id TEXT PRIMARY KEY NOT NULL,
+  relative_path TEXT UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  domain TEXT NOT NULL,
+  frontmatter_json TEXT NOT NULL DEFAULT '{}',
+  wikilinks_json TEXT NOT NULL DEFAULT '[]',
+  excerpt TEXT NOT NULL DEFAULT '',
+  content_hash TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cortex_note_cache_domain ON cortex_note_cache(domain);
+CREATE INDEX IF NOT EXISTS idx_cortex_note_cache_updated ON cortex_note_cache(updated_at);
 ```
 
-### 1.3 Canonical `KalinarSqliteStore` Repository Methods
+### 1.3 Canonical `KalinarSqliteStore` & Daemon Single-Writer Repository Methods
+* **Single-Writer Daemon Authority vs. Electron `READONLY`:** `kalinar-daemon` (`StateManager` + `VaultShadowIndexer`) opens `C:\Dev\kalinar-daemon\data\kalinar.db` in `READWRITE` WAL mode. Electron (`KalinarSqliteStore`) opens the database with `readOnly: true` (`SQLITE_OPEN_READONLY`) and dispatches mutations over `DaemonClient` (`\\.\pipe\kalinar-daemon` or `ws://127.0.0.1:4949`).
+* `queryCortexNoteCache({ query, domain, relativePath, limit })` & `querySecondBrainShadowCache(params)`: Sub-millisecond `READONLY` SQLite queries against `cortex_note_cache` and `second_brain_notes` powering `kalinar:query_second_brain_vault` with zero direct OneDrive `fs.readFileSync` / `fs.readdirSync` calls in Electron.
 * `getHistoricalTelemetry(limit = 100)`: Returns `SELECT id, task_id, event_type, agent_name, payload, latency_ms, created_at as timestamp FROM telemetry_logs ORDER BY id DESC LIMIT ?` to hydrate Tab 2 `EvolutionChartsView`.
 * `getEvolutionSummary()`: Returns `{ totalEvents, avgLatencyMs, agentDistribution }` aggregated across `telemetry_logs`.
 * `enqueueAgentTaskFifo({ targetAgentId, instruction, modelId })`: Inserts a `FIFO_QUEUED` record into `agent_task_fifo_queue` when the target agent holds `.kalinar-lock` (`[ACTIVE]`) and mirrors the pointer to `WAR_ROOM.md`.
@@ -352,6 +369,31 @@ export const LlmModelRouteSchema = z.object({
     'ATOMIC_GIT_ROLLBACK_AND_HOTSWAP',
     'NONE',
   ]),
+});
+
+// 5. Process Lease Scope, PID Sync Sentinel Lock & Cortex Note Cache (@kalinar/contracts v2.0.0-unified)
+export const ProcessLeaseScopeSchema = z.enum([
+  'EPHEMERAL_UI_BOUND',
+  'DETACHED_DAEMON_SERVICE',
+]);
+
+export const SyncSentinelLockSchema = z.object({
+  pid: z.number().int().gt(0),
+  timestamp: z.number().int().positive(),
+  ttlMs: z.number().int().positive().default(30000),
+  source: z.string().default('second-brain-cli.ps1'),
+});
+
+export const CortexNoteCacheRecordSchema = z.object({
+  note_id: z.string().min(1),
+  relative_path: z.string().min(1),
+  title: z.string().min(1),
+  domain: z.string().min(1),
+  frontmatter_json: z.string(),
+  wikilinks_json: z.string(),
+  excerpt: z.string().max(249),
+  content_hash: z.string().min(1),
+  updated_at: z.number().int().nonnegative(),
 });
 ```
 

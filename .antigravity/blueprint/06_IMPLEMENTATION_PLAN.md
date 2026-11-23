@@ -96,12 +96,20 @@ flowchart LR
   - `tests/task-5-dock.test.ts` (`9 tests`): `36px -> 350px / 75vh` `KalinarBottomDock`, `React.memo` tab isolation, SQLite charts, and real IPC shell execution.
   - `tests/task-6-command-palette-voice-laws.test.ts` (`5 tests`): 60 FPS Tauz DSP Fresnel Photon Ring coupling across all active voice states, Law 1-7 enforcement (`processStreamOutput`, `confirmTurnWithChokidarDebounce`, `daemon:server_push_alert` -> `telemetry:stream` bridge), `KalinarCommandPalette.tsx` (`Ctrl+K` / `Cmd+K`), and strict zero-emoji / zero-prohibited-terms audit.
 
+### 2.11 Unification Milestones 1-5 (`v2.0.0-unified`) Test Suites
+* **Scope:** End-to-end verification across `@kalinar/contracts`, `kalinar-daemon`, and `C:\Kalinar`:
+  - `C:\Dev\kalinar-contracts\tests\contracts.test.ts`: Validates all canonical Zod schemas (`AgentTurnOutputSchema`, `ProcessLeaseScopeSchema`, `SyncSentinelLockSchema`, `CortexNoteCacheRecordSchema`), `ELECTRON_IPC_CHANNELS` & `DAEMON_IPC_EVENTS` uniqueness, and `< 0.45ms` evaluation of all 5 `.jdm.json` graphs.
+  - `tests/unification-m2-single-writer.test.ts`: Verifies `kalinar-daemon` Single-Writer `READWRITE` SQLite WAL authority vs. Electron `SQLITE_OPEN_READONLY` connection and `< 0.2ms` `DaemonClient` Named Pipe / WebSocket mutation routing.
+  - `tests/unification-m3-pty-leases.test.ts`: Verifies `node-pty` process lease scopes (`EPHEMERAL_UI_BOUND` reaped on UI close vs. `DETACHED_DAEMON_SERVICE` surviving in background).
+  - `tests/unification-m4-sync-sentinel.test.ts`: Verifies `.antigravity/.sync-in-progress` PID-bound sentinel lock (`ttlMs: 30000`), `SYNC_MUTE_WINDOW` Robocopy burst suppression, final-state coalescing, and automatic dead-PID / expired-TTL recovery.
+  - `tests/unification-m5-shadow-cache.test.ts`: Verifies `VaultShadowIndexer` background indexing into `cortex_note_cache` with exponential backoff on OneDrive file locks, zero `fs.readFileSync` / `fs.readdirSync` calls on OneDrive paths during `kalinar:query_second_brain_vault`, sub-millisecond reads from `cortex_note_cache`, `DaemonClient` write routing for `kalinar:inject_second_brain_note` and `kalinar:sync_obsidian_canvas`, and full M1-M5 integration.
+
 ---
 
 ## 3. Release Quality Gate Checklist
 
 1. **Frontend TypeScript Gate:** `npx tsc --noEmit` (`0 errors`).
 2. **Electron Main/Preload TypeScript Gate:** `npx tsc -p tsconfig.electron.json --noEmit` (`0 errors`).
-3. **Full Vitest Verification Suite:** `npx vitest run` (`17 / 17` test suites, `122 / 122` tests passing, `100% pass`).
+3. **Full Vitest Verification Suite:** `npx vitest run` (`100% pass` across all baseline and Unification M1-M5 suites).
 4. **Production Desktop Build Gate:** `npm run desktop:build` (`Vite bundle + Electron build` exit code `0`).
 5. **Second Brain Audit Log & Sync:** `second-brain-cli.ps1 log` + `second-brain-cli.ps1 sync`.

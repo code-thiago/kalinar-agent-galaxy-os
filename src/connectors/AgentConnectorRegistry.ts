@@ -390,13 +390,76 @@ export interface TelemetryDiffPayload {
    1. LOCAL VAULT & MARKDOWN CONNECTOR
    ===================================================================== */
 
+export function isOneDriveVaultPath(targetPath: string): boolean {
+  const normalized = (targetPath || '').replace(/\\/g, '/').toLowerCase();
+  return normalized.includes('onedrive') || /second[\s_-]*brain/.test(normalized);
+}
+
+export interface ShadowCacheQueryStore {
+  querySecondBrainShadowCache(params?: SecondBrainVaultQueryParams): SecondBrainVaultNote[];
+}
+
 export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
   public readonly id = 'connector-local-vault-md';
   public readonly schemaVersion = SCHEMA_VERSION;
   private registeredAgents: Map<string, AgentNode> = new Map();
   private streamListeners: Map<string, Set<(chunk: string) => void>> = new Map();
+  private shadowStore: ShadowCacheQueryStore | null = null;
+  private shadowCacheOnly = false;
 
-  constructor(private vaultRoot: string = process.cwd()) {}
+  constructor(
+    private vaultRoot: string = process.cwd(),
+    options?: {
+      shadowStore?: ShadowCacheQueryStore | null;
+      shadowCacheOnly?: boolean;
+    }
+  ) {
+    this.shadowStore = options?.shadowStore ?? null;
+    this.shadowCacheOnly = options?.shadowCacheOnly ?? false;
+  }
+
+  public setShadowStore(store: ShadowCacheQueryStore | null): void {
+    this.shadowStore = store;
+  }
+
+  public getShadowStore(): ShadowCacheQueryStore | null {
+    return this.shadowStore;
+  }
+
+  public querySecondBrainVaultFromCache(
+    store: ShadowCacheQueryStore | null | undefined,
+    params?: SecondBrainVaultQueryParams
+  ): SecondBrainQueryResult {
+    const start = performance.now();
+    let effectiveParams = params;
+
+    if (params?.targetPath) {
+      const check = sanitizeWorkspaceFilePath(this.vaultRoot, params.targetPath);
+      if (!check.valid) {
+        return {
+          success: false,
+          notes: [],
+          total: 0,
+          searchLatencyMs: Number((performance.now() - start).toFixed(4)),
+          error: check.reason,
+        };
+      }
+      effectiveParams = {
+        ...params,
+        targetPath: check.relativePath,
+      };
+    }
+
+    const activeStore = store ?? this.shadowStore;
+    const notes = activeStore ? activeStore.querySecondBrainShadowCache(effectiveParams) : [];
+
+    return {
+      success: true,
+      notes,
+      total: notes.length,
+      searchLatencyMs: Number((performance.now() - start).toFixed(4)),
+    };
+  }
 
   public async registerAgent(agent: AgentNode): Promise<boolean> {
     this.registeredAgents.set(agent.id, agent);
@@ -696,7 +759,20 @@ export class LocalVaultAndMdConnector implements IKalinarAgentConnector {
      TASK 10: SECOND BRAIN VAULT RAG, NOTE INJECTION & OBSIDIAN CANVAS SYNC
      ===================================================================== */
 
-  public querySecondBrainVault(params?: SecondBrainVaultQueryParams): SecondBrainQueryResult {
+  public querySecondBrainVault(
+    params?: SecondBrainVaultQueryParams,
+    storeOverride?: ShadowCacheQueryStore
+  ): SecondBrainQueryResult {
+    if (
+      storeOverride ||
+      this.shadowStore ||
+      this.shadowCacheOnly ||
+      isOneDriveVaultPath(this.vaultRoot) ||
+      (params?.targetPath && isOneDriveVaultPath(params.targetPath))
+    ) {
+      return this.querySecondBrainVaultFromCache(storeOverride ?? this.shadowStore, params);
+    }
+
     const start = performance.now();
     let candidateFiles: string[] = [];
 

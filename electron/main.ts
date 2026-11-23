@@ -15,6 +15,11 @@ const __dirname = path.dirname(__filename);
 import { KalinarSqliteStore } from './db/sqliteStore.js';
 import { KalinarDaemon } from './daemon/KalinarDaemon.js';
 import { DaemonClient } from './daemon/DaemonClient.js';
+import {
+  handleInjectSecondBrainNote,
+  handleQuerySecondBrainVault,
+  handleSyncObsidianCanvas,
+} from './daemon/VaultIpcRouter.js';
 import { processController } from './daemon/ProcessController.js';
 import { eventBus } from '../src/core/KalinarEventBus.js';
 import { ZenFirewall } from '../src/core/ZenFirewall.js';
@@ -559,30 +564,19 @@ function setupIpcHandlers(): void {
     'kalinar:sync_obsidian_canvas',
     async (_event, payload?: CanvasSyncRequest) => {
       const wsPath = process.cwd();
-      if (payload?.canvasPath) {
-        const check = sanitizeWorkspaceFilePath(wsPath, payload.canvasPath);
-        if (!check.valid) {
-          return {
-            success: false,
-            direction: payload?.direction || 'EXPORT_TO_CANVAS',
-            canvasPath: payload.canvasPath,
-            latencyMs: 0,
-            error: check.reason,
-          };
-        }
+      if (!daemonClient) {
+        daemonClient = DaemonClient.getSharedInstance();
       }
-      const connector = new LocalVaultAndMdConnector(wsPath);
       if (!sqliteStore) {
         sqliteStore = new KalinarSqliteStore({
           readOnly: true,
-          daemonClient: daemonClient ?? undefined,
+          daemonClient,
         });
       }
-      return await connector.syncObsidianCanvas({
-        direction: payload?.direction,
-        canvasPath: payload?.canvasPath,
-        topology: payload?.topology,
-        store: sqliteStore,
+      return await handleSyncObsidianCanvas(payload, {
+        sqliteStore,
+        daemonClient,
+        vaultRoot: wsPath,
       });
     }
   );
@@ -591,20 +585,20 @@ function setupIpcHandlers(): void {
     'kalinar:query_second_brain_vault',
     async (_event, params?: SecondBrainVaultQueryParams) => {
       const wsPath = process.cwd();
-      if (params?.targetPath) {
-        const check = sanitizeWorkspaceFilePath(wsPath, params.targetPath);
-        if (!check.valid) {
-          return {
-            success: false,
-            notes: [],
-            total: 0,
-            searchLatencyMs: 0,
-            error: check.reason,
-          };
-        }
+      if (!daemonClient) {
+        daemonClient = DaemonClient.getSharedInstance();
       }
-      const connector = new LocalVaultAndMdConnector(wsPath);
-      return connector.querySecondBrainVault(params);
+      if (!sqliteStore) {
+        sqliteStore = new KalinarSqliteStore({
+          readOnly: true,
+          daemonClient,
+        });
+      }
+      return handleQuerySecondBrainVault(params, {
+        sqliteStore,
+        daemonClient,
+        vaultRoot: wsPath,
+      });
     }
   );
 
@@ -612,34 +606,20 @@ function setupIpcHandlers(): void {
     'kalinar:inject_second_brain_note',
     async (_event, payload: SecondBrainInjectPayload) => {
       const wsPath = process.cwd();
-      const targetPath =
-        payload.filePath ||
-        payload.notePath ||
-        path.join(
-          payload.domain || '01_PROJETOS',
-          `${(payload.title || 'untitled').toLowerCase().replace(/[^a-z0-9_-]/g, '-')}.md`
-        );
-      const check = sanitizeWorkspaceFilePath(wsPath, targetPath);
-      if (!check.valid) {
-        return {
-          success: false,
-          note: null,
-          spawned3DNode: null,
-          node3D: null,
-          persistedToDisk: false,
-          persistedToSqlite: false,
-          latencyMs: 0,
-          error: check.reason,
-        };
+      if (!daemonClient) {
+        daemonClient = DaemonClient.getSharedInstance();
       }
-      const connector = new LocalVaultAndMdConnector(wsPath);
       if (!sqliteStore) {
         sqliteStore = new KalinarSqliteStore({
           readOnly: true,
-          daemonClient: daemonClient ?? undefined,
+          daemonClient,
         });
       }
-      return connector.injectSecondBrainNote(payload, sqliteStore);
+      return await handleInjectSecondBrainNote(payload, {
+        sqliteStore,
+        daemonClient,
+        vaultRoot: wsPath,
+      });
     }
   );
 }
