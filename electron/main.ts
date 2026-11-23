@@ -4,7 +4,7 @@
  * Strictly Zero Emojis
  */
 
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -21,6 +21,8 @@ import {
   handleSyncObsidianCanvas,
 } from './daemon/VaultIpcRouter.js';
 import { processController } from './daemon/ProcessController.js';
+import { LlmCredentialVault, SafeStorageAdapter, VaultSaveKeyPayload } from './llm/LlmCredentialVault.js';
+import { LlmDiscoveryService } from './llm/LlmDiscoveryService.js';
 import { eventBus } from '../src/core/KalinarEventBus.js';
 import { ZenFirewall } from '../src/core/ZenFirewall.js';
 import {
@@ -56,16 +58,52 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:sync_obsidian_canvas',
   'kalinar:query_second_brain_vault',
   'kalinar:inject_second_brain_note',
+  'kalinar:discover_llm_providers',
+  'kalinar:save_llm_provider_key',
+  'kalinar:remove_llm_provider_key',
 ] as const;
 
 let mainWindow: BrowserWindow | null = null;
 let sqliteStore: KalinarSqliteStore | null = null;
 let daemon: KalinarDaemon | null = null;
 let daemonClient: DaemonClient | null = null;
+let llmCredentialVault: LlmCredentialVault | null = null;
+let llmDiscoveryService: LlmDiscoveryService | null = null;
 const activeShellLeases = new Map<
   number,
   { pid: number; leaseScope: ProcessLeaseScope; command: string }
 >();
+
+function getOrCreateLlmCredentialVault(): LlmCredentialVault {
+  if (!llmCredentialVault) {
+    const electronSafeStorageAdapter: SafeStorageAdapter | undefined =
+      safeStorage &&
+      typeof safeStorage.isEncryptionAvailable === 'function' &&
+      safeStorage.isEncryptionAvailable()
+        ? {
+            isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+            encryptString: (plainText: string) => safeStorage.encryptString(plainText),
+            decryptString: (encrypted: Buffer) => safeStorage.decryptString(encrypted),
+          }
+        : undefined;
+
+    llmCredentialVault = new LlmCredentialVault({
+      userDataDir: app.getPath('userData'),
+      safeStorageAdapter: electronSafeStorageAdapter,
+    });
+  }
+  return llmCredentialVault;
+}
+
+function getOrCreateLlmDiscoveryService(): LlmDiscoveryService {
+  if (!llmDiscoveryService) {
+    llmDiscoveryService = new LlmDiscoveryService({
+      timeoutMs: 800,
+      credentialVault: getOrCreateLlmCredentialVault(),
+    });
+  }
+  return llmDiscoveryService;
+}
 
 const initialSingularityState: SingularityCoreState = {
   schemaVersion: SCHEMA_VERSION,
@@ -620,6 +658,68 @@ function setupIpcHandlers(): void {
       });
     }
   );
+
+  ipcMain.handle('kalinar:discover_llm_providers', async () => {
+    const discovery = getOrCreateLlmDiscoveryService();
+    return await discovery.discoverAllProviders();
+  });
+
+  ipcMain.handle(
+    'kalinar:save_llm_provider_key',
+    async (_event, payload: VaultSaveKeyPayload) => {
+      const vault = getOrCreateLlmCredentialVault();
+      const result = vault.saveProviderKey(payload);
+      // Telemetry logs strictly record metadata (providerId + boolean available), NEVER raw API keys
+      if (sqliteStore) {
+        sqliteStore.insertTelemetry({
+          task_id: 'SYSTEM',
+          event_type: 'TURN_END',
+          agent_name: 'agent-cybersecurity',
+          payload: JSON.stringify({
+            action: 'SAVE_BYOK_CREDENTIAL',
+            providerId: result.providerId,
+            available: result.available,
+            success: result.success,
+          }),
+          latency_ms: 1,
+        });
+      }
+      const discovery = getOrCreateLlmDiscoveryService();
+      const report = await discovery.discoverAllProviders();
+      return {
+        ...result,
+        providers: report.providers,
+      };
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:remove_llm_provider_key',
+    async (_event, payload: { providerId: string } | string) => {
+      const providerId = typeof payload === 'string' ? payload : payload?.providerId || '';
+      const vault = getOrCreateLlmCredentialVault();
+      const result = vault.removeProviderKey(providerId);
+      if (sqliteStore) {
+        sqliteStore.insertTelemetry({
+          task_id: 'SYSTEM',
+          event_type: 'TURN_END',
+          agent_name: 'agent-cybersecurity',
+          payload: JSON.stringify({
+            action: 'REMOVE_BYOK_CREDENTIAL',
+            providerId: result.providerId,
+            removed: result.removed,
+          }),
+          latency_ms: 1,
+        });
+      }
+      const discovery = getOrCreateLlmDiscoveryService();
+      const report = await discovery.discoverAllProviders();
+      return {
+        ...result,
+        providers: report.providers,
+      };
+    }
+  );
 }
 
 if (!app.isPackaged || process.env.VITE_DEV_SERVER_URL) {
@@ -701,6 +801,7 @@ app.whenReady().then(async () => {
   }
 
   setupIpcHandlers();
+  void getOrCreateLlmDiscoveryService().discoverAllProviders();
   createWindow();
 
   app.on('activate', () => {

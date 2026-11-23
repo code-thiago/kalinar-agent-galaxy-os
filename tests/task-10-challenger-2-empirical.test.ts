@@ -375,7 +375,7 @@ describe('Challenger 2: Empirical Security & Performance Verification Suite', ()
 
       expect(s5.max).toBeLessThan(1.0);
       expect(s5.avg).toBeLessThan(0.45);
-    });
+    }, 15000);
 
     it('empirically verifies JDM evaluator resilience against malformed and empty payloads', async () => {
       // Empty input

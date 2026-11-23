@@ -10,6 +10,7 @@ import {
   ApproveOrRevertDiffResult,
   CanvasSyncRequest,
   CanvasSyncResult,
+  DiscoveredLlmProvider,
   ExecutionMode,
   LiveGitDiffResult,
   LlmModelId,
@@ -40,6 +41,9 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:sync_obsidian_canvas',
   'kalinar:query_second_brain_vault',
   'kalinar:inject_second_brain_note',
+  'kalinar:discover_llm_providers',
+  'kalinar:save_llm_provider_key',
+  'kalinar:remove_llm_provider_key',
 ] as const;
 
 export interface ShellResult {
@@ -102,6 +106,33 @@ export interface KalinarApiBridge {
   syncObsidianCanvas: (payload?: CanvasSyncRequest) => Promise<CanvasSyncResult>;
   querySecondBrainVault: (params?: SecondBrainVaultQueryParams) => Promise<SecondBrainQueryResult>;
   injectSecondBrainNote: (payload: SecondBrainInjectPayload) => Promise<SecondBrainInjectResult>;
+  discoverLlmProviders: () => Promise<{
+    providers: DiscoveredLlmProvider[];
+    discoveredModels: string[];
+    activeLocalModels: string[];
+    probedAt: number;
+    latencyMs: number;
+  }>;
+  saveLlmProviderKey: (payload: {
+    providerId: string;
+    apiKey: string;
+    label?: string;
+    models?: string[];
+  }) => Promise<{
+    success: boolean;
+    providerId: string;
+    available: boolean;
+    vaultFilePath: string;
+    providers?: DiscoveredLlmProvider[];
+    error?: string;
+  }>;
+  removeLlmProviderKey: (providerId: string) => Promise<{
+    success: boolean;
+    providerId: string;
+    removed: boolean;
+    vaultFilePath: string;
+    providers?: DiscoveredLlmProvider[];
+  }>;
   onTelemetryStream: (callback: (data: any) => void) => () => void;
   onVoiceStateChange: (callback: (state: any) => void) => () => void;
   onAgentUpdate: (callback: (agent: AgentNode) => void) => () => void;
@@ -142,6 +173,12 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:query_second_brain_vault', params),
   injectSecondBrainNote: (payload) =>
     ipcRenderer.invoke('kalinar:inject_second_brain_note', payload),
+  discoverLlmProviders: () =>
+    ipcRenderer.invoke('kalinar:discover_llm_providers'),
+  saveLlmProviderKey: (payload) =>
+    ipcRenderer.invoke('kalinar:save_llm_provider_key', payload),
+  removeLlmProviderKey: (providerId: string) =>
+    ipcRenderer.invoke('kalinar:remove_llm_provider_key', { providerId }),
   onTelemetryStream: (callback: (data: any) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on('telemetry:stream', handler);
