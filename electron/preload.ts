@@ -44,6 +44,7 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:discover_llm_providers',
   'kalinar:save_llm_provider_key',
   'kalinar:remove_llm_provider_key',
+  'kalinar:read_second_brain_note',
 ] as const;
 
 export interface ShellResult {
@@ -106,6 +107,13 @@ export interface KalinarApiBridge {
   syncObsidianCanvas: (payload?: CanvasSyncRequest) => Promise<CanvasSyncResult>;
   querySecondBrainVault: (params?: SecondBrainVaultQueryParams) => Promise<SecondBrainQueryResult>;
   injectSecondBrainNote: (payload: SecondBrainInjectPayload) => Promise<SecondBrainInjectResult>;
+  readSecondBrainNote: (payload: { relativePath: string } | string) => Promise<{
+    ok: boolean;
+    relativePath?: string;
+    title?: string;
+    content?: string;
+    error?: string;
+  }>;
   discoverLlmProviders: () => Promise<{
     providers: DiscoveredLlmProvider[];
     discoveredModels: string[];
@@ -173,6 +181,11 @@ const api: KalinarApiBridge = {
     ipcRenderer.invoke('kalinar:query_second_brain_vault', params),
   injectSecondBrainNote: (payload) =>
     ipcRenderer.invoke('kalinar:inject_second_brain_note', payload),
+  readSecondBrainNote: (payload) =>
+    ipcRenderer.invoke(
+      'kalinar:read_second_brain_note',
+      typeof payload === 'string' ? { relativePath: payload } : payload
+    ),
   discoverLlmProviders: () =>
     ipcRenderer.invoke('kalinar:discover_llm_providers'),
   saveLlmProviderKey: (payload) =>

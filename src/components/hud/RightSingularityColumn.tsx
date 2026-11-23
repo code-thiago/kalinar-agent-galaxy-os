@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useKalinarStore } from '../../store/useKalinarStore.js';
 import { SingularityHudColumn } from '../ui/SingularityHudColumn.js';
+import { SovereignAgentControlsBar } from '../ui/AgentLivePreviewCard.js';
 import { kalinarVoiceService } from '../../services/kalinarVoiceService.js';
 import { kalinarSingularityBrain } from '../../services/kalinarSingularityBrain.js';
 import { SecondBrainNode, TauzFrequencyBands } from '../../types/kalinar.js';
@@ -69,12 +70,44 @@ function parseWarRoomPointerLine(raw: string, index: number): WarRoomHandoffEntr
   };
 }
 
+function renderMarkdownWithHighlights(content: string): React.ReactNode {
+  return content.split(/\r?\n/).map((line, lineIdx) => {
+    const isHeading = /^\s*#{1,6}\s+/.test(line);
+    const parts = line.split(/(\[\[[^\]]+\]\])/g);
+    return (
+      <div
+        key={lineIdx}
+        style={{
+          color: isHeading ? '#AA88FF' : '#DDDDDD',
+          fontWeight: isHeading ? 700 : 400,
+          minHeight: '16px',
+        }}
+      >
+        {parts.map((part, pIdx) =>
+          part.startsWith('[[') && part.endsWith(']]') ? (
+            <span key={pIdx} style={{ color: '#AA88FF', fontWeight: 600 }}>
+              {part}
+            </span>
+          ) : (
+            part
+          )
+        )}
+      </div>
+    );
+  });
+}
+
 export function RightSingularityColumn() {
   const {
     singularity,
     agents,
     selectedAgentId,
     selectedNoteId,
+    activeNoteReader,
+    activeDiffInspector,
+    closeSecondBrainNoteReader,
+    executeDiffGateDecision,
+    injectNoteIntoAgentContext,
     isInspectorDrawerOpen,
     isRightInspectorCollapsed,
     toggleRightInspector,
@@ -313,7 +346,179 @@ export function RightSingularityColumn() {
                   overflowWrap: 'break-word',
                 }}
               >
-                {activeAgent ? (
+                {activeNoteReader ? (
+                  <div
+                    data-slot="second-brain-note-reader"
+                    style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+                      <span style={{ color: '#AA88FF', fontWeight: 700 }}>
+                        {activeNoteReader.title}
+                      </span>
+                      <button
+                        type="button"
+                        data-slot="note-reader-close-btn"
+                        onClick={closeSecondBrainNoteReader}
+                        style={{
+                          backgroundColor: '#0D0F14',
+                          color: '#9A9A9A',
+                          border: '1px solid #1F232E',
+                          padding: '2px 6px',
+                          fontSize: '10px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        [ FECHAR ]
+                      </button>
+                    </div>
+                    <span style={{ color: '#9A9A9A', fontSize: '10.5px', textTransform: 'none' }}>
+                      {activeNoteReader.relativePath}
+                    </span>
+                    <button
+                      type="button"
+                      data-slot="note-reader-inject-btn"
+                      onClick={() =>
+                        void injectNoteIntoAgentContext(
+                          activeAgent?.id || '@agent-orchestrator',
+                          activeNoteReader.relativePath
+                        )
+                      }
+                      style={{
+                        backgroundColor: '#0D0F14',
+                        color: '#AA88FF',
+                        border: '1px solid #1F232E',
+                        padding: '4px 8px',
+                        fontSize: '10.5px',
+                        cursor: 'pointer',
+                        alignSelf: 'flex-start',
+                      }}
+                    >
+                      [ INJETAR NO ENXAME ]
+                    </button>
+                    {activeNoteReader.error ? (
+                      <div
+                        data-slot="note-reader-error"
+                        style={{ color: '#F87171', fontSize: '11px' }}
+                      >
+                        [{activeNoteReader.error}]
+                      </div>
+                    ) : (
+                      <div
+                        data-slot="note-reader-body"
+                        style={{
+                          overflowY: 'auto',
+                          maxHeight: 'calc(100vh - 280px)',
+                          fontSize: '13px',
+                          color: '#DDDDDD',
+                          backgroundColor: '#07080A',
+                          border: '1px solid #1F232E',
+                          padding: '8px',
+                          textTransform: 'none',
+                          overflowWrap: 'break-word',
+                        }}
+                      >
+                        {activeNoteReader.isLoading
+                          ? '[CARREGANDO NOTA...]'
+                          : renderMarkdownWithHighlights(activeNoteReader.content)}
+                      </div>
+                    )}
+                  </div>
+                ) : activeDiffInspector ? (
+                  <div
+                    data-slot="sovereign-diff-inspector"
+                    style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+                      <span style={{ color: '#AA88FF', fontWeight: 700 }}>
+                        {activeDiffInspector.filePath}
+                      </span>
+                      <span style={{ color: '#34D399', fontSize: '10px' }}>
+                        [{activeDiffInspector.decisionStatus}]
+                      </span>
+                    </div>
+
+                    {activeDiffInspector.isLoading ? (
+                      <span style={{ color: '#9A9A9A' }}>[CARREGANDO DIFF...]</span>
+                    ) : activeDiffInspector.diffLines.length === 0 ? (
+                      <span data-slot="diff-empty-notice" style={{ color: '#9A9A9A' }}>
+                        [NENHUM DIFF PENDENTE PARA ESTE AGENTE]
+                      </span>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            maxHeight: '160px',
+                            overflowY: 'auto',
+                            backgroundColor: '#07080A',
+                            border: '1px solid #1F232E',
+                            padding: '6px',
+                            fontSize: '10.5px',
+                            textTransform: 'none',
+                          }}
+                        >
+                          {activeDiffInspector.diffLines.map((line, idx) => {
+                            const isAdd = line.startsWith('+') && !line.startsWith('+++');
+                            const isDel = line.startsWith('-') && !line.startsWith('---');
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  color: isAdd ? '#34D399' : isDel ? '#F87171' : '#DDDDDD',
+                                  whiteSpace: 'pre-wrap',
+                                  overflowWrap: 'break-word',
+                                }}
+                              >
+                                {line}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            data-slot="sovereign-btn-approve-diff"
+                            onClick={() =>
+                              void executeDiffGateDecision(
+                                activeDiffInspector.agentId,
+                                'APPROVE'
+                              )
+                            }
+                            style={{
+                              backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                              color: '#34D399',
+                              border: '1px solid #34D399',
+                              padding: '4px 8px',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            [ APROVAR ]
+                          </button>
+                          <button
+                            type="button"
+                            data-slot="sovereign-btn-revert-diff"
+                            onClick={() =>
+                              void executeDiffGateDecision(
+                                activeDiffInspector.agentId,
+                                'REVERT'
+                              )
+                            }
+                            style={{
+                              backgroundColor: 'rgba(248, 113, 113, 0.12)',
+                              color: '#F87171',
+                              border: '1px solid #F87171',
+                              padding: '4px 8px',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            [ REVERTER ]
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : activeAgent ? (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: '#AA88FF', fontWeight: 700 }}>
@@ -341,6 +546,7 @@ export function RightSingularityColumn() {
                     >
                       {activeAgent.livePreviewStream || '[SEM DIFF EM ANDAMENTO]'}
                     </pre>
+                    <SovereignAgentControlsBar agentId={activeAgent.id} />
                     <button
                       type="button"
                       onClick={() => setInspectorDrawerOpen(!isInspectorDrawerOpen)}

@@ -198,3 +198,12 @@ Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval
 
 * **Zero External Navigation:** `mainWindow.webContents.on('will-navigate')` blocks all non-local origins and routes external links to `shell.openExternal`.
 * **Zero Plaintext Credentials in Telemetry:** API keys (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `ARGON_API_KEY`) are read exclusively in the Electron main process and stripped by regex before any SQLite or ring-buffer write.
+
+
+---
+
+## v2.2.0 Update — Technical Architecture & IPC Contracts
+
+- **Canal `kalinar:read_second_brain_note`:** Validação obrigatória via `sanitizeWorkspaceFilePath` (bloqueio `PATH_TRAVERSAL_BLOCKED`), leitura prioritária em `cortex_note_cache` (SQLite READONLY) e fallback estrito dentro da raiz `vaultRoot`.
+- **Stores Zustand:** `VisionBWorkspaceSlice` e `SovereignControlsSlice` com `openSecondBrainNoteReader`, `openAgentDiffInspector`, `executeDiffGateDecision`, `hotSwapAgentModel` e `injectNoteIntoAgentContext`.
+- **Empacotamento Desktop:** `package.json` `version: "2.2.0"`, build Vite + Electron TypeScript e empacotador `electron-builder --win` (`dist-desktop/`).

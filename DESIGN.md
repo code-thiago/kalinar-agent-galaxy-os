@@ -86,3 +86,12 @@ All system statuses are rendered exclusively via standardized ASCII badges (100%
 - **`KalinarCommandPalette` & `TopRightTrigger` (`Ctrl+K` / `Cmd+K`):**
   - `data-slot="top-right-trigger"`, `data-slot="command-palette-trigger"` (`[ CTRL+K ]`, `44px` hit target).
   - `data-slot="command-palette"` (`z-index: 50`, `680px`, `React.memo`, returns `null` when closed, isolated from central Singularity `< 10ms` kill-switch clicks), plus child slots `command-palette-agents`, `command-palette-input`, `command-palette-models`, `command-palette-list`.
+
+
+---
+
+## v2.2.0 Release Sync (Orders 1-8 Consolidated)
+
+- **Multi-User LLM Auto-Discovery & safeStorage BYOK Vault:** Zero-secret-leakage discovery across Ollama (`127.0.0.1:11434/api/tags`), LM Studio (`127.0.0.1:1234/v1/models`), OS PATH CLIs (`claude`, `gemini`, `gh`, `antigravity`), ENV flags, and DPAPI/safeStorage encrypted `userData/llm-vault.enc` (`LlmOnboardingModal`, `LlmProvidersPanel`).
+- **Ground-Truth STANDBY_READY:** Purged synthetic telemetry; store hydrates strictly from real SQLite READONLY shadow cache and `05_AGENTS/@agent-*.md`.
+- **Vision B 3-Zone Deterministic Workspace:** Zero-collision layout (`vision-b-left-sidebar`, `vision-b-center-viewport`, `vision-b-right-inspector` with `paddingTop: 40px` clearing the 32px Windows titleBarOverlay), `SidebarMiniCli` hybrid PTY/FIFO router, and 1-click sovereign controls (`[ TROCAR MODELO ]`, `[ INJETAR NOTA RAG ]`, `[ REVISAR DIFF ]`, `[ APROVAR ]`, `[ REVERTER ]`) plus real Markdown reader (`kalinar:read_second_brain_note` with `PATH_TRAVERSAL_BLOCKED`).

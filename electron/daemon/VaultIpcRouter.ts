@@ -8,6 +8,7 @@
  * Strictly Zero Emojis
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
 import type { KalinarSqliteStore } from '../db/sqliteStore.js';
 import type { DaemonClient } from './DaemonClient.js';
@@ -388,5 +389,61 @@ export async function handleSyncObsidianCanvas(
     document: docToSync || { nodes: [], edges: [] },
     topology: payload?.topology,
     latencyMs: Number((performance.now() - start).toFixed(2)),
+  };
+}
+
+export interface ReadSecondBrainNoteResult {
+  ok: boolean;
+  relativePath?: string;
+  title?: string;
+  content?: string;
+  error?: string;
+}
+
+export function handleReadSecondBrainNote(
+  payload: { relativePath: string } | string,
+  deps: VaultIpcRouterDeps
+): ReadSecondBrainNoteResult {
+  const vaultRoot = path.resolve(deps.vaultRoot || process.cwd());
+  const rawPath = typeof payload === 'string' ? payload : payload?.relativePath || '';
+
+  const check = sanitizeWorkspaceFilePath(vaultRoot, rawPath);
+  if (!check.valid) {
+    return { ok: false, error: 'PATH_TRAVERSAL_BLOCKED' };
+  }
+
+  const resolvedTarget = path.resolve(vaultRoot, check.relativePath);
+  if (!resolvedTarget.startsWith(vaultRoot)) {
+    return { ok: false, error: 'PATH_TRAVERSAL_BLOCKED' };
+  }
+
+  // 1. Query READONLY SQLite shadow cache first
+  if (deps.sqliteStore) {
+    const cached = deps.sqliteStore.querySecondBrainShadowCache({
+      targetPath: check.relativePath,
+      maxResults: 1,
+    });
+    if (cached.length > 0 && cached[0].content && cached[0].content.trim().length > 0) {
+      return {
+        ok: true,
+        relativePath: check.relativePath,
+        title: cached[0].title,
+        content: cached[0].content,
+      };
+    }
+  }
+
+  // 2. Fallback: read strictly inside vaultRoot
+  if (!fs.existsSync(resolvedTarget) || !fs.statSync(resolvedTarget).isFile()) {
+    return { ok: false, relativePath: check.relativePath, error: 'NOTE_NOT_FOUND' };
+  }
+
+  const content = fs.readFileSync(resolvedTarget, 'utf-8');
+  const title = path.basename(check.relativePath, path.extname(check.relativePath));
+  return {
+    ok: true,
+    relativePath: check.relativePath,
+    title,
+    content,
   };
 }

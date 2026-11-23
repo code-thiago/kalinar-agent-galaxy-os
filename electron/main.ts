@@ -18,6 +18,7 @@ import { DaemonClient } from './daemon/DaemonClient.js';
 import {
   handleInjectSecondBrainNote,
   handleQuerySecondBrainVault,
+  handleReadSecondBrainNote,
   handleSyncObsidianCanvas,
 } from './daemon/VaultIpcRouter.js';
 import { processController } from './daemon/ProcessController.js';
@@ -61,6 +62,7 @@ export const ELECTRON_IPC_CHANNELS = [
   'kalinar:discover_llm_providers',
   'kalinar:save_llm_provider_key',
   'kalinar:remove_llm_provider_key',
+  'kalinar:read_second_brain_note',
 ] as const;
 
 let mainWindow: BrowserWindow | null = null;
@@ -652,6 +654,27 @@ function setupIpcHandlers(): void {
         });
       }
       return await handleInjectSecondBrainNote(payload, {
+        sqliteStore,
+        daemonClient,
+        vaultRoot: wsPath,
+      });
+    }
+  );
+
+  ipcMain.handle(
+    'kalinar:read_second_brain_note',
+    async (_event, payload: { relativePath: string } | string) => {
+      const wsPath = process.cwd();
+      if (!daemonClient) {
+        daemonClient = DaemonClient.getSharedInstance();
+      }
+      if (!sqliteStore) {
+        sqliteStore = new KalinarSqliteStore({
+          readOnly: true,
+          daemonClient,
+        });
+      }
+      return handleReadSecondBrainNote(payload, {
         sqliteStore,
         daemonClient,
         vaultRoot: wsPath,

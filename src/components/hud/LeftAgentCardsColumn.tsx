@@ -152,6 +152,7 @@ export function LeftAgentCardsColumn() {
                     }}
                   />
                   <AgentLivePreviewCard.MetadataRow agent={agent} />
+                  <AgentLivePreviewCard.SovereignControls agentId={agent.id} />
                 </AgentLivePreviewCard.Root>
               </div>
             );

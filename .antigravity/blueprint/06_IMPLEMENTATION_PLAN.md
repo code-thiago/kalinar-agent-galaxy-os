@@ -113,3 +113,12 @@ flowchart LR
 3. **Full Vitest Verification Suite:** `npx vitest run` (`100% pass` across all baseline and Unification M1-M5 suites).
 4. **Production Desktop Build Gate:** `npm run desktop:build` (`Vite bundle + Electron build` exit code `0`).
 5. **Second Brain Audit Log & Sync:** `second-brain-cli.ps1 log` + `second-brain-cli.ps1 sync`.
+
+
+---
+
+## v2.2.0 Update — Implementation Plan (Orders 1-8 Completed)
+
+- **Ordens 1-3:** Purga de telemetria sintética (`STANDBY_READY`), `LlmDiscoveryService` (800ms probe) e `LlmCredentialVault` (`safeStorage`).
+- **Ordens 4-6:** `LlmOnboardingModal`, `LlmProvidersPanel`, Visão B Grid 3 Zonas e `SidebarMiniCli` híbrida.
+- **Ordens 7-8:** Controles Soberanos de 1 Clique, Leitor Real de Notas Markdown (`kalinar:read_second_brain_note`), Blueprint Sync e Release `.exe` `v2.2.0`.

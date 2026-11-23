@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AgentNode, AgentStatus } from '../../types/kalinar.js';
+import { useKalinarStore } from '../../store/useKalinarStore.js';
 
 export interface AgentLivePreviewCardRootProps extends React.HTMLAttributes<HTMLDivElement> {
   agent: AgentNode;
@@ -214,8 +215,179 @@ export const AgentLivePreviewCardMetadataRow = React.memo(function AgentLivePrev
   );
 });
 
+export const SovereignAgentControlsBar = React.memo(function SovereignAgentControlsBar({
+  agentId,
+}: {
+  agentId: string;
+}) {
+  const {
+    discoveredProviders,
+    secondBrainNotes,
+    hotSwapAgentModel,
+    injectNoteIntoAgentContext,
+    openAgentDiffInspector,
+  } = useKalinarStore();
+
+  const [openMenu, setOpenMenu] = useState<'MODEL' | 'RAG' | null>(null);
+
+  const onlineModels = Array.from(
+    new Set(discoveredProviders.filter((p) => p.available).flatMap((p) => p.models))
+  );
+
+  return (
+    <div
+      data-slot="sovereign-controls-bar"
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        paddingTop: '6px',
+        borderTop: '1px solid #1F232E',
+      }}
+    >
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        <button
+          type="button"
+          data-slot="sovereign-btn-swap-model"
+          onClick={() => setOpenMenu(openMenu === 'MODEL' ? null : 'MODEL')}
+          style={{
+            backgroundColor: '#0D0F14',
+            color: '#AA88FF',
+            border: '1px solid #1F232E',
+            padding: '3px 6px',
+            fontSize: '11px',
+            cursor: 'pointer',
+          }}
+        >
+          [ TROCAR MODELO ]
+        </button>
+
+        <button
+          type="button"
+          data-slot="sovereign-btn-inject-rag"
+          onClick={() => setOpenMenu(openMenu === 'RAG' ? null : 'RAG')}
+          style={{
+            backgroundColor: '#0D0F14',
+            color: '#DDDDDD',
+            border: '1px solid #1F232E',
+            padding: '3px 6px',
+            fontSize: '11px',
+            cursor: 'pointer',
+          }}
+        >
+          [ INJETAR NOTA RAG ]
+        </button>
+
+        <button
+          type="button"
+          data-slot="sovereign-btn-review-diff"
+          onClick={() => void openAgentDiffInspector(agentId)}
+          style={{
+            backgroundColor: '#0D0F14',
+            color: '#34D399',
+            border: '1px solid #1F232E',
+            padding: '3px 6px',
+            fontSize: '11px',
+            cursor: 'pointer',
+          }}
+        >
+          [ REVISAR DIFF ]
+        </button>
+      </div>
+
+      {openMenu === 'MODEL' && (
+        <div
+          data-slot="sovereign-model-selector"
+          style={{
+            padding: '6px',
+            backgroundColor: '#000000',
+            border: '1px solid #1F232E',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '4px',
+          }}
+        >
+          {onlineModels.length === 0 ? (
+            <span style={{ color: '#FBBF24', fontSize: '10.5px' }}>
+              [NENHUM MOTOR LLM ONLINE — ABRA ABA 03 // MODELOS LLM]
+            </span>
+          ) : (
+            onlineModels.map((modelId) => (
+              <button
+                key={modelId}
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  void hotSwapAgentModel(agentId, modelId);
+                }}
+                style={{
+                  backgroundColor: '#0D0F14',
+                  color: '#DDDDDD',
+                  border: '1px solid #1F232E',
+                  padding: '2px 6px',
+                  fontSize: '10px',
+                  cursor: 'pointer',
+                  textTransform: 'none',
+                }}
+              >
+                {modelId}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {openMenu === 'RAG' && (
+        <div
+          data-slot="sovereign-rag-selector"
+          style={{
+            padding: '6px',
+            backgroundColor: '#000000',
+            border: '1px solid #1F232E',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '4px',
+            maxHeight: '120px',
+            overflowY: 'auto',
+          }}
+        >
+          {secondBrainNotes.length === 0 ? (
+            <span style={{ color: '#9A9A9A', fontSize: '10.5px' }}>
+              [0 NOTAS INDEXADAS NO CACHE SQLITE]
+            </span>
+          ) : (
+            secondBrainNotes.slice(0, 8).map((note) => (
+              <button
+                key={note.id}
+                type="button"
+                onClick={() => {
+                  setOpenMenu(null);
+                  void injectNoteIntoAgentContext(agentId, note.filePath);
+                }}
+                style={{
+                  textAlign: 'left',
+                  backgroundColor: '#0D0F14',
+                  color: '#AA88FF',
+                  border: '1px solid #1F232E',
+                  padding: '3px 6px',
+                  fontSize: '10px',
+                  cursor: 'pointer',
+                }}
+              >
+                {note.wikilink} — {note.title}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
 export const AgentLivePreviewCard = {
   Root: AgentLivePreviewCardRoot,
   LiveViewport: AgentLivePreviewCardLiveViewport,
   MetadataRow: AgentLivePreviewCardMetadataRow,
+  SovereignControls: SovereignAgentControlsBar,
 };

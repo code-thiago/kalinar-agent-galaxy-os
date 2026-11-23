@@ -407,3 +407,11 @@ export const CortexNoteCacheRecordSchema = z.object({
 | **Information Disclosure** | Raw 50MB terminal dump containing env vars or secrets forwarded to conversational voice plane. | `HIGH` | Layer 3 `Stream-to-Digest` Ring Buffer strips secrets and compresses logs into `< 150 tokens` (`StreamDigestSchema`). |
 | **Denial of Service** | Chokidar self-write infinite loop, unbounded agent audit loop, or HTTP 429 provider lockup. | `CRITICAL` | `.kalinar-lock` single-writer token, `maxAuditCycles = 2` in `daemon-event-router.jdm.json`, and automatic failover across **Argon**, **Claude**, and **Gemini**. |
 | **Elevation of Privilege** | Destructive shell command (`rm -rf /`, `Format-Volume`) injected via Tab 4 CLI or acoustic voice echo loop. | `CRITICAL` | `os-execution-firewall.jdm.json` (`< 0.45ms` `HARD_BLOCK`) + `EngageMicInterlock` hardware mute + `400ms` post-TTS decay. |
+
+
+---
+
+## v2.2.0 Update — SQLite Shadow Cache & safeStorage Vault Schema
+
+- **Cofre BYOK (`userData/llm-vault.enc`):** Criptografia OS-bound via `safeStorage.encryptString` (DPAPI/Keychain/Libsecret), armazenando apenas `providerId`, `label`, `models` e `ciphertextBase64`. Zero chaves em plaintext no SQLite ou logs.
+- **Leitura RAG (`cortex_note_cache`):** `handleReadSecondBrainNote` consulta `querySecondBrainShadowCache` em modo READONLY antes de acessar arquivos `.md` dentro de `vaultRoot`.

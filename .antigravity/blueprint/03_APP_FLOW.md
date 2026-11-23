@@ -242,3 +242,12 @@ stateDiagram-v2
 * **`FLOW-UNIFICATION-M3` (`node-pty` Process Lease Scopes):** `EPHEMERAL_UI_BOUND` shells are reaped automatically when the Electron UI disconnects; `DETACHED_DAEMON_SERVICE` background jobs continue uninterrupted under `kalinar-daemon` supervision.
 * **`FLOW-UNIFICATION-M4` (`.sync-in-progress` PID Sentinel Lock):** During `second-brain-cli.ps1 sync` Robocopy bursts, `.antigravity/.sync-in-progress` (`ttlMs: 30000`) activates `SYNC_MUTE_WINDOW`, coalesces file events, and auto-recovers if the holding PID crashes or exceeds TTL.
 * **`FLOW-UNIFICATION-M5` (`cortex_note_cache` SQLite Shadow Cache):** `VaultShadowIndexer` indexes Second Brain `.md` files in `kalinar-daemon` with exponential backoff on OneDrive locks; Electron reads `cortex_note_cache` via `READONLY` SQLite with zero direct OneDrive `fs.readFileSync` / `fs.readdirSync` calls and routes note/canvas writes through `DaemonClient`.
+
+
+---
+
+## v2.2.0 Update — Vision B 3-Zone App Flow
+
+1. **Boot:** `hydrateFromGroundTruth()` executa `scanWorkspaceNodes`, `querySecondBrainVault`, `getHistoricalTelemetry`, `manageFifoQueue` e `discoverLlmProviders`. Se `hasAnyConfiguredEngine === false`, exibe `LlmOnboardingModal`.
+2. **Navegação Lateral:** 4 abas (`01 // ENXAME & AGENTES`, `02 // SECOND BRAIN RAG`, `03 // MODELOS LLM & CUSTO`, `04 // FIREWALL & REGRAS`) + `SidebarMiniCli` ancorada na base.
+3. **Inspetor Direito (Módulo A + Módulo B):** Voz Tauz DSP (`[ OUVIR PT-BR ]`, `[ BRIEFING ]`, `[ SILENCIAR ]`) acima do Inspetor Contextual (`second-brain-note-reader`, `sovereign-diff-inspector`, ou controles soberanos de 1 clique do agente).

@@ -108,3 +108,13 @@ Unlike conventional chat wrappers or fragmented web dashboards, KALINAR unifies 
 | `CRIT-03` | `@agent-data` | Prevent noisy compiler logs from exhausting LLM context and ensure truthful voice status reporting. | Locked 2-stage `Stream-to-Digest` (`< 150 tokens`, 200-entry Ring Buffer) (`US-008`) and Two-Phase Voice Ack (`STATUS_DISPATCHED` vs. `STATUS_VERIFIED`) (`US-009`). |
 | `CRIT-04` | `@agent-software-engineer` | Prevent mid-stream LLM timeouts or rate limits (HTTP 429) from leaving half-written broken files in the workspace. | Locked `llm-model-router.jdm.json` multi-model routing (`Argon`, `Claude`, `Gemini`) with Atomic Git Checkpoints, clean dirty-file rollback, and automatic model hot-swap (`US-010`). |
 | `CRIT-05` | `@agent-qa` | Prevent TTS voice synthesis from interrupting the operator mid-sentence or echoing back into the microphone. | Locked Speech Arbitration Rule B (`PendingVoiceQueue` while `[LISTENING PT-BR]`), `EngageMicInterlock`, `400ms` post-TTS decay, and `< 10ms` `Esc`/Click kill-switch (`US-007`, `US-009`). |
+
+
+---
+
+## v2.2.0 Update — Sovereign Workspace & Zero-Slop UX Overhaul
+
+- **Onboarding 1-Passo & Hub LLM:** `LlmOnboardingModal` e `LlmProvidersPanel` integrados ao cofre `safeStorage` e descoberta local/CLI/ENV.
+- **Ground-Truth STANDBY_READY:** Zero telemetria sintética na inicialização; contadores reais de agentes e notas SQLite.
+- **Visão B Grid 3 Zonas & Mini-CLI Híbrida:** Sidebar esquerda (`AGENTS`, `SECOND_BRAIN`, `LLM_HUB`, `FIREWALL`), Viewport 3D central e Inspetor Direito (`paddingTop: 40px`).
+- **Controles Soberanos de 1 Clique & Leitor Real RAG:** Hot-swap de modelo, injeção de nota RAG, gate `[ APROVAR ]` / `[ REVERTER ]` e leitor Markdown via `kalinar:read_second_brain_note`.

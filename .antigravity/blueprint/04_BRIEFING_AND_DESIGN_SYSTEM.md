@@ -154,3 +154,12 @@ All KALINAR UI primitives follow React 19 direct ref/prop composition (zero `Rea
   - `data-slot="command-palette-input"`: Tactical directive and filter input supporting direct `@agent-*` dispatch and `rag <query>`.
   - `data-slot="command-palette-models"`: 4-column Argon / Claude / Gemini Pro / Gemini Flash hot-swap strip.
   - `data-slot="command-palette-list"`: Keyboard-navigable (`ArrowUp` / `ArrowDown` / `Enter` / `Escape`) action list.
+
+
+---
+
+## v2.2.0 Update — Vision B Design System Tokens
+
+- **Superfícies:** `#000000` (Pure Void) e `#07080A` (Solid Obsidian) com bordas `1px solid #1F232E` e remoção de `mix-blend-mode: plus-lighter` do Inspetor Direito para contraste WCAG AAA contínuo.
+- **Safe-Area Windows:** `padding-top: 40px` no Inspetor Direito (`vision-b-right-inspector`) e `top: 40px` na pílula central para clearance dos controles nativos `_ □ ×` (32px).
+- **Zero Emojis:** Tags ASCII exclusivas (`[TROCAR MODELO]`, `[INJETAR NOTA RAG]`, `[REVISAR DIFF]`, `[APROVAR]`, `[REVERTER]`, `[ONLINE]`, `[OFFLINE]`).

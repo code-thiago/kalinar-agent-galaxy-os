@@ -54,6 +54,35 @@ export interface VisionBWorkspaceSlice {
   killActiveCliProcess: () => Promise<void>;
 }
 
+export interface SovereignControlsSlice {
+  activeNoteReader: ActiveNoteReaderState | null;
+  activeDiffInspector: ActiveDiffInspectorState | null;
+  modelHotSwapTargetAgentId: string | null;
+  openSecondBrainNoteReader: (relativePath: string, title?: string) => Promise<void>;
+  closeSecondBrainNoteReader: () => void;
+  openAgentDiffInspector: (agentId: string) => Promise<void>;
+  executeDiffGateDecision: (agentId: string, decision: 'APPROVE' | 'REVERT') => Promise<void>;
+  hotSwapAgentModel: (agentId: string, newModelId: string) => Promise<void>;
+  injectNoteIntoAgentContext: (agentId: string, noteRelativePath: string) => Promise<void>;
+}
+
+export interface ActiveNoteReaderState {
+  relativePath: string;
+  title: string;
+  content: string;
+  isLoading: boolean;
+  error?: string;
+}
+
+export interface ActiveDiffInspectorState {
+  agentId: string;
+  filePath: string;
+  diffLines: string[];
+  isLoading: boolean;
+  decisionStatus: 'PENDING' | 'APPROVED' | 'REVERTED';
+  error?: string;
+}
+
 export type SystemGroundTruthState = 'STANDBY_READY' | 'ACTIVE_EXECUTION' | 'HALTED';
 
 export interface CommandLogEntry {
@@ -233,7 +262,7 @@ function createInitialStandbySnapshot(): {
   };
 }
 
-interface KalinarStoreState extends VisionBWorkspaceSlice {
+interface KalinarStoreState extends VisionBWorkspaceSlice, SovereignControlsSlice {
   systemState: SystemGroundTruthState;
   activeAgentsCount: number;
   sessionTokens: number;
@@ -328,6 +357,9 @@ export const useKalinarStore = create<KalinarStoreState>((set, get) => ({
   activeLocalModels: [],
   isDiscoveringLlms: false,
   hasAnyConfiguredEngine: false,
+  activeNoteReader: null,
+  activeDiffInspector: null,
+  modelHotSwapTargetAgentId: null,
 
   setActiveSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
   toggleLeftSidebar: () =>
@@ -336,6 +368,268 @@ export const useKalinarStore = create<KalinarStoreState>((set, get) => ({
     set((state) => ({ isRightInspectorCollapsed: !state.isRightInspectorCollapsed })),
   dismissOnboarding: () => set({ isOnboardingDismissed: true }),
   selectNote: (selectedNoteId) => set({ selectedNoteId }),
+  closeSecondBrainNoteReader: () => set({ activeNoteReader: null }),
+
+  openSecondBrainNoteReader: async (relativePath, title) => {
+    set({
+      activeDiffInspector: null,
+      activeNoteReader: {
+        relativePath,
+        title: title || relativePath,
+        content: '',
+        isLoading: true,
+      },
+    });
+    const bridge = getKalinarBridge();
+    if (!bridge || typeof bridge.readSecondBrainNote !== 'function') {
+      set({
+        activeNoteReader: {
+          relativePath,
+          title: title || relativePath,
+          content: '',
+          isLoading: false,
+          error: '[IPC_UNAVAILABLE] readSecondBrainNote indisponivel.',
+        },
+      });
+      return;
+    }
+    try {
+      const res = await bridge.readSecondBrainNote({ relativePath });
+      if (!res || res.ok === false) {
+        set({
+          activeNoteReader: {
+            relativePath,
+            title: title || relativePath,
+            content: '',
+            isLoading: false,
+            error: res?.error || 'READ_FAILED',
+          },
+        });
+        return;
+      }
+      set({
+        activeNoteReader: {
+          relativePath: res.relativePath || relativePath,
+          title: res.title || title || relativePath,
+          content: res.content || '',
+          isLoading: false,
+        },
+      });
+    } catch (err: unknown) {
+      set({
+        activeNoteReader: {
+          relativePath,
+          title: title || relativePath,
+          content: '',
+          isLoading: false,
+          error: err instanceof Error ? err.message : 'READ_ERROR',
+        },
+      });
+    }
+  },
+
+  openAgentDiffInspector: async (agentId) => {
+    const agent = get().agents.find((a) => matchesAgentId(a, agentId));
+    const match = (agent?.livePreviewStream || '').match(/@@[^\n]*@@\s+([^\s\r\n]+)/);
+    const filePath = match && match[1] ? match[1].trim() : 'src/core/ZenFirewall.ts';
+
+    set({
+      selectedAgentId: agent?.id || agentId,
+      activeNoteReader: null,
+      activeDiffInspector: {
+        agentId: agent?.id || agentId,
+        filePath,
+        diffLines: [],
+        isLoading: true,
+        decisionStatus: 'PENDING',
+      },
+    });
+
+    const bridge = getKalinarBridge();
+    if (!bridge || typeof bridge.getLiveGitDiff !== 'function') {
+      set({
+        activeDiffInspector: {
+          agentId: agent?.id || agentId,
+          filePath,
+          diffLines: [],
+          isLoading: false,
+          decisionStatus: 'PENDING',
+          error: '[IPC_UNAVAILABLE] getLiveGitDiff indisponivel.',
+        },
+      });
+      return;
+    }
+
+    try {
+      const res = await bridge.getLiveGitDiff({ filePath, agentId: agent?.id || agentId });
+      const rawLines: string[] = Array.isArray(res?.lines)
+        ? res.lines.map((l: any) => (typeof l === 'string' ? l : String(l?.content ?? '')))
+        : typeof res?.rawDiff === 'string' && res.rawDiff.trim().length > 0
+        ? res.rawDiff.split(/\r?\n/)
+        : [];
+      set({
+        activeDiffInspector: {
+          agentId: agent?.id || agentId,
+          filePath: res?.filePath || filePath,
+          diffLines: rawLines.filter((l) => l.length > 0),
+          isLoading: false,
+          decisionStatus: 'PENDING',
+          ...(res?.error ? { error: String(res.error) } : {}),
+        },
+      });
+    } catch (err: unknown) {
+      set({
+        activeDiffInspector: {
+          agentId: agent?.id || agentId,
+          filePath,
+          diffLines: [],
+          isLoading: false,
+          decisionStatus: 'PENDING',
+          error: err instanceof Error ? err.message : 'DIFF_LOAD_FAILED',
+        },
+      });
+    }
+  },
+
+  executeDiffGateDecision: async (agentId, decision) => {
+    const current = get().activeDiffInspector;
+    const filePath = current?.filePath || 'src/core/ZenFirewall.ts';
+    const bridge = getKalinarBridge();
+
+    if (bridge && typeof bridge.approveOrRevertDiff === 'function') {
+      try {
+        await bridge.approveOrRevertDiff({
+          filePath,
+          action: decision,
+          agentId,
+        });
+      } catch (err: unknown) {
+        set((state) => ({
+          activeDiffInspector: state.activeDiffInspector
+            ? {
+                ...state.activeDiffInspector,
+                error: err instanceof Error ? err.message : 'GATE_DECISION_ERROR',
+              }
+            : null,
+        }));
+        return;
+      }
+    }
+
+    set((state) => {
+      const nextStatus: AgentStatus = decision === 'APPROVE' ? '[VERIFIED]' : '[WARN]';
+      const nextAgents = state.agents.map((a) =>
+        matchesAgentId(a, agentId) ? { ...a, status: nextStatus } : a
+      );
+      return {
+        agents: nextAgents,
+        synapticBeams: buildActiveSynapticBeams(nextAgents),
+        activeDiffInspector: state.activeDiffInspector
+          ? {
+              ...state.activeDiffInspector,
+              decisionStatus: decision === 'APPROVE' ? 'APPROVED' : 'REVERTED',
+            }
+          : null,
+        ...deriveGroundTruthMetrics(nextAgents, state.singularity),
+      };
+    });
+  },
+
+  hotSwapAgentModel: async (agentId, newModelId) => {
+    const bridge = getKalinarBridge();
+    if (bridge && typeof bridge.switchLlmModel === 'function') {
+      try {
+        await bridge.switchLlmModel({
+          agentId,
+          targetModel: newModelId,
+          taskId: 'SOVEREIGN_1CLICK_HOTSWAP',
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'HOTSWAP_FAILED';
+        set((state) => ({
+          commandLogs: [
+            {
+              id: `hotswap-err-${Date.now()}`,
+              taskId: 'SYSTEM',
+              eventType: 'MODEL_HOTSWAP_ERROR',
+              agentName: agentId,
+              payload: JSON.stringify({ error: msg, targetModel: newModelId }),
+              latencyMs: 0,
+              timestamp: new Date().toISOString(),
+            },
+            ...state.commandLogs,
+          ].slice(0, 100),
+        }));
+        return;
+      }
+    }
+
+    set((state) => ({
+      modelHotSwapTargetAgentId: null,
+      agents: state.agents.map((a) =>
+        matchesAgentId(a, agentId)
+          ? { ...a, activeModelId: newModelId, lastAckBadge: '[MODEL_HOTSWAP]' }
+          : a
+      ),
+    }));
+  },
+
+  injectNoteIntoAgentContext: async (agentId, noteRelativePath) => {
+    const note = get().secondBrainNotes.find(
+      (n) =>
+        n.filePath === noteRelativePath ||
+        n.id === noteRelativePath ||
+        n.wikilink === noteRelativePath
+    );
+    const bridge = getKalinarBridge();
+    if (bridge && typeof bridge.injectSecondBrainNote === 'function') {
+      try {
+        await bridge.injectSecondBrainNote({
+          title: note?.title || noteRelativePath,
+          domain: note?.domain || '02_PADROES',
+          tags: note?.tags || ['rag'],
+          content: note?.excerpt || note?.content || `Injected context: ${noteRelativePath}`,
+          filePath: note?.filePath || noteRelativePath,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'RAG_INJECT_FAILED';
+        set((state) => ({
+          commandLogs: [
+            {
+              id: `rag-err-${Date.now()}`,
+              taskId: 'SYSTEM',
+              eventType: 'RAG_INJECT_ERROR',
+              agentName: agentId,
+              payload: JSON.stringify({ error: msg, noteRelativePath }),
+              latencyMs: 0,
+              timestamp: new Date().toISOString(),
+            },
+            ...state.commandLogs,
+          ].slice(0, 100),
+        }));
+        return;
+      }
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      typeof (window as any).__triggerGravitationalRAG === 'function'
+    ) {
+      const targetAgent = get().agents.find((a) => matchesAgentId(a, agentId));
+      (window as any).__triggerGravitationalRAG(targetAgent?.position3D || [120, 80, 0]);
+    }
+
+    set((state) => ({
+      agents: state.agents.map((a) =>
+        matchesAgentId(a, agentId)
+          ? {
+              ...a,
+              lastAckBadge: '[ACK_DISPATCHED]',
+            }
+          : a
+      ),
+    }));
+  },
 
   refreshLlmDiscovery: async () => {
     const bridge = getKalinarBridge();
@@ -832,6 +1126,9 @@ export const useKalinarStore = create<KalinarStoreState>((set, get) => ({
       activeLocalModels: [],
       isDiscoveringLlms: false,
       hasAnyConfiguredEngine: false,
+      activeNoteReader: null,
+      activeDiffInspector: null,
+      modelHotSwapTargetAgentId: null,
     }),
 
   setAgentModel: (agentId, activeModelId, lastAckBadge) =>

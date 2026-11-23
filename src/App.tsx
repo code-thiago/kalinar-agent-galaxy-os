@@ -40,6 +40,7 @@ export function App() {
     toggleCommandPalette,
     toggleInspectorDrawer,
     selectNote,
+    openSecondBrainNoteReader,
     updateSingularityTranscript,
   } = useKalinarStore();
 
@@ -91,8 +92,11 @@ export function App() {
     }
   }, [updateSingularityTranscript]);
 
-  const handleNoteSelect = (noteId: string) => {
+  const handleNoteSelect = (noteId: string, filePath?: string, title?: string) => {
     selectNote(noteId);
+    if (filePath) {
+      void openSecondBrainNoteReader(filePath, title);
+    }
     if (typeof window !== 'undefined' && typeof (window as any).__triggerGravitationalRAG === 'function') {
       (window as any).__triggerGravitationalRAG([120, 80, 0]);
     }
@@ -301,7 +305,7 @@ export function App() {
                       <button
                         key={note.id}
                         type="button"
-                        onClick={() => handleNoteSelect(note.id)}
+                        onClick={() => handleNoteSelect(note.id, note.filePath, note.title)}
                         style={{
                           textAlign: 'left',
                           padding: '8px',
